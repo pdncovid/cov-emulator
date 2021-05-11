@@ -1,8 +1,10 @@
 import numpy as np
+from numba import njit
+
 
 class MovementEngine:
-    vx_cap = 10
-    vy_cap = 10
+    vx_cap = 1
+    vy_cap = 1
 
     @staticmethod
     def random_move(p, args):

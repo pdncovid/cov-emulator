@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pandas as pd
 import seaborn as sns
+from numba import jit, njit
 
 from functions import bs
 from Point import Point
@@ -18,16 +19,16 @@ Infection using contagious areas
 containment - moving positive patients to confined area and isolation
 """
 iterations = 1000
-default_pop = 1000
+default_pop = 10000
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
 parser.add_argument('-n', help='target population', default=default_pop)
-parser.add_argument('-H', help='height', type=int, default=320)
-parser.add_argument('-W', help='width', type=int, default=320)
-parser.add_argument('-i', help='initial infected', type=int, default=5)
+parser.add_argument('-H', help='height', type=int, default=200)
+parser.add_argument('-W', help='width', type=int, default=200)
+parser.add_argument('-i', help='initial infected', type=int, default=50)
 
 parser.add_argument('--infect_r', help='infection radius', type=float, default=5.0)
-parser.add_argument('--beta', help='transmission probability', type=float, default=0.3)
-parser.add_argument('--gamma', help='recovery rate', type=float, default=0.01)
+parser.add_argument('--beta', help='transmission probability', type=float, default=0.5)
+parser.add_argument('--gamma', help='recovery rate', type=float, default=1 / 14 / 60)
 parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
 parser.add_argument('--containment',
@@ -81,6 +82,8 @@ def initialize():
 
 
 def init_figure(points, test_centers):
+    h, w = args.H, args.W
+
     fig = plt.figure(1)
     x, y = [p.x for p in points], [p.y for p in points]
     sc = plt.scatter(x, y)
@@ -88,20 +91,32 @@ def init_figure(points, test_centers):
     for test in test_centers:
         circle = plt.Circle((test.x, test.y), test.r, color='b', fill=False)
         ax.add_patch(circle)
-    plt.xlim(-args.W, args.W)
-    plt.ylim(-args.H, args.H)
+
+    res = 20
+    xx, yy = np.meshgrid(np.linspace(-h, h, res), np.linspace(-w, w, res))
+    zz = np.zeros_like(xx)
+    dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
+    for p in points:
+        if p.state == 1:
+            zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1
+    # zz = zz[:-1, :-1]
+    hm = ax.pcolormesh(xx, yy, zz, cmap='Reds', shading='auto', alpha=0.5)
+    fig.colorbar(hm, ax=ax)
+
+    plt.xlim(-w, w)
+    plt.ylim(-h, h)
     plt.draw()
-    return fig, ax, sc
+    return fig, ax, sc, hm
 
 
-def update_figure(fig, ax, sc, points, test_centers):
+def update_figure(fig, ax, sc, hm, points, test_centers):
+    h, w = args.H, args.W
+
     x, y = [p.x for p in points], [p.y for p in points]
     s = np.array([p.state for p in points])
     s = (-s * 128 + 128)
     v = [(p.vx ** 2 + p.vy ** 2) ** 0.5 + 1 for p in points]
 
-    # n = mpl.colors.Normalize(vmin=min(s), vmax=max(s))
-    # m = mpl.cm.ScalarMappable( cmap=plt.get_cmap('brg'))
     sc.set_facecolor(plt.get_cmap('brg')(s))
     sc.set_clim(vmin=-1, vmax=1)
 
@@ -111,6 +126,22 @@ def update_figure(fig, ax, sc, points, test_centers):
 
     for i, test in enumerate(test_centers):
         ax.patches[i].center = test.x, test.y
+
+    res = 20
+    yy, xx = np.meshgrid(np.linspace(-h, h, res), np.linspace(-w, w, res))
+    zz = np.zeros_like(xx)
+    dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
+    for p in points:
+        if p.state == 1:
+            zz[int(p.y // dh) + res // 2,int(p.x // dw) + res // 2] += 1
+    # zz = zz[:-1, :-1]
+    hm.set_array(zz.ravel())
+
+    cbar = hm.colorbar
+    hm.set_clim(0, np.max(zz))
+    cbar_ticks = np.linspace(0., np.max(zz), num=10, endpoint=True)
+    cbar.set_ticks(cbar_ticks)
+    cbar.draw_all()
 
     fig.canvas.draw_idle()
     plt.pause(0.01)
@@ -122,7 +153,11 @@ def move_points(points):
 
 
 def disease_transmission(points, t):
-    x, y = [p.x for p in points], [p.y for p in points]
+    x, y = np.array([p.x for p in points]), np.array([p.y for p in points])
+    # change this to distance and do it
+
+    r = args.infect_r
+
     xs = np.sort(x)
     ys = np.sort(y)
     xs_idx = np.argsort(x)
@@ -133,7 +168,6 @@ def disease_transmission(points, t):
             continue
 
         # infect to closest points
-        r = args.infect_r
 
         x_idx_r = bs(xs, points[i].x + r)
         x_idx_l = bs(xs, points[i].x - r) + 1
@@ -144,7 +178,10 @@ def disease_transmission(points, t):
         close_points = np.intersect1d(xs_idx[x_idx_l:x_idx_r], ys_idx[y_idx_l:y_idx_r])
         for p_idx in close_points:
             if points[p_idx].state == 0:
-                points[p_idx].transmit_disease(points[i], args.beta, args.common_p, t)
+                d2 = (points[p_idx].x - points[i].x) ** 2 + (points[p_idx].y - points[i].y) ** 2
+                d = np.sqrt(d2)
+                if d < r:
+                    points[p_idx].transmit_disease(points[i], args.beta, args.common_p, d, t)
 
 
 def update_point_parameters(points):
@@ -235,11 +272,17 @@ def plot_info(fig, axs, points):
     daily_positive = cum_positive
     if len(ax.lines) == 0:
         ax.plot([cum_positive])
+        ax.plot([i])
     else:
         x, y = ax.lines[0].get_data()
         daily_positive = cum_positive - y[-1]
         x, y = np.append(x, len(x)), np.append(y, cum_positive)
         ax.lines[0].set_xdata(x), ax.lines[0].set_ydata(y)
+
+        x, y = ax.lines[1].get_data()
+        x, y = np.append(x, len(x)), np.append(y, i)
+        ax.lines[1].set_xdata(x), ax.lines[1].set_ydata(y)
+
         ax.set_xlim(0, len(x))
         ax.set_ylim(0, max(y) + 10)
         fig.canvas.draw(), fig.canvas.flush_events()
@@ -258,7 +301,7 @@ def plot_info(fig, axs, points):
 
 def main():
     points, test_centers = initialize()
-    fig, ax, sc = init_figure(points, test_centers)
+    fig, ax, sc, hm = init_figure(points, test_centers)
     fig2, axs = plt.subplots(2, 2)
 
     for i in range(iterations):
@@ -275,7 +318,7 @@ def main():
         if i % 10 == 0:
             plot_info(fig2, axs, points)
             testing_procedure(points, test_centers, i)
-        update_figure(fig, ax, sc, points, test_centers)
+        update_figure(fig, ax, sc, hm, points, test_centers)
 
 
 if __name__ == "__main__":

@@ -13,9 +13,12 @@ class TestCenter:
     def test(p, t, args):
         rnd = np.random.rand()
         if p.state == 1:
-            boost_by_infected_period = min(args.asymptotic_t, t - p.infected_time) / args.asymptotic_t
-            result = True if rnd < args.test_acc * boost_by_infected_period else False
+            if p.tested_positive_time > 0:
+                return
+            else:
+                boost_by_infected_period = min(args.asymptotic_t, t - p.infected_time) / args.asymptotic_t
+                result = True if rnd < args.test_acc * boost_by_infected_period else False
         else:
-            result = True if rnd > args.test_acc else False
+            result = False  # True if rnd > args.test_acc else False
         if result:
             p.tested_positive_time = t

@@ -1,4 +1,8 @@
 import numpy as np
+
+from backend.python.enums import State
+
+
 class TestCenter:
 
     def __init__(self, x, y, r):
@@ -12,7 +16,7 @@ class TestCenter:
     @staticmethod
     def test(p, t, args):
         rnd = np.random.rand()
-        if p.state == 1:
+        if p.state == State.INFECTED.value:
             if p.tested_positive_time > 0:
                 return
             else:

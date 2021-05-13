@@ -7,38 +7,73 @@ class MovementEngine:
     vy_cap = 1
 
     @staticmethod
-    def random_move(p, args):
+    def find_lcp_location(point):
+        lc = point.get_current_location()
+        ln = point.get_next_location()
+
+        dc, dn = lc.depth, ln.depth
+
+        while lc.parent_location != ln.parent_location:
+            if dc > dn:
+                dn -= 1
+                ln = ln.parent_location
+            else:
+                dc -= 1
+                lc = lc.parent_location
+        return lc
+
+    @staticmethod
+    def find_next_location(point):
+        lc = point.get_current_location()
+        ln = point.get_next_location()
+        if lc == ln:
+            return ln
+
+        dc, dn = lc.depth, ln.depth
+
+        while dc != dn:
+            if dc < dn:
+                dn -= 1
+                ln = ln.parent_location
+            else:
+                dc -= 1
+                lc = lc.parent_location
+        if lc == ln:  # same line
+            if point.get_current_location().depth > lc.depth:
+                return point.get_current_location().parent_location
+            ln = point.get_next_location()
+            while ln.depth != point.get_current_location().depth + 1:
+                ln = ln.parent_location
+            return ln
+        if lc.parent_location == ln.parent_location:
+            return ln
+
+        return lc.parent_location
+
+    @staticmethod
+    def random_move(location, p):
         p.x += p.vx
+        p.y += p.vy
+
+        if not location.is_inside(p.x, p.y):
+            MovementEngine.move_towards(p, location.exit[0], location.exit[1])
+
         p.vx += np.random.rand() * 2 - 1
         p.vx = min(p.vx, MovementEngine.vx_cap)
         p.vx = max(p.vx, -MovementEngine.vx_cap)
-
-        p.y += p.vy
         p.vy += np.random.rand() * 2 - 1
         p.vy = min(p.vy, MovementEngine.vy_cap)
         p.vy = max(p.vy, -MovementEngine.vy_cap)
 
-        if p.y < -args.H:
-            p.y = -args.H
-            p.vy *= -1
-        if p.y > args.H:
-            p.y = args.H
-            p.vy *= -1
+    @staticmethod
+    def move_towards(p, x, y):
+        p.x += (x - p.x) / 10
+        p.y += (y - p.y) / 10
 
-        if p.x < -args.W:
-            p.x = -args.W
-            p.vx *= -1
-        if p.x > args.W:
-            p.x = args.W
-            p.vx *= -1
 
     @staticmethod
-    def move(p, args):
-        if args.mobility == 0:  # Random walk with acceleration
-            MovementEngine.random_move(p, args)
-            MovementEngine.containment(p, args)
-        elif args.mobility == 1:  # Brownian motion
-            pass
+    def is_close(p, x, y, eps):
+        return (p.x - x) ** 2 + (p.y - y) ** 2 < eps
 
     @staticmethod
     def containment(p, args):

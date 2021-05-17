@@ -5,17 +5,7 @@ from backend.python.location.Location import Location
 from backend.python.transport.Transport import Transport
 
 
-def get_transmission_p(beta, d, infected_duration):
-    # 0 - 1
-    def distance_f(d):
-        return np.exp(-d / 5)
 
-    def duration_f(dt):
-        return np.exp(-abs(np.random.normal(7, 2) - dt))
-
-    dp = distance_f(d)
-    tp = duration_f(infected_duration)
-    return beta * dp * tp ** 0.3
 
 
 class Point:
@@ -47,6 +37,17 @@ class Point:
         self.temp = 0  # temperature of the point
         self.update_temp(0.0)
 
+    def set_random_route(self, leaves, t):
+        if len(self.route) != 0:
+            self.route[self.current_location].remove_point(self)
+
+        route = [leaves[np.random.randint(0, len(leaves))] for _ in range(np.random.randint(2, 5))]
+        duration = [np.random.randint(10, 200) for _ in range(len(route))]
+        self.x = route[0].x + np.random.normal(0, 10)
+        self.y = route[0].y + np.random.normal(0, 10)
+        route[0].add_point(self, t)
+        self.set_route(route, duration)
+
     def set_route(self, route, duration):
         assert len(route) == len(duration)
         self.route = route
@@ -71,14 +72,16 @@ class Point:
     def set_susceptible(self):
         self.state = State.SUSCEPTIBLE.value
 
-    def transmit_disease(self, point, beta, common_p, d, t):
-        rnd = np.random.rand()
-        infected_duration = t - point.infected_time
-        tr_p =get_transmission_p(beta, d, infected_duration)
-        if rnd < tr_p:
-            self.set_infected(t, point, common_p)
-            return True
-        return False
+    # def transmit_disease(self, points, beta, common_p, d, t):
+    #     c = 0
+    #     infected_duration = t - self.infected_time
+    #     for i in range(len(points)):
+    #         tr_p = get_transmission_p(beta, d[i], infected_duration)
+    #         rnd = np.random.rand()
+    #         if rnd < tr_p:
+    #             points[i].set_infected(t, self, common_p)
+    #             c += 1
+    #     return c
 
     def update_temp(self, common_p):
         if self.state == State.INFECTED.value:

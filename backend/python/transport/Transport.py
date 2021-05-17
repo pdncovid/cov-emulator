@@ -11,7 +11,7 @@ class Transport():
     def move_point(self, location, point):
 
             if self.mobility == Mobility.RANDOM.value:
-                MovementEngine.random_move(location, point)
+                MovementEngine.random_move(location, point, self.vcap, self.vcap)
                 # MovementEngine.containment(p)
             elif self.mobility == Mobility.BROWNIAN.value:
                 pass

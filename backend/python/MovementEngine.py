@@ -1,10 +1,7 @@
 import numpy as np
-from numba import njit
 
 
 class MovementEngine:
-    vx_cap = 1
-    vy_cap = 1
 
     @staticmethod
     def find_lcp_location(point):
@@ -51,19 +48,23 @@ class MovementEngine:
         return lc.parent_location
 
     @staticmethod
-    def random_move(location, p):
+    def random_move(location, p, vx_cap, vy_cap):
         p.x += p.vx
         p.y += p.vy
 
         if not location.is_inside(p.x, p.y):
+            p.x -= p.vx
+            p.y -= p.vy
+            p.vx = -p.vx/2
+            p.vy = -p.vy/ 2
             MovementEngine.move_towards(p, location.exit[0], location.exit[1])
 
         p.vx += np.random.rand() * 2 - 1
-        p.vx = min(p.vx, MovementEngine.vx_cap)
-        p.vx = max(p.vx, -MovementEngine.vx_cap)
+        p.vx = min(p.vx, vx_cap)
+        p.vx = max(p.vx, -vx_cap)
         p.vy += np.random.rand() * 2 - 1
-        p.vy = min(p.vy, MovementEngine.vy_cap)
-        p.vy = max(p.vy, -MovementEngine.vy_cap)
+        p.vy = min(p.vy, vy_cap)
+        p.vy = max(p.vy, -vy_cap)
 
     @staticmethod
     def move_towards(p, x, y):

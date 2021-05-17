@@ -114,6 +114,10 @@ class Location:
         self.points.append(p)
         self.points_enter_time.append(t)
 
+    def remove_point(self, point):
+        idx = self.points.index(point)
+        self._remove_point(idx)
+
     def _remove_point(self, idx):
         self.points.pop(idx)
         self.points_enter_time.pop(idx)

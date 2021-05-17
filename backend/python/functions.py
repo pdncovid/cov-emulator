@@ -1,8 +1,9 @@
+from numba import njit
+
 INT_MAX = 10000000000
 
-from numba import jit, njit
 
-# @njit
+@njit
 def bs(arr, v):
     l, r = 0, len(arr)
     while r - l > 0:
@@ -33,17 +34,14 @@ def onSegment(p: tuple, q: tuple, r: tuple) -> bool:
 # 1 --> Clockwise
 # 2 --> Counterclockwise
 def orientation(p: tuple, q: tuple, r: tuple) -> int:
-    val = (((q[1] - p[1]) *
-            (r[0] - q[0])) -
-           ((q[0] - p[0]) *
-            (r[1] - q[1])))
+    val = (((q[1] - p[1]) * (r[0] - q[0])) - ((q[0] - p[0]) * (r[1] - q[1])))
 
     if val == 0:
         return 0
     if val > 0:
-        return 1  # Collinear
+        return 1
     else:
-        return 2  # Clock or counterclock
+        return 2
 
 
 def doIntersect(p1, q1, p2, q2):

@@ -59,7 +59,7 @@ class TransmissionEngine:
         for i in validsourceid:
             infected_duration.append(t - points[i].infected_time)
         infected_duration = np.array(infected_duration)
-        tr_p = TransmissionEngine.get_transmission_p(beta, distance[valid], infected_duration)
+        tr_p = TransmissionEngine.get_transmission_p(beta, distance[valid], infected_duration, contacts[valid])
         rand = np.random.rand(len(valid))
 
         c = 0
@@ -70,15 +70,21 @@ class TransmissionEngine:
         return c
 
     @staticmethod
-    def get_transmission_p(beta, ds, infected_durations):
+    def get_transmission_p(beta, ds, infected_durations, contacts):
         # 0 - 1
         def distance_f(d):
             return np.exp(-d / 5)
 
         def duration_f(dt):
-            return (np.tanh(dt-5)+0.2)*(np.tanh(-dt+8)+0.5)
+            return ((np.tanh(dt - 5) + 0.2) * (np.tanh(-dt + 8) + 0.5) + 1.19987) / 2.6683940
             # return np.exp(-abs(np.random.normal(7, 2, len(dt)) - dt))
+
+        def count_f(c):
+            c[c > 10] = 10
+            c = c / 20 + 0.5
+            return c + (1 - c) ** 2
 
         dp = distance_f(ds)
         tp = duration_f(infected_durations)
-        return beta * dp * tp
+        cp = count_f(contacts)
+        return beta * dp * tp * cp

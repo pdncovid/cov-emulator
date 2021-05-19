@@ -14,8 +14,9 @@ class TestCenter:
         self.vx = 0
         self.vy = 0
 
-    @staticmethod
-    def test(p, t, args):
+        self.max_tests = 1000
+
+    def test(self, p, t, args):
         rnd = np.random.rand()
         if p.state == State.INFECTED.value:
             if p.tested_positive_time > 0:

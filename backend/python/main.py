@@ -177,6 +177,7 @@ def testing_procedure(points, test_centers, t):
     ys = y[ys_idx]
 
     test_subjects = set()
+    tested_on = np.zeros((len(points)), dtype=int)
 
     for i in range(len(test_centers)):  # iterate through test centers
 
@@ -191,8 +192,13 @@ def testing_procedure(points, test_centers, t):
         close_points = np.intersect1d(xs_idx[x_idx_l:x_idx_r], ys_idx[y_idx_l:y_idx_r])
         for close_point in close_points:
             test_subjects.add(close_point)
+            tested_on[close_point] = i
+    test_count = np.zeros(len(test_centers), dtype=int)
     for p_idx in test_subjects:
-        TestCenter.test(points[p_idx], t, args)
+        if test_count[tested_on[p_idx]] >= test_centers[tested_on[p_idx]].max_tests:
+            continue
+        test_centers[tested_on[p_idx]].test(points[p_idx], t, args)
+        test_count[tested_on[p_idx]] += 1
 
 
 iterations = 1000
@@ -200,6 +206,7 @@ testing_freq = 10
 test_center_spawn_check_freq = 10
 test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
+
 
 def main():
     PLOT = True

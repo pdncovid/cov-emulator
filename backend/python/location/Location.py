@@ -32,6 +32,9 @@ class Location:
         self.override_transport: Transport = None
         self.name = name
 
+    def get_suggested_waiting_duration(self,point):
+        raise NotImplementedError()
+
     def add_sub_location(self, location):
         location.parent_location = self
         location.depth = self.depth + 1

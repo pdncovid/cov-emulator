@@ -9,10 +9,10 @@ from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import init_figure, update_figure, plot_info
 from backend.python.enums import Mobility, Shape, State, TestSpawn
 from backend.python.functions import bs
-from backend.python.location.Country import Country
-from backend.python.location.District import District
+from backend.python.location.Town import Town
+from backend.python.location.Building import Building
 from backend.python.location.Location import Location
-from backend.python.location.Province import Province
+from backend.python.location.Institute import Institute
 from backend.python.point.Point import Point
 from backend.python.MovementEngine import MovementEngine
 from backend.python.TestCenter import TestCenter
@@ -55,21 +55,21 @@ args = parser.parse_args()
 
 def initialize_graph():
     vertex_data = [
-        {'x': 0, 'y': 0, 'vcap': 8, 'exitx': 0, 'exity': 0, 'name': 'Sri Lanka',
+        {'x': 0, 'y': 0, 'vcap': 8, 'exitx': 0, 'exity': 0, 'name': 'Kandy',
          'type': Shape.POLYGON.value, 'b': [(-100, -100), (100, -100), (100, 100), (-100, 100)],
-         'class': Country},
-        {'x': -70, 'y': -50, 'vcap': 8, 'exitx': -70, 'exity': -50, 'name': 'Western',
-         'type': Shape.CIRCLE.value, 'r': 30, 'class': Province},
-        {'x': 80, 'y': -10, 'vcap': 5, 'exitx': 70, 'exity': -5, 'name': 'Eastern',
-         'type': Shape.CIRCLE.value, 'r': 20, 'class': Province},
-        {'x': 10, 'y': 70, 'vcap': 10, 'exitx': 0, 'exity': 60, 'name': 'North',
-         'type': Shape.CIRCLE.value, 'r': 20, 'class': Province},
-        {'x': 0, 'y': 0, 'vcap': 4, 'exitx': -5, 'exity': -5, 'name': 'Central',
-         'type': Shape.CIRCLE.value, 'r': 25, 'class': Province},
-        {'x': -90, 'y': -50, 'vcap': 40, 'exitx': -90, 'exity': -40, 'name': 'Colombo',
-         'type': Shape.CIRCLE.value, 'r': 10, 'class': District},
-        {'x': -55, 'y': -35, 'vcap': 4, 'exitx': -60, 'exity': -40, 'name': 'Gampaha',
-         'type': Shape.POLYGON.value, 'b': [(-70, -20), (-80, -80), (-60, -50)], 'class': District},
+         'class': Town},
+        {'x': -70, 'y': -50, 'vcap': 8, 'exitx': -70, 'exity': -50, 'name': 'Residential',
+         'type': Shape.CIRCLE.value, 'r': 30, 'class': Institute},
+        {'x': 80, 'y': -10, 'vcap': 5, 'exitx': 70, 'exity': -5, 'name': 'Teaching',
+         'type': Shape.CIRCLE.value, 'r': 20, 'class': Institute},
+        {'x': 10, 'y': 70, 'vcap': 10, 'exitx': 0, 'exity': 60, 'name': 'Commercial-1',
+         'type': Shape.CIRCLE.value, 'r': 20, 'class': Institute},
+        {'x': 0, 'y': 0, 'vcap': 4, 'exitx': -5, 'exity': -5, 'name': 'Commercial-2',
+         'type': Shape.CIRCLE.value, 'r': 25, 'class': Institute},
+        {'x': -90, 'y': -50, 'vcap': 40, 'exitx': -90, 'exity': -40, 'name': 'H1',
+         'type': Shape.CIRCLE.value, 'r': 10, 'class': Building},
+        {'x': -55, 'y': -35, 'vcap': 4, 'exitx': -60, 'exity': -40, 'name': 'H2',
+         'type': Shape.POLYGON.value, 'b': [(-70, -20), (-80, -80), (-60, -50)], 'class': Building},
 
     ]
 

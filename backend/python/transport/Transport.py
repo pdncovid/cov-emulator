@@ -7,6 +7,19 @@ class Transport():
         self.vcap = velocity_cap
         self.mobility = mobility_pattern
 
+        self.points = []
+        self.points_label = []
+        self.points_enter_time = []
+        self.points_destination = []
+
+    def add_point_to_transport(self, point, target_location, t):
+        self.points.append(point)
+        self.points_enter_time.append(t)
+        self.points_destination.append(target_location)
+        self.points_label.append(self.get_point_label(point))
+
+    def get_point_label(self, point):
+        raise NotImplementedError()
 
     def move_point(self, location, point):
 

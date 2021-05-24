@@ -60,12 +60,16 @@ class TransmissionEngine:
             infected_duration.append(t - points[i].infected_time)
         infected_duration = np.array(infected_duration)
         tr_p = TransmissionEngine.get_transmission_p(beta, distance[valid], infected_duration, contacts[valid])
+
         rand = np.random.rand(len(valid))
 
         c = 0
         for i in range(len(valid)):
-            if rand[i] < tr_p[i]:
-                points[valid[i]].set_infected(t, points[sourceid[valid[i]]], common_p)
+            contact_person = points[valid[i]]
+            infected_person = points[sourceid[valid[i]]]
+            trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
+            if rand[i] < tr_p[i]*trans_p:
+                contact_person.set_infected(t, infected_person, common_p)
                 c += 1
         return c
 
@@ -88,3 +92,15 @@ class TransmissionEngine:
         tp = duration_f(infected_durations)
         cp = count_f(contacts)
         return beta * dp * tp * cp
+
+    @staticmethod
+    def get_transport_transmission_p(p1, p2):
+        if p1.current_trans != p1.current_trans:
+            return 0
+        p1_idx = p1.current_trans.points.index(p1)
+        p2_idx = p2.current_trans.points.index(p2)
+        if p1_idx == -1 or p2_idx == -1:
+            return 0
+        if p1.current_trans.points_label[p1_idx] != p2.current_trans.points_label[p2_idx]:
+            return 0
+        return p1.current_trans.get_in_transport_transmission_p()

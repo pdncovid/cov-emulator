@@ -13,10 +13,12 @@ from backend.python.location.Town import Town
 from backend.python.location.Building import Building
 from backend.python.location.Location import Location
 from backend.python.location.Institute import Institute
-from backend.python.point.Point import Point
+from backend.python.point.Person import Person
 from backend.python.MovementEngine import MovementEngine
 from backend.python.TestCenter import TestCenter
+from backend.python.transport.Bus import Bus
 from backend.python.transport.Transport import Transport
+from backend.python.transport.Walk import Walk
 
 """
 TODO: 
@@ -26,10 +28,10 @@ Infection using contagious areas
 containment - moving positive patients to confined area and isolation
 """
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-parser.add_argument('-n', help='target population', default=10000)
+parser.add_argument('-n', help='target population', default=1000)
 parser.add_argument('-H', help='height', type=int, default=102)
 parser.add_argument('-W', help='width', type=int, default=102)
-parser.add_argument('-i', help='initial infected', type=int, default=5)
+parser.add_argument('-i', help='initial infected', type=int, default=10)
 
 parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
 parser.add_argument('--beta', help='transmission probability', type=float, default=0.1)
@@ -58,17 +60,17 @@ def initialize_graph():
         {'x': 0, 'y': 0, 'vcap': 8, 'exitx': 0, 'exity': 0, 'name': 'Kandy',
          'type': Shape.POLYGON.value, 'b': [(-100, -100), (100, -100), (100, 100), (-100, 100)],
          'class': Town},
-        {'x': -70, 'y': -50, 'vcap': 8, 'exitx': -70, 'exity': -50, 'name': 'Residential',
+        {'x': -70, 'y': -50, 'vcap': 4, 'exitx': -45, 'exity': -50, 'name': 'R',
          'type': Shape.CIRCLE.value, 'r': 30, 'class': Institute},
-        {'x': 80, 'y': -10, 'vcap': 5, 'exitx': 70, 'exity': -5, 'name': 'Teaching',
+        {'x': 80, 'y': -10, 'vcap': 1, 'exitx': 70, 'exity': -5, 'name': 'T',
          'type': Shape.CIRCLE.value, 'r': 20, 'class': Institute},
-        {'x': 10, 'y': 70, 'vcap': 10, 'exitx': 0, 'exity': 60, 'name': 'Commercial-1',
+        {'x': 10, 'y': 70, 'vcap': 1, 'exitx': 0, 'exity': 60, 'name': 'C1',
          'type': Shape.CIRCLE.value, 'r': 20, 'class': Institute},
-        {'x': 0, 'y': 0, 'vcap': 4, 'exitx': -5, 'exity': -5, 'name': 'Commercial-2',
+        {'x': 0, 'y': 0, 'vcap': 1, 'exitx': -5, 'exity': -5, 'name': 'C2',
          'type': Shape.CIRCLE.value, 'r': 25, 'class': Institute},
-        {'x': -90, 'y': -50, 'vcap': 40, 'exitx': -90, 'exity': -40, 'name': 'H1',
+        {'x': -90, 'y': -50, 'vcap': 1, 'exitx': -85, 'exity': -40, 'name': 'H1',
          'type': Shape.CIRCLE.value, 'r': 10, 'class': Building},
-        {'x': -55, 'y': -35, 'vcap': 4, 'exitx': -60, 'exity': -40, 'name': 'H2',
+        {'x': -55, 'y': -35, 'vcap': 1, 'exitx': -0, 'exity': -0, 'name': 'H2',
          'type': Shape.POLYGON.value, 'b': [(-70, -20), (-80, -80), (-60, -50)], 'class': Building},
 
     ]
@@ -104,7 +106,7 @@ def initialize_graph():
     dfs(root)
 
     for leaf in leaves:
-        leaf.override_transport = Transport(vertex_data[leaf.ID]['vcap'], Mobility.RANDOM.value)
+        leaf.override_transport = Walk(vertex_data[leaf.ID]['vcap'], Mobility.RANDOM.value)
 
     return root, leaves
 
@@ -119,7 +121,7 @@ def initialize():
     # grid = [[[] for _ in range(w)] for _ in range(h)]
 
     if args.initialize == 0:  # Random
-        points = [Point(np.random.randint(-w, w), np.random.randint(-h, h)) for _ in range(n)]
+        points = [Person(np.random.randint(-w, w), np.random.randint(-h, h)) for _ in range(n)]
     elif args.initialize == 1:
         raise NotImplemented()
     elif args.initialize == 2:
@@ -133,11 +135,21 @@ def initialize():
 
     root, leaves = initialize_graph()
 
-    main_trans = [Transport(np.random.randint(1, 50), Mobility.RANDOM.value) for _ in range(5)]
+    walk = Walk(np.random.randint(1, 10), Mobility.RANDOM.value)
+    bus = Bus(np.random.randint(10, 20), Mobility.RANDOM.value)
+    main_trans = [walk, bus]
 
     for point in points:
         point.set_random_route(leaves, 0)
         point.main_trans = main_trans[np.random.randint(0, len(main_trans))]
+
+    # setting up bus routes
+    def dfs(rr: Location):
+        bus.initialize_locations(rr)
+        for child in rr.locations:
+            dfs(child)
+
+    dfs(root)
 
     return points, root
 
@@ -153,8 +165,8 @@ def disease_transmission(points, t):
     new_infected = TransmissionEngine.transmit_disease(points, contacts, distance, sourceid, args.beta, args.common_p,
                                                        t)
 
-    print(f"""{new_infected}/{sum(contacts > 0)}/{int(sum(contacts))}/{sum(state == State.INFECTED.value)} 
-    Infected/Unique/Contacts/Active""")
+    print(f"""{new_infected}/{sum(contacts > 0)}/{int(sum(contacts))}/{sum(
+        state == State.INFECTED.value)} Infected/Unique/Contacts/Active""")
 
 
 def update_point_parameters(points):
@@ -208,8 +220,20 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 
+def debug_people(points):
+    print(f"{'CL':>3} {'CLO':>10} {'CLD':>3} {'CT':>10} {'MT':>10} {'ROUTE'}")
+    for p in points:
+        cl = str(p.current_location)
+        clo = str(p.current_loc)
+        cld = str(p.duration_time[p.current_location])
+        ct = str(p.current_trans)
+        mt = str(p.main_trans)
+        print(f"{cl:>3} {clo:>10} {cld:>3} {ct:>10} {mt:>10} {p.route}")
+
+
 def main():
     PLOT = True
+    DEBUG = False
     points, root = initialize()
     test_centers = []
 
@@ -219,8 +243,10 @@ def main():
 
     for i in range(-5, iterations):
         print(f"Iteration: {i}")
+        if DEBUG:
+            debug_people(points)
 
-        root.process_point_movement(i)
+        root.process_people_movement(i)
         if i >= 0:  # for initialization
             disease_transmission(points, i)
             process_recovery(points)

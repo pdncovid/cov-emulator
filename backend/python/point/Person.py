@@ -5,23 +5,27 @@ from backend.python.location.Location import Location
 from backend.python.transport.Transport import Transport
 
 
-
-
-
-class Point:
+class Person:
     normal_temperature = (36.8, 1.0)
     infect_temperature = (37.4, 1.2)
+    id = 0
 
     def __init__(self, x, y):
+        self.id = Person.id
+        Person.id += 1
         self.x = x  # x location
         self.y = y  # y location
         self.vx = 0  # velocity x
         self.vy = 0  # velocity y
+        self.gender = 0  # gender of the person
 
         self.route = []  # route that point is going to take. (list of location refs)
         self.duration_time = []  # time spent on each location
         self.current_location = -1  # current location in the route (index of the route list)
+
+        self.current_loc = None
         self.main_trans = None  # main transport medium the point will use
+        self.current_trans = None
 
         self.wealth = 0  # wealth class of the point
         self.behaviour = 0  # behaviour of the point (healthy medical practices -> unhealthy)
@@ -37,15 +41,21 @@ class Point:
         self.temp = 0  # temperature of the point
         self.update_temp(0.0)
 
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return str(self.id)
+
     def set_random_route(self, leaves, t):
         if len(self.route) != 0:
             self.route[self.current_location].remove_point(self)
 
-        route = [leaves[np.random.randint(0, len(leaves))] for _ in range(np.random.randint(2, 5))]
-        duration = [np.random.randint(10, 200) for _ in range(len(route))]
+        route = [leaves[np.random.randint(0, len(leaves))] for _ in range(np.random.randint(2, 8))]
+        duration = [np.random.randint(10, 50) for _ in range(len(route))]
         self.x = route[0].x + np.random.normal(0, 10)
         self.y = route[0].y + np.random.normal(0, 10)
-        route[0].add_point(self, t)
+        route[0].enter_person(self, t)
         self.set_route(route, duration)
 
     def set_route(self, route, duration):
@@ -85,9 +95,9 @@ class Point:
 
     def update_temp(self, common_p):
         if self.state == State.INFECTED.value:
-            self.temp = np.random.normal(*Point.infect_temperature)
+            self.temp = np.random.normal(*Person.infect_temperature)
         else:
             if np.random.rand() < common_p:  # Common fever
-                self.temp = np.random.normal(*Point.infect_temperature)
+                self.temp = np.random.normal(*Person.infect_temperature)
             else:
-                self.temp = np.random.normal(*Point.normal_temperature)
+                self.temp = np.random.normal(*Person.normal_temperature)

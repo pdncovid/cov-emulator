@@ -8,12 +8,16 @@ from matplotlib.lines import Line2D
 from backend.python.location.Location import Location
 
 from backend.python.enums import Mobility, Shape, State
+from backend.python.transport import Bus, Walk
 
 point_colors = {State.SUSCEPTIBLE.value: 'b', State.INFECTED.value: 'r', State.RECOVERED.value: 'g'}
+point_edgecolors = {Bus.__name__.split('.')[-1]: [0, 1, 1, 0.1], Walk.__name__.split('.')[-1]: [1, 0, 1, 0.1]}
+
 point_names = {State.SUSCEPTIBLE.value: State.SUSCEPTIBLE.name,
                State.INFECTED.value: State.INFECTED.name,
                State.RECOVERED.value: State.RECOVERED.name}
 test_center_color = 'yellow'
+
 
 def add_to_line(ax, line_no, data, delta=False):
     x, y = ax.lines[line_no].get_data()
@@ -141,7 +145,7 @@ def init_figure(root, points, test_centers, h, w):
     x, y = [p.x for p in points], [p.y for p in points]
     if len(points) > 10000:
         x, y = [], []
-    sc = plt.scatter(x, y)
+    sc = plt.scatter(x, y, alpha=0.8)
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label=point_names[key], markerfacecolor=point_colors[key],
                markersize=15) for key in point_colors.keys()
@@ -162,10 +166,14 @@ def init_figure(root, points, test_centers, h, w):
             ax.add_patch(circle)
         elif rr.shape == Shape.POLYGON.value:
             coord = rr.boundary
-            coord.append(coord[0])  # repeat the first point to create a 'closed loop'
-            xs, ys = zip(*coord)  # create lists of x and y values
+            coord = np.concatenate([coord, coord[0:1, :]], axis=0)  # repeat the first point to create a 'closed loop'
+            xs, ys = coord[:, 0], coord[:, 1]  # create lists of x and y values
             ax.plot(xs, ys)
-
+        x = rr.exit[0]
+        y = rr.exit[1]
+        ax.scatter(x, y, marker='x')
+        ax.annotate(rr.name, (x, y), xytext=(x + 20, y + 20),
+                    arrowprops=dict(arrowstyle="->", connectionstyle="angle3,angleA=0,angleB=-90"))
         for child in rr.locations:
             dfs(child)
 
@@ -182,11 +190,13 @@ def update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, h,
         x, y = [p.x for p in points], [p.y for p in points]
 
         sc.set_facecolor([point_colors[p.state] for p in points])
+        sc.set_edgecolor([point_edgecolors[p.current_trans.__class__.__name__] for p in points])
+        sc.set_linewidth([0.5 for _ in points])
         # s = np.array([p.state for p in points])
         # s = (s * 256 / 3)
         # sc.set_facecolor(plt.get_cmap('brg')(s))
 
-        sc._sizes = [1 for _ in points]  # v
+        sc._sizes = [10 for _ in points]  # v
         sc.set_offsets(np.c_[x, y])
 
     # v = [(p.vx ** 2 + p.vy ** 2) ** 0.5 + 1 for p in points]

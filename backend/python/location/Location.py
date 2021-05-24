@@ -4,7 +4,10 @@ from backend.python.functions import is_inside_polygon
 from backend.python.transport.Transport import Transport
 import numpy as np
 
+
 class Location:
+    DEBUG = False
+
     def __init__(self, ID: int, x: float, y: float,
                  shape: Shape,
                  exitx, exity, name: str):
@@ -20,9 +23,6 @@ class Location:
 
         self.points = []
         self.points_enter_time = []
-        self.points_in_transport = []
-        self.points_in_transport_enter_time = []
-        self.points_in_transport_destination = []
 
         self.parent_location = None
         self.locations = []
@@ -32,90 +32,92 @@ class Location:
         self.override_transport: Transport = None
         self.name = name
 
-    def get_suggested_waiting_duration(self,point):
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return self.name
+
+    def get_suggested_waiting_duration(self, point):
         raise NotImplementedError()
 
     def add_sub_location(self, location):
         location.parent_location = self
         location.depth = self.depth + 1
         self.locations.append(location)
+
         def f(ll):
             for ch in ll.locations:
                 ch.depth = ll.depth + 1
                 f(ch)
+
         f(location)
 
     def set_boundary(self, boundary):
+        boundary = np.array(boundary)
         self.boundary = boundary
-        self.x = np.mean(boundary[:][0])
-        self.y = np.mean(boundary[:][1])
+        self.x = np.mean(boundary[:, 0])
+        self.y = np.mean(boundary[:, 1])
+        self.exit = (self.x, self.y)
 
     def set_radius(self, r):
         self.radius = r
 
-    def process_point_movement(self, t):
+    def process_inter_location_transport(self, t):
+        # processing transportation handled by this location
+        for point in self.points:
+            point.current_trans.move(point, t)
+
+    def process_people_movement(self, t):
         # DFS each location graph and process leaf locations
-        if len(self.locations) == 0:
-            for i, point in enumerate(self.points):
-                # check if the time spent in the current location is above
-                # the point's staying threshold for that location
+        for i, point in enumerate(self.points):
+            # check if the time spent in the current location is above
+            # the point's staying threshold for that location
 
-                if t - self.points_enter_time[i] > point.duration_time[point.current_location]:
-                    # overstay. move point to the transport medium
-                    next_location = MovementEngine.find_next_location(point)
+            if t - self.points_enter_time[i] > point.duration_time[point.current_location]:
+                # overstay. move point to the transport medium
+                next_location = MovementEngine.find_next_location(point)
 
-                    if self.depth == next_location.depth:
-                        self.add_to_transport(self.parent_location, next_location, i, t)
-                    elif self.depth > next_location.depth:
-                        self.add_to_transport(next_location, next_location, i, t)
-                    else:
-                        self.add_to_transport(self, next_location, i, t)
+                if self.depth == next_location.depth:
+                    transporting_location = self.parent_location
+                elif self.depth > next_location.depth:
+                    transporting_location = next_location
                 else:
-                    # doing stuff in the current location
-                    if self.override_transport is None:
-                        raise Exception("Leaf locations should always override transport")
-                    self.override_transport.move_point(self, point)
+                    transporting_location = self
+                transporting_location.enter_person(point, t, next_location)
+
+            # else:
+            #     # doing stuff in the current location
+            #     point.current_trans.move_point(self, point)
+        if len(self.locations) == 0:
+            if self.override_transport is None:
+                raise Exception("Leaf locations should always override transport")
+
 
         else:
             for location in self.locations:
-                location.process_point_movement(t)
+                location.process_people_movement(t)
 
-        # processing transportation handled by this location
-        i = 0
-        while i < len(self.points_in_transport):
+        self.process_inter_location_transport(t)
 
-            point = self.points_in_transport[i]
-            if self.override_transport is None:
-                trans = point.main_trans
-            else:
-                trans = self.override_transport
-            destination: Location = self.points_in_transport_destination[i]
-            trans.transport_point(point, destination.exit)
+    def add_to_inter_location_transport(self, transporting_location, target_location, idx, t):
 
-            if MovementEngine.is_close(point, destination.exit[0], destination.exit[1], eps=10.0):
+        transporting_location.enter_person(self.points[idx], t, target_location)
 
-                if point.get_next_location() == destination:
-                    destination.add_point(point, t)
-                    point.current_location = (point.current_location + 1) % len(point.route)
-                else:
-                    # even though we add it to the point it should immediately go at next iteration
-                    destination.add_point(point, -10000000000)
-                self.points_in_transport.pop(i)
-                self.points_in_transport_enter_time.pop(i)
-                self.points_in_transport_destination.pop(i)
-                i -= 1
-            i += 1
-
-    def add_to_transport(self, transporting_location, target_location, idx, t):
-        transporting_location.points_in_transport.append(self.points[idx])
-        transporting_location.points_in_transport_enter_time.append(t)
-        transporting_location.points_in_transport_destination.append(target_location)
-
-        self._remove_point(idx)
-
-    def add_point(self, p, t):
+    def enter_person(self, p, t, target_location=None):
+        if p.current_loc is not None:
+            p.current_loc.remove_point(p)
         self.points.append(p)
         self.points_enter_time.append(t)
+
+        if self.override_transport is not None:
+            trans = self.override_transport
+        else:
+            trans = p.main_trans
+        trans.add_point_to_transport(p, target_location, t)
+        if Location.DEBUG:
+            print(f"### Enter {p} to {target_location} through {self} using {trans}")
+        p.current_loc = self
 
     def remove_point(self, point):
         idx = self.points.index(point)

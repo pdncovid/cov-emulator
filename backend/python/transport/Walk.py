@@ -6,6 +6,9 @@ import numpy as np
 class Walk(Transport):
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
         super().__init__(velocity_cap, mobility_pattern)
+        self.destination_reach_eps = 1.0
+
+        self.infectiousness = 1.0
 
     def get_point_label(self, point):
         return 0

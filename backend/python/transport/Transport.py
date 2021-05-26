@@ -1,15 +1,19 @@
 from backend.python.MovementEngine import MovementEngine
 from backend.python.enums import Mobility
+from backend.python.location.Location import Location
 
 
 class Transport():
-    DEBUG = True
+    DEBUG = False
+
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
 
         self.vcap = velocity_cap
         self.mobility = mobility_pattern
 
         self.destination_reach_eps = 10.0
+
+        self.infectiousness = 1.0
 
         self.points = []
         self.points_label = []
@@ -50,8 +54,6 @@ class Transport():
     def get_point_label(self, point):
         raise NotImplementedError()
 
-
-
     def get_in_transport_transmission_p(self):
         raise NotImplementedError()
 
@@ -68,6 +70,10 @@ class Transport():
             if MovementEngine.is_close(point, destination.exit, eps=self.destination_reach_eps):
                 if point.get_next_location() == destination:
                     destination.enter_person(point, t)
+                    if point.current_location + 1 == len(point.route):
+                        for _i in range(len(point.route)):
+                            if point.leaving_time[_i] != -1:
+                                point.leaving_time[_i] += Location._day
                     point.current_location = (point.current_location + 1) % len(point.route)
                 else:
                     # even though we add it to the point it should immediately go at next iteration

@@ -8,7 +8,7 @@ from matplotlib.lines import Line2D
 from backend.python.location.Location import Location
 
 from backend.python.enums import Mobility, Shape, State
-from backend.python.transport import Bus, Walk
+from backend.python.transport import Walk, Bus
 
 point_colors = {State.SUSCEPTIBLE.value: 'b', State.INFECTED.value: 'r', State.RECOVERED.value: 'g'}
 point_edgecolors = {Bus.__name__.split('.')[-1]: [0, 1, 1, 0.1], Walk.__name__.split('.')[-1]: [1, 0, 1, 0.1]}
@@ -171,9 +171,10 @@ def init_figure(root, points, test_centers, h, w):
             ax.plot(xs, ys)
         x = rr.exit[0]
         y = rr.exit[1]
-        ax.scatter(x, y, marker='x')
-        ax.annotate(rr.name, (x, y), xytext=(x + 20, y + 20),
-                    arrowprops=dict(arrowstyle="->", connectionstyle="angle3,angleA=0,angleB=-90"))
+        ax.scatter(x, y, marker='x', s=5)
+        if rr.depth < 2:
+            ax.annotate(rr.name, (x, y), xytext=(x + 10, y + 10), fontsize=5,
+                        arrowprops=dict(arrowstyle="->", connectionstyle="angle3,angleA=0,angleB=-90"))
         for child in rr.locations:
             dfs(child)
 

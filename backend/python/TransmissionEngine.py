@@ -67,8 +67,11 @@ class TransmissionEngine:
         for i in range(len(valid)):
             contact_person = points[valid[i]]
             infected_person = points[sourceid[valid[i]]]
+
+            location_p = contact_person.current_loc.infectious if contact_person.current_loc == infected_person.current_loc else 0
             trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
-            if rand[i] < tr_p[i]*trans_p:
+
+            if rand[i] < tr_p[i] * trans_p * location_p:
                 contact_person.set_infected(t, infected_person, common_p)
                 c += 1
         return c

@@ -10,17 +10,18 @@ class Person:
     infect_temperature = (37.4, 1.2)
     id = 0
 
-    def __init__(self, x, y):
+    def __init__(self):
         self.id = Person.id
         Person.id += 1
-        self.x = x  # x location
-        self.y = y  # y location
+        self.x = 0  # x location
+        self.y = 0  # y location
         self.vx = 0  # velocity x
         self.vy = 0  # velocity y
         self.gender = 0  # gender of the person
 
         self.route = []  # route that point is going to take. (list of location refs)
         self.duration_time = []  # time spent on each location
+        self.leaving_time = []  # time which the person will not overstay on a given location
         self.current_location = -1  # current location in the route (index of the route list)
 
         self.current_loc = None
@@ -47,21 +48,36 @@ class Person:
     def __str__(self):
         return str(self.id)
 
-    def set_random_route(self, leaves, t):
-        if len(self.route) != 0:
-            self.route[self.current_location].remove_point(self)
+    def set_random_route(self, root, t, common_route_classes=None):
+        if common_route_classes is None:
+            common_route_classes = []
+        leaves = []
+
+        def dfs(rr: Location):
+            if len(rr.locations) == 0:
+                leaves.append(rr)
+            for child in rr.locations:
+                dfs(child)
+
+        dfs(root)
 
         route = [leaves[np.random.randint(0, len(leaves))] for _ in range(np.random.randint(2, 8))]
         duration = [np.random.randint(10, 50) for _ in range(len(route))]
+        leaving = [-1 for _ in range(len(route))]
         self.x = route[0].x + np.random.normal(0, 10)
         self.y = route[0].y + np.random.normal(0, 10)
         route[0].enter_person(self, t)
-        self.set_route(route, duration)
+        self.set_route(route, duration, leaving)
 
-    def set_route(self, route, duration):
-        assert len(route) == len(duration)
+    def set_route(self, route, duration, leaving):
+        assert len(route) == len(duration) == len(leaving)
+
+        self.x = route[0].x + np.random.normal(0, 1)
+        self.y = route[0].y + np.random.normal(0, 1)
+
         self.route = route
         self.duration_time = duration
+        self.leaving_time = leaving
         self.current_location = 0
 
     def get_current_location(self) -> Location:

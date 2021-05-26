@@ -1,4 +1,5 @@
 from numba import njit
+import numpy as np
 
 INT_MAX = 10000000000
 
@@ -16,6 +17,37 @@ def bs(arr, v):
             return i
 
     return l
+
+
+def get_random_element(arr):
+    return arr[np.random.randint(0, len(arr))]
+
+
+def get_current_time(duration, leaving, time):
+    for i in range(len(duration)):
+        if leaving[i] != -1:
+            time = leaving[i]
+        else:
+            time += duration[i]
+    return time
+
+
+def get_duration(hours: float):
+    return int(hours * 60)
+
+
+_shift_hrs = 4
+
+
+
+def get_time(hours, mins=0):
+    return (hours - _shift_hrs) % 24 * 60 + mins
+
+
+def i_to_time(i):
+    hrs = _shift_hrs + (i // 60)
+    days = hrs//24
+    return f"Day {days} {(hrs%24):02d}:{(i % 60):02d}h"
 
 
 # Given three colinear points p, q, r, the function checks if point q lies on line segment 'pr'

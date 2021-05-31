@@ -7,7 +7,9 @@ from backend.python.Visualizer import init_figure, update_figure, plot_info
 from backend.python.enums import Mobility, Shape, State, TestSpawn
 from backend.python.functions import bs, i_to_time, get_duration
 from backend.python.location.Commercial.CommercialZone import CommercialZone
+from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
 from backend.python.location.Medical.Hospital import Hospital
+from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
 from backend.python.location.Town import Town
 from backend.python.location.Location import Location
@@ -28,7 +30,7 @@ parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pande
 parser.add_argument('-n', help='target population', default=100)
 parser.add_argument('-H', help='height', type=int, default=102)
 parser.add_argument('-W', help='width', type=int, default=102)
-parser.add_argument('-i', help='initial infected', type=int, default=2)
+parser.add_argument('-i', help='initial infected', type=int, default=1)
 
 parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
 parser.add_argument('--beta', help='transmission probability', type=float, default=0.1)
@@ -52,68 +54,12 @@ parser.add_argument('--initialize',
 args = parser.parse_args()
 
 
-# def initialize_graph():
-#     vertex_data = [
-#         {'x': 0, 'y': 0, 'vcap': 8, 'exitx': 0, 'exity': 0, 'name': 'Kandy',
-#          'type': Shape.POLYGON.value, 'b': [(-100, -100), (100, -100), (100, 100), (-100, 100)],
-#          'class': Town},
-#         {'x': -70, 'y': -50, 'vcap': 4, 'exitx': -45, 'exity': -50, 'name': 'R',
-#          'type': Shape.CIRCLE.value, 'r': 30, 'class': Institute},
-#         {'x': 80, 'y': -10, 'vcap': 1, 'exitx': 70, 'exity': -5, 'name': 'T',
-#          'type': Shape.CIRCLE.value, 'r': 20, 'class': Institute},
-#         {'x': 10, 'y': 70, 'vcap': 1, 'exitx': 0, 'exity': 60, 'name': 'C1',
-#          'type': Shape.CIRCLE.value, 'r': 20, 'class': Institute},
-#         {'x': 0, 'y': 0, 'vcap': 1, 'exitx': -5, 'exity': -5, 'name': 'C2',
-#          'type': Shape.CIRCLE.value, 'r': 25, 'class': Institute},
-#         {'x': -90, 'y': -50, 'vcap': 1, 'exitx': -85, 'exity': -40, 'name': 'H1',
-#          'type': Shape.CIRCLE.value, 'r': 10, 'class': Building},
-#         {'x': -55, 'y': -35, 'vcap': 1, 'exitx': -0, 'exity': -0, 'name': 'H2',
-#          'type': Shape.POLYGON.value, 'b': [(-70, -20), (-80, -80), (-60, -50)], 'class': Building},
-#
-#     ]
-#
-#     vertices = []
-#     for idx, v in enumerate(vertex_data):
-#         vertices.append(v['class'](idx, v['x'], v['y'], v['type'], v['exitx'], v['exity'], v['name']))
-#         if v['type'] == Shape.CIRCLE.value:
-#             vertices[-1].set_radius(v['r'])
-#         elif v['type'] == Shape.POLYGON.value:
-#             vertices[-1].set_boundary(v['b'])
-#
-#         # root.add_sub_location(vertices[-1])
-#         # if v['leaf']:
-#         #     provinces[-1].override_transport = Transport(v['vcap'], Mobility.RANDOM.value)
-#         #     leaves.append(provinces[-1])
-#     connectivity = [(0, 1), (0, 2), (0, 3), (0, 4), (1, 5), (1, 6)]
-#     for a, b in connectivity:
-#         vertices[a].add_sub_location((vertices[b]))
-#
-#     root = vertices[0]
-#     while root.parent_location is not None:
-#         root = root.parent_location
-#
-#     leaves = []
-#
-#     def dfs(rr: Location):
-#         if len(rr.locations) == 0:
-#             leaves.append(rr)
-#         for child in rr.locations:
-#             dfs(child)
-#
-#     dfs(root)
-#
-#     for leaf in leaves:
-#         leaf.override_transport = Walk(vertex_data[leaf.ID]['vcap'], Mobility.RANDOM.value)
-#
-#     return root, leaves
-
-
 def initialize_graph():
     root = Town(Shape.CIRCLE.value, 0, 0, "T1", r=100)
     resi1 = ResidentialZone(Shape.CIRCLE.value, 50, 10, "R1", r=20, n_houses=5, house_r=6)
     resi2 = ResidentialZone(Shape.CIRCLE.value, -40, -50, "R2", r=20, n_houses=5, house_r=6)
     comm1 = CommercialZone(Shape.CIRCLE.value, 40, -50, "C1", r=30, n_buildings=6, building_r=5)
-    hosp = Hospital(Shape.CIRCLE.value, -30, 40, "Hosp1", r=30, n_buildings=10, building_r=5)
+    hosp = MedicalZone(Shape.CIRCLE.value, -30, 40, "M1", r=30, n_buildings=2, building_r=10)
 
     root.add_sub_location(resi1)
     root.add_sub_location(resi2)
@@ -139,8 +85,7 @@ def initialize():
     n = args.n
     i = args.i
 
-    # grid = [[[] for _ in range(w)] for _ in range(h)]
-
+    # initialize people
     if args.initialize == 0:  # Random
         points = [CommercialWorker() for _ in range(n)]
     elif args.initialize == 1:
@@ -154,25 +99,39 @@ def initialize():
         idx = np.random.randint(0, n)
         points[idx].set_infected(0, None, args.common_p)
 
+    # initialize location tree
     root, leaves = initialize_graph()
 
+    # set random routes for each person and set their main transportation method
     walk = Walk(np.random.randint(1, 10), Mobility.RANDOM.value)
     bus = Bus(np.random.randint(10, 20), Mobility.RANDOM.value)
     main_trans = [walk, bus]
-
     for point in points:
-        point.set_random_route(root, 0, common_route_classes=[ResidentialZone, CommercialZone])
+        point.set_random_route(root, 0, common_route_classes=get_common_route(point))
         point.main_trans = main_trans[np.random.randint(0, len(main_trans))]
 
     # setting up bus routes
     def dfs(rr: Location):
-        bus.initialize_locations(rr)
+        bus.initialize_locations(rr)  # set up bus routes
         for child in rr.locations:
             dfs(child)
 
     dfs(root)
 
     return points, root
+
+
+
+
+def debug_people(points):
+    print(f"{'CL':>3} {'CLO':>10} {'CLD':>3} {'CT':>10} {'MT':>10} {'ROUTE'}")
+    for p in points:
+        cl = str(p.current_location)
+        clo = str(p.current_loc)
+        cld = str(p.duration_time[p.current_location])
+        ct = str(p.current_trans)
+        mt = str(p.main_trans)
+        print(f"{cl:>3} {clo:>10} {cld:>3} {ct:>10} {mt:>10} {p.route}")
 
 
 def disease_transmission(points, t):
@@ -234,6 +193,20 @@ def testing_procedure(points, test_centers, t):
         test_count[tested_on[p_idx]] += 1
 
 
+def get_common_route(point):
+    if isinstance(point, CommercialWorker):
+        return [ResidentialZone, CommercialZone]
+
+
+def get_alternate_route(point):
+    if point.temp > point.infect_temperature[0]:
+        return [MedicalZone, CommercialZone]
+    return get_common_route(point)[1:]
+
+
+def get_containment_strategy_for_tested_positives(point):
+    return [COVIDQuarantineZone]
+
 iterations = 10000
 testing_freq = 10
 test_center_spawn_check_freq = 10
@@ -241,23 +214,15 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 
-def debug_people(points):
-    print(f"{'CL':>3} {'CLO':>10} {'CLD':>3} {'CT':>10} {'MT':>10} {'ROUTE'}")
-    for p in points:
-        cl = str(p.current_location)
-        clo = str(p.current_loc)
-        cld = str(p.duration_time[p.current_location])
-        ct = str(p.current_trans)
-        mt = str(p.main_trans)
-        print(f"{cl:>3} {clo:>10} {cld:>3} {ct:>10} {mt:>10} {p.route}")
-
-
 def main():
     PLOT = True
     DEBUG = False
     points, root = initialize()
     test_centers = []
-
+    classes = Location.separate_into_classes(root)
+    for mz in classes[MedicalZone]:
+        test_center = TestCenter(mz.x, mz.y, mz.radius)
+        test_centers.append(test_center)
     if PLOT:
         fig, ax, sc, hm, test_center_patches = init_figure(root, points, test_centers, args.H, args.W)
         fig2, axs = plt.subplots(2, 2)
@@ -270,15 +235,23 @@ def main():
         print(f"Iteration: {i} {i_to_time(i)}")
         if DEBUG:
             debug_people(points)
+        # process movement
+        root.process_people_movement(i % Location._day)
 
-        root.process_people_movement(i)
-
-        disease_transmission(points, i)
+        # process transmission and recovery
+        disease_transmission(points, i % Location._day)
         process_recovery(points)
 
+        # process testing
         if i % testing_freq == 0:
-            testing_procedure(points, test_centers, i)
+            testing_procedure(points, test_centers, i % Location._day)
 
+        # change routes randomly for some people
+        for p in points:
+            if np.random.rand() < 0.0001:
+                p.update_route(root, i % Location._day, get_alternate_route(p))
+
+        # spawn new test centers
         if i % test_center_spawn_check_freq == 0:
             test_center = TestCenter.spawn_test_center(test_center_spawn_method, points, test_centers, args.H,
                                                        args.W, args.test_center_r, test_center_spawn_threshold)
@@ -286,9 +259,20 @@ def main():
                 print(f"Added new TEST CENTER at {test_center.x} {test_center.y}")
                 test_centers.append(test_center)
 
+        # reset day
+
+        if i % Location._day == 0:
+            for p in points:
+                p._reset_day = False
+
+                # overriding routes if necessary. (tested positives, etc)
+                if p.is_tested_positive() and p.is_infected():
+                    p.update_route(root, 0, get_containment_strategy_for_tested_positives(p), replace=True)
+
+        # ==================================== plotting ==============================================================
         if PLOT:
-            if i % 60 == 0:
-                update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, args.H, args.W)
+            if i % 100 == 0:
+                update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, args.H, args.W, i)
                 plot_info(fig2, axs, points)
 
         # move_points(test_centers)

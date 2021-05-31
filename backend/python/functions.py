@@ -47,7 +47,7 @@ def get_time(hours, mins=0):
 def i_to_time(i):
     hrs = _shift_hrs + (i // 60)
     days = hrs//24
-    return f"Day {days} {(hrs%24):02d}:{(i % 60):02d}h"
+    return f"Day {days} {(hrs%24):02d}{(i % 60):02d}h"
 
 
 # Given three colinear points p, q, r, the function checks if point q lies on line segment 'pr'

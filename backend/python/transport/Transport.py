@@ -68,16 +68,18 @@ class Transport():
             self.transport_point(idx, destination.exit, t)
 
             if MovementEngine.is_close(point, destination.exit, eps=self.destination_reach_eps):
-                if point.get_next_location() == destination:
-                    destination.enter_person(point, t)
-                    if point.current_location + 1 == len(point.route):
-                        for _i in range(len(point.route)):
-                            if point.leaving_time[_i] != -1:
-                                point.leaving_time[_i] += Location._day
-                    point.current_location = (point.current_location + 1) % len(point.route)
-                else:
-                    # even though we add it to the point it should immediately go at next iteration
-                    destination.enter_person(point, -10000000000)
+
+                if point.current_location + 1 == len(point.route):
+                    point.restore_route()
+                    point.current_location = len(point.route) - 1
+                    if destination == point.route[0]:
+                        point._reset_day = True
+
+                    # for _i in range(len(point.route)):
+                    #     if point.leaving_time[_i] != -1:
+                    #         point.leaving_time[_i] += Location._day
+                destination.enter_person(point, t) # destination point reached
+                point.in_inter_trans = False
 
     def move_point(self, idx, t):
         point = self.points[idx]

@@ -10,16 +10,21 @@ from backend.python.transport.Walk import Walk
 class CommercialBuilding(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if isinstance(point, CommercialWorker):
-
             work_areas = self.get_children_of_class(CommercialWorkArea)
             work_area: Location = get_random_element(work_areas)
+
             _r1, _d1, _l1, t = work_area.get_suggested_sub_route(point, t, force_dt=True)
             _r2, _d2, _l2, t = get_random_element(work_areas).get_suggested_sub_route(point, t, force_dt=True)
             _r3, _d3, _l3, t = work_area.get_suggested_sub_route(point, t, force_dt=False)
 
-            _r = _r1+_r2+_r3
-            _d = _d1+_d2+_d3
-            _l = _l1+_l2+_l3
+            _r = _r1 + _r2
+            _d = _d1 + _d2
+            _l = _l1 + _l2
+            if not force_dt:
+                _r += _r3
+                _d += _d3
+                _l += _l3
+
         else:
             raise NotImplementedError()
 

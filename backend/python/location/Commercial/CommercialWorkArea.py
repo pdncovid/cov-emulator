@@ -9,12 +9,13 @@ import numpy as np
 class CommercialWorkArea(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if isinstance(point, CommercialWorker):
+
             lts = [get_time(10, 0), get_time(12, 0), get_time(17, 0)]
             for lt in lts:
                 if t < lt:
                     if force_dt:
                         _r = [self]
-                        _d = [np.random.randint(0, (lt - t)//2)]
+                        _d = [np.random.randint(0, (lt - t))]
                         _l = [-1]
                     else:
                         _r = [self]

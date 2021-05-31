@@ -5,6 +5,7 @@ import seaborn as sns
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
+from backend.python.functions import i_to_time
 from backend.python.location.Location import Location
 
 from backend.python.enums import Mobility, Shape, State
@@ -135,7 +136,7 @@ def get_heatmap(points, h, w):
 def init_figure(root, points, test_centers, h, w):
     fig = plt.figure(1)
     ax = plt.gca()
-
+    ax.annotate(i_to_time(0), (-w, h), xytext=(-w, h), fontsize=7)
     # drawing heat-map
     xx, yy, zz = get_heatmap(points, h, w)
     hm = ax.pcolormesh(xx, yy, zz, cmap='Reds', shading='auto', alpha=0.9)
@@ -172,8 +173,8 @@ def init_figure(root, points, test_centers, h, w):
         x = rr.exit[0]
         y = rr.exit[1]
         ax.scatter(x, y, marker='x', s=5)
-        if rr.depth < 2:
-            ax.annotate(rr.name, (x, y), xytext=(x + 10, y + 10), fontsize=5,
+        if rr.depth <= 2:
+            ax.annotate(rr.name, (x, y), xytext=(x + 10, y + 10), fontsize=7,
                         arrowprops=dict(arrowstyle="->", connectionstyle="angle3,angleA=0,angleB=-90"))
         for child in rr.locations:
             dfs(child)
@@ -186,7 +187,8 @@ def init_figure(root, points, test_centers, h, w):
     return fig, ax, sc, hm, test_center_patches
 
 
-def update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, h, w):
+def update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, h, w, t):
+    ax.texts[0]._text = i_to_time(t)
     if len(points) <= 10000:
         x, y = [p.x for p in points], [p.y for p in points]
 

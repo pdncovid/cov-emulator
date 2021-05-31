@@ -4,7 +4,6 @@ from backend.python.location.Location import Location
 import numpy as np
 
 
-
 class ResidentialPark(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if force_dt:

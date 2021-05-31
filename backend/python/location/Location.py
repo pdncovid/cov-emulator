@@ -15,6 +15,7 @@ class Location:
         self.x = x
         self.y = y
         self.shape = shape
+        self.capacity = kwargs.get('capacity')
         self.boundary = []  # list of polygon points of the boundary [(x1,y1),(x2,y2), ...]
         self.radius = 0  # radius if shape is circle
         if shape == Shape.CIRCLE.value:
@@ -35,7 +36,6 @@ class Location:
         self.infectious = infectiousness
 
         self.points = []
-        self.points_enter_time = []
 
         self.parent_location = None
         self.locations = []
@@ -163,8 +163,7 @@ class Location:
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
 
-            if t - self.points_enter_time[i] > point.duration_time[point.current_location] != -1 or \
-                    t > point.leaving_time[point.current_location] != -1:
+            if t >= point.current_loc_leave and point._reset_day == False and point.in_inter_trans == False:  # TODO and _reset is bugsy
                 # overstay. move point to the transport medium
                 next_location = MovementEngine.find_next_location(point)
 
@@ -174,7 +173,12 @@ class Location:
                     transporting_location = next_location
                 else:
                     transporting_location = self
+                if transporting_location is None:
+                    transporting_location = self  # this is because when we update route we set current_loc to root sometimes
+
+                # leaving current location
                 transporting_location.enter_person(point, t, next_location)
+                point.in_inter_trans = True
 
         if len(self.locations) == 0:
             if self.override_transport is None:
@@ -185,24 +189,42 @@ class Location:
 
         self.process_inter_location_transport(t)
 
-    def add_to_inter_location_transport(self, transporting_location, target_location, idx, t):
-
-        transporting_location.enter_person(self.points[idx], t, target_location)
-
     def enter_person(self, p, t, target_location=None):
-        if p.current_loc is not None:
-            p.current_loc.remove_point(p)
-        self.points.append(p)
-        self.points_enter_time.append(t)
 
+        current_loc_leave = self.get_leaving_time(p, t)
+        if p.current_loc is None:  # initialize
+            pass
+        else:
+            p.current_loc.remove_point(p)
+            if p.get_next_location() == self:
+                p.current_location = (p.current_location + 1) % len(p.route)
+                current_loc_leave = self.get_leaving_time(p, t)
+            else:
+                current_loc_leave = t - 1
+        if self.capacity is not None:
+            if self.capacity <= len(self.points):
+                p.current_location = (p.current_location + 1) % len(p.route)
+                current_loc_leave = t - 1
+
+        p.current_loc = self
+        p.current_loc_enter = t
+        p.current_loc_leave = current_loc_leave
+        self.points.append(p)
         if self.override_transport is not None:
             trans = self.override_transport
         else:
             trans = p.main_trans
         trans.add_point_to_transport(p, target_location, t)
+
         if Location.DEBUG:
             print(f"### Enter {p} to {target_location} through {self} using {trans}")
-        p.current_loc = self
+
+    def get_leaving_time(self, p, t):
+        if p.duration_time[p.current_location] != -1: # p.current
+            current_loc_leave = min(t + p.duration_time[p.current_location], Location._day - 1)
+        else:
+            current_loc_leave = (p.leaving_time[p.current_location])
+        return current_loc_leave
 
     def remove_point(self, point):
         idx = self.points.index(point)
@@ -210,7 +232,6 @@ class Location:
 
     def _remove_point(self, idx):
         self.points.pop(idx)
-        self.points_enter_time.pop(idx)
 
     def is_inside(self, x, y):
         if self.shape == Shape.POLYGON.value:

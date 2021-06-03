@@ -9,14 +9,28 @@ import numpy as np
 class COVIDQuarantineZone(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         _r = [self]
-        _d = [1000000000]  # stay indefinitely until recovered
+        _d = [1]  # doesn't matter because once entered, they will be quarantined
         _l = [-1]
 
         t = get_current_time(_d, _l, t)
         return _r, _d, _l, t
 
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
-                 capacity=10, **kwargs):
+                 **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.capacity = capacity
+
+    def set_quarantined(self, quarantined, t, recursive=False):
+        self.quarantined = True
+        if not quarantined:
+            print("Cannot make quarantine zone un-quarantine")
+
+        if recursive:
+            def f(r: Location):
+                r.quarantined = quarantined
+                r.quarantined_time = t
+                for ch in r.locations:
+                    f(ch)
+
+            f(self)
+
 

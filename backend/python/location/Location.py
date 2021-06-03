@@ -15,7 +15,11 @@ class Location:
         self.x = x
         self.y = y
         self.shape = shape
+        self.depth = 0
         self.capacity = kwargs.get('capacity')
+        self.quarantined = kwargs.get('quarantined', False)
+        self.quarantined_time = -1
+
         self.boundary = []  # list of polygon points of the boundary [(x1,y1),(x2,y2), ...]
         self.radius = 0  # radius if shape is circle
         if shape == Shape.CIRCLE.value:
@@ -39,17 +43,37 @@ class Location:
 
         self.parent_location = None
         self.locations = []
-        self.depth = 0
-
-        self.transport_mediums = []
         self.override_transport = None
         self.name = name
 
     def __repr__(self):
-        return self.__str__()
+        d = self.get_description_dict()
+        return ','.join(map(str, d.values()))
 
     def __str__(self):
         return self.name
+
+    def get_description_dict(self):
+        d = {'class': self.__class__.__name__, 'id': self.ID, 'x': self.x, 'y': self.y, 'shape': self.shape,
+             'depth': self.depth, 'capacity': self.capacity, 'quarantined': self.quarantined,
+             'quarantined_time': self.quarantined_time, 'exit': self.exit.__str__().replace(',', '|').replace(' ', ''),
+             'infectious': self.infectious, "name": self.name}
+
+        if self.shape == Shape.CIRCLE.value:
+            d['radius'] = self.radius
+        elif self.shape == Shape.POLYGON.value:
+            d['boundary'] = self.boundary.__str__().replace(',', '|').replace(' ', '')
+
+        if self.parent_location is None:
+            d['parent_id'] = -1
+        else:
+            d['parent_id'] = self.parent_location.ID
+
+        if self.override_transport is None:
+            d["override_transport"] = -1
+        else:
+            d["override_transport"] = self.override_transport.ID
+        return d
 
     def spawn_sub_locations(self, cls, n, r, infectiousness, trans, **kwargs):
         print(f"Automatically creating {n} {cls.__name__} for {self.__class__.__name__} {self.name}")
@@ -84,7 +108,7 @@ class Location:
                     if not self.is_intersecting(_x + x, _y + y, r2):
                         all.append((_x + x, _y + y))
 
-            if _r > r2:
+            if _r > r2 and not self.is_intersecting(x, y, r2):
                 all.append((x, y))
 
             # pick the n (x, y) points
@@ -125,6 +149,20 @@ class Location:
     def get_suggested_sub_route(self, point, t, force_dt=False) -> (list, list, list, int):
         raise NotImplementedError()
 
+    def set_quarantined(self, quarantined, t, recursive=False):
+        self.quarantined = quarantined
+        if recursive:
+            def f(r: Location):
+                r.quarantined = quarantined
+                if quarantined:
+                    r.quarantined_time = t
+                else:
+                    r.quarantined_time = -1
+                for ch in r.locations:
+                    f(ch)
+
+            f(self)
+
     @staticmethod
     def separate_into_classes(root):
         classes = {}
@@ -163,22 +201,31 @@ class Location:
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
 
-            if t >= point.current_loc_leave and point._reset_day == False and point.in_inter_trans == False:  # TODO and _reset is bugsy
+            # come to route[0] if not there even if day is finished
+            if t >= point.current_loc_leave and \
+                    (not point.is_day_finished or point.current_loc != point.route[0]) and \
+                    not point.in_inter_trans:
                 # overstay. move point to the transport medium
                 next_location = MovementEngine.find_next_location(point)
-
+                move_out = False
                 if self.depth == next_location.depth:
                     transporting_location = self.parent_location
+                    move_out = True
                 elif self.depth > next_location.depth:
                     transporting_location = next_location
+                    move_out = True
                 else:
                     transporting_location = self
+
                 if transporting_location is None:
                     transporting_location = self  # this is because when we update route we set current_loc to root sometimes
 
                 # leaving current location
-                transporting_location.enter_person(point, t, next_location)
-                point.in_inter_trans = True
+                if self.quarantined and move_out and not point.is_recovered():  # todo get this logic from Containment Engine
+                    pass
+                else:
+                    transporting_location.enter_person(point, t, next_location)
+                    point.in_inter_trans = True
 
         if len(self.locations) == 0:
             if self.override_transport is None:
@@ -197,13 +244,9 @@ class Location:
         else:
             p.current_loc.remove_point(p)
             if p.get_next_location() == self:
-                p.current_location = (p.current_location + 1) % len(p.route)
+                p.increment_target_location()
                 current_loc_leave = self.get_leaving_time(p, t)
             else:
-                current_loc_leave = t - 1
-        if self.capacity is not None:
-            if self.capacity <= len(self.points):
-                p.current_location = (p.current_location + 1) % len(p.route)
                 current_loc_leave = t - 1
 
         p.current_loc = self
@@ -216,14 +259,28 @@ class Location:
             trans = p.main_trans
         trans.add_point_to_transport(p, target_location, t)
 
+        if self.capacity is not None:
+            if self.capacity < len(self.points):
+                # CURRENT LOCATION FULL. IMMEDIATELY REMOVE.
+                # Add it to the parent location (and move to next target. AUTOMATICALLY pushed to next target when moved to parent location??)
+                # move to parent location because we can't add to current location and we can move down the tree
+                p.increment_target_location() # todo check this
+                if self.parent_location is not None:
+                    self.parent_location.enter_person(p, t)
+                    # todo bug: if p is in home, when cap is full current_loc jump to self.parent
+                    return  # don't add to this location because capacity reached
+
         if Location.DEBUG:
             print(f"### Enter {p} to {target_location} through {self} using {trans}")
 
     def get_leaving_time(self, p, t):
-        if p.duration_time[p.current_location] != -1: # p.current
-            current_loc_leave = min(t + p.duration_time[p.current_location], Location._day - 1)
+        if p.duration_time[p.current_target_idx] != -1:  # p.current
+            current_loc_leave = min(t + p.duration_time[p.current_target_idx], Location._day - 1)
         else:
-            current_loc_leave = (p.leaving_time[p.current_location])
+            bias = (t // Location._day) * Location._day
+            if p.is_day_finished:
+                bias += Location._day
+            current_loc_leave = bias + p.leaving_time[p.current_target_idx]
         return current_loc_leave
 
     def remove_point(self, point):

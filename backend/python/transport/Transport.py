@@ -5,15 +5,17 @@ from backend.python.location.Location import Location
 
 class Transport():
     DEBUG = False
+    _id = 0
 
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
-
+        self.ID = Transport._id
+        Transport._id += 1
         self.vcap = velocity_cap
         self.mobility = mobility_pattern
 
         self.destination_reach_eps = 10.0
 
-        self.infectiousness = 1.0
+        self.infectious = 1.0
 
         self.points = []
         self.points_label = []
@@ -22,10 +24,17 @@ class Transport():
         self.points_destination = []
 
     def __repr__(self):
-        return self.__str__()
+        d = self.get_description_dict()
+        return ','.join(map(str, d.values()))
 
     def __str__(self):
         return self.__class__.__name__
+
+    def get_description_dict(self):
+        d = {'class': self.__class__.__name__, 'id': self.ID, 'vcap': self.vcap,
+             "destination_reach_eps": self.destination_reach_eps, "mobility_pattern": self.mobility,
+             "infectious": self.infectious}
+        return d
 
     def add_point_to_transport(self, point, target_location, t):
         if point.current_trans is not None:
@@ -69,16 +78,14 @@ class Transport():
 
             if MovementEngine.is_close(point, destination.exit, eps=self.destination_reach_eps):
 
-                if point.current_location + 1 == len(point.route):
+                if point.current_target_idx + 1 == len(point.route):
                     point.restore_route()
-                    point.current_location = len(point.route) - 1
-                    if destination == point.route[0]:
-                        point._reset_day = True
+                    point.current_target_idx = len(point.route) - 1
 
                     # for _i in range(len(point.route)):
                     #     if point.leaving_time[_i] != -1:
                     #         point.leaving_time[_i] += Location._day
-                destination.enter_person(point, t) # destination point reached
+                destination.enter_person(point, t)  # destination point reached
                 point.in_inter_trans = False
 
     def move_point(self, idx, t):

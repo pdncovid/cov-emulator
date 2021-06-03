@@ -32,4 +32,4 @@ class MedicalZone(Location):
             self.spawn_sub_locations(Hospital, n_buildings, building_r, 0.8, Walk(0.5, Mobility.RANDOM.value),
                                      n_areas=10, area_r=building_r / 5)
             self.spawn_sub_locations(COVIDQuarantineZone, 1, building_r, 1.0, Walk(0.5, Mobility.RANDOM.value),
-                                     capacity=10)
+                                     capacity=2, quarantined=True)

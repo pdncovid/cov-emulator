@@ -3,17 +3,18 @@ import numpy as np
 from backend.python.enums import State
 from backend.python.functions import get_random_element
 from backend.python.location.Location import Location
+from backend.python.location.Residential.Home import Home
 from backend.python.transport.Transport import Transport
 
 
 class Person:
     normal_temperature = (36.8, 1.0)
     infect_temperature = (37.4, 1.2)
-    id = 0
+    _id = 0
 
     def __init__(self):
-        self.id = Person.id
-        Person.id += 1
+        self.ID = Person._id
+        Person._id += 1
         self.x = 0  # x location
         self.y = 0  # y location
         self.vx = 0  # velocity x
@@ -24,12 +25,12 @@ class Person:
         self._backup_duration_time = None
         self._backup_leaving_time = None
 
-        self._reset_day = False
+        self.is_day_finished = False
 
         self.route = []  # route that point is going to take. (list of location refs)
         self.duration_time = []  # time spent on each location
         self.leaving_time = []  # time which the person will not overstay on a given location
-        self.current_location = -1  # current location in the route (index of the route list)
+        self.current_target_idx = -1  # current location in the route (index of the route list)
         self.current_loc_enter = -1
         self.current_loc_leave = -1
 
@@ -53,10 +54,47 @@ class Person:
         self.update_temp(0.0)
 
     def __repr__(self):
-        return self.__str__()
+        d = self.get_description_dict()
+        return ','.join(map(str, d.values()))
 
     def __str__(self):
-        return str(self.id)
+        return str(self.ID)
+
+    def get_description_dict(self):
+        d = {'class': self.__class__.__name__, 'id': self.ID, 'x': self.x, 'y': self.y, 'vx': self.vx, 'vy': self.vy,
+             'state': self.state, 'gender': self.gender, 'is_day_finished': self.is_day_finished,
+             'current_target_idx': self.current_target_idx, 'current_loc_enter': self.current_loc_enter,
+             'current_loc_leave': self.current_loc_leave, 'in_inter_trans': self.in_inter_trans, 'wealth': self.wealth,
+             'behaviour': self.behaviour, 'infected_time': self.infected_time, 'temp': self.temp,
+             "tested_positive_time": self.tested_positive_time}
+
+        if self.current_loc is None:
+            d['current_loc_id'] = -1
+        else:
+            d['current_loc_id'] = self.current_loc.ID
+        if self.main_trans is None:
+            d['main_trans_id'] = -1
+        else:
+            d['main_trans_id'] = self.main_trans.ID
+        if self.current_trans is None:
+            d['current_trans_id'] = -1
+        else:
+            d['current_trans_id'] = self.current_trans.ID
+
+        if self.source is None:
+            d['source_id'] = -1
+        else:
+            d['source_id'] = self.source.ID
+
+        if self.infected_location is None:
+            d['infected_location_id'] = -1
+        else:
+            d['infected_location_id'] = self.infected_location.ID
+
+        d['route'] = [r.ID for r in self.route].__str__().replace(',', '|').replace(' ', '')
+        d['duration_time'] = self.duration_time.__str__().replace(',', '|').replace(' ', '')
+        d['leaving_time'] = self.leaving_time.__str__().replace(',', '|').replace(' ', '')
+        return d
 
     def backup_route(self):
         if self._backup_route is None:
@@ -73,6 +111,10 @@ class Person:
             self._backup_duration_time = None
             self._backup_leaving_time = None
 
+    def increment_target_location(self):
+        self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
+        if self.current_target_idx == 0:
+            self.is_day_finished = True
 
     def suggested_route(self, root, t, common_route_classes, force_dt=False):
         classes = Location.separate_into_classes(root)
@@ -97,23 +139,7 @@ class Person:
     def set_random_route(self, root, t, common_route_classes=None):
         raise NotImplementedError()
 
-        # leaves = []
-        #
-        # def dfs(rr: Location):
-        #     if len(rr.locations) == 0:
-        #         leaves.append(rr)
-        #     for child in rr.locations:
-        #         dfs(child)
-        #
-        # dfs(root)
-        #
-        # route = [leaves[np.random.randint(0, len(leaves))] for _ in range(np.random.randint(2, 8))]
-        # duration = [np.random.randint(10, 50) for _ in range(len(route))]
-        # leaving = [-1 for _ in range(len(route))]
-        #
-        # self.set_route(route, duration, leaving, t)
-
-    def update_route(self, root, t, new_route_classes=None, replace=False):
+    def update_route(self, root, t, new_route_classes=None, replace=False, keephome=True):
         """
         update the route of the person from current position onwards.
         if new_route_classes are given, new route will be randomly selected suggested routes from those classes
@@ -122,32 +148,41 @@ class Person:
         :param new_route_classes:
         :return:
         """
+        if new_route_classes is None:
+            return
+        _t = t % Location._day
         self.backup_route()
         if replace:
             self.route = []
             self.duration_time = []
             self.leaving_time = []
-            t = 0
         else:
-            self.route = self.route[:self.current_location + 1]
-            self.duration_time = self.duration_time[:self.current_location + 1]
-            self.leaving_time = self.leaving_time[:self.current_location + 1]
-            if self.route[-1] != self.current_loc:
-                self.route += [self.current_loc]
-                self.duration_time += [1]
-                self.leaving_time += [-1]
-                self.current_location += 1
+            self.route = self.route[:self.current_target_idx + 1]
+            self.duration_time = self.duration_time[:self.current_target_idx + 1]
+            self.leaving_time = self.leaving_time[:self.current_target_idx + 1]
+            # if self.route[-1] != self.current_loc:
+            #     self.route += [self.current_loc]
+            #     self.duration_time += [1]
+            #     self.leaving_time += [-1]
+            #     self.current_location += 1
+        if keephome:
+            if len(self.route) > 0 and isinstance(self.route[0], Home):
+                pass
+            else:
+                self.route = [self._backup_route[0]] + self.route
+                self.duration_time = [self._backup_duration_time[0]] + self.duration_time
+                self.leaving_time = [self._backup_leaving_time[0]] + self.leaving_time
 
-        route, duration, leaving, time = self.suggested_route(root, t, new_route_classes, force_dt=True)
+        route, duration, leaving, time = self.suggested_route(root, _t, new_route_classes, force_dt=True)
 
         self.route += route
         self.duration_time += duration
         self.leaving_time += leaving
 
-        if self.current_location >= len(self.route):
-            self.current_location = len(route)-1
+        if self.current_target_idx >= len(self.route):
+            self.current_target_idx = len(route) - 1
         if replace:
-            self.route[0].enter_person(self, t, target_location=None)
+            self.route[0].enter_person(self, t-t % Location._day, target_location=None)
 
     def set_route(self, route, duration, leaving, t):
         assert len(route) == len(duration) == len(leaving)
@@ -158,19 +193,20 @@ class Person:
         self.route = route
         self.duration_time = duration
         self.leaving_time = leaving
-        self.current_location = 0
+        self.current_target_idx = 0
         self.route[0].enter_person(self, t)
 
     def get_current_location(self) -> Location:
         return self.current_loc
 
     def get_next_location(self) -> Location:
-        return self.route[(self.current_location + 1) % len(self.route)]
+        return self.route[(self.current_target_idx + 1) % len(self.route)]
 
     def set_infected(self, t, p, common_p):
         self.state = State.INFECTED.value
         self.infected_time = t
         self.source = p
+        self.infected_location = p.current_loc
         self.update_temp(common_p)
 
     def set_recovered(self):
@@ -191,6 +227,9 @@ class Person:
     #     return c
     def is_infected(self):
         return self.state == State.INFECTED.value
+
+    def is_recovered(self):
+        return self.state == State.RECOVERED.value
 
     def is_tested_positive(self):
         return self.tested_positive_time > 0

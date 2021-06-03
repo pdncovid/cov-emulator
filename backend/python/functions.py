@@ -33,21 +33,27 @@ def get_current_time(duration, leaving, time):
 
 
 def get_duration(hours: float):
-    return int(hours * 60)
+    return int(hours * (60//_scale))
 
 
 _shift_hrs = 4
-
-
+_scale = 1
 
 def get_time(hours, mins=0):
-    return (hours - _shift_hrs) % 24 * 60 + mins
+    return (hours - _shift_hrs) % 24 * (60//_scale) + mins//_scale
 
 
 def i_to_time(i):
-    hrs = _shift_hrs + (i // 60)
-    days = hrs//24
-    return f"Day {days} {(hrs%24):02d}{(i % 60):02d}h"
+    hrs = _shift_hrs + (i // (60//_scale))
+    days = hrs // 24
+    return f"Day {days} {(hrs % 24):02d}{(i % (60//_scale)*_scale):02d}h"
+
+
+def count_graph_n(r):
+    c = 1
+    for ch in r.locations:
+        c += count_graph_n(ch)
+    return c
 
 
 # Given three colinear points p, q, r, the function checks if point q lies on line segment 'pr'

@@ -20,10 +20,14 @@ class CommercialZone(Location):
             t_end = min(np.random.normal(get_time(17, 0), abs(np.random.normal(0,get_duration(1)))), get_time(20,0))
             while t < t_end:
                 _r1, _d1, _l1, t = working_building.get_suggested_sub_route(point, t, force_dt)
-                _r2, _d2, _l2, t = get_random_element(canteens).get_suggested_sub_route(point, t, True)
-                _r += _r1 + _r2
-                _d += _d1 + _d2
-                _l += _l1 + _l2
+                _r += _r1
+                _d += _d1
+                _l += _l1
+                if np.random.rand() < 0.8:
+                    _r2, _d2, _l2, t = get_random_element(canteens).get_suggested_sub_route(point, t, True)
+                    _r += _r2
+                    _d += _d2
+                    _l += _l2
         else:
             raise NotImplementedError()
 

@@ -1,30 +1,29 @@
+import time
+
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 
+from backend.python.ContainmentEngine import ContainmentEngine
+from backend.python.Logger import Logger
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import init_figure, update_figure, plot_info
-from backend.python.enums import Mobility, Shape, State, TestSpawn
-from backend.python.functions import bs, i_to_time, get_duration
+from backend.python.enums import Mobility, Shape, State, TestSpawn, Containment
+from backend.python.functions import bs, i_to_time, get_duration, count_graph_n
 from backend.python.location.Commercial.CommercialZone import CommercialZone
 from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
-from backend.python.location.Medical.Hospital import Hospital
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
 from backend.python.location.Town import Town
 from backend.python.location.Location import Location
 from backend.python.point.CommercialWorker import CommercialWorker
-from backend.python.point.Person import Person
 from backend.python.TestCenter import TestCenter
 from backend.python.transport.Bus import Bus
 from backend.python.transport.Walk import Walk
 
 """
 TODO: 
-
-Make movement probability function
 Infection using contagious areas
-containment - moving positive patients to confined area and isolation
 """
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
 parser.add_argument('-n', help='target population', default=100)
@@ -37,9 +36,7 @@ parser.add_argument('--beta', help='transmission probability', type=float, defau
 parser.add_argument('--gamma', help='recovery rate', type=float, default=1 / 14 / get_duration(24))
 parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
-parser.add_argument('--containment',
-                    help='containment strategy used (0-None, 1-Complete Lockdown, 2-Isolation based on contact tracing)',
-                    type=int, default=0)
+parser.add_argument('--containment', help='containment strategy used ', type=int, default=Containment.QUARANTINECENTER.value)
 parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
 parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
 parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)
@@ -97,7 +94,7 @@ def initialize():
 
     for _ in range(i):
         idx = np.random.randint(0, n)
-        points[idx].set_infected(0, None, args.common_p)
+        points[idx].set_infected(0, points[idx], args.common_p)
 
     # initialize location tree
     root, leaves = initialize_graph()
@@ -119,19 +116,6 @@ def initialize():
     dfs(root)
 
     return points, root
-
-
-
-
-def debug_people(points):
-    print(f"{'CL':>3} {'CLO':>10} {'CLD':>3} {'CT':>10} {'MT':>10} {'ROUTE'}")
-    for p in points:
-        cl = str(p.current_location)
-        clo = str(p.current_loc)
-        cld = str(p.duration_time[p.current_location])
-        ct = str(p.current_trans)
-        mt = str(p.main_trans)
-        print(f"{cl:>3} {clo:>10} {cld:>3} {ct:>10} {mt:>10} {p.route}")
 
 
 def disease_transmission(points, t):
@@ -204,9 +188,6 @@ def get_alternate_route(point):
     return get_common_route(point)[1:]
 
 
-def get_containment_strategy_for_tested_positives(point):
-    return [COVIDQuarantineZone]
-
 iterations = 10000
 testing_freq = 10
 test_center_spawn_check_freq = 10
@@ -216,43 +197,53 @@ test_center_spawn_threshold = 100
 
 def main():
     PLOT = True
-    DEBUG = False
+    log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=True)
+
+    # initialize graphs and people
     points, root = initialize()
+    log.log(f"{len(points)} {count_graph_n(root)}", 'i')
+    log.log_graph(root)
+
+    # add test centers to medical zones
     test_centers = []
     classes = Location.separate_into_classes(root)
     for mz in classes[MedicalZone]:
         test_center = TestCenter(mz.x, mz.y, mz.radius)
         test_centers.append(test_center)
+
+    # initialize plots
     if PLOT:
         fig, ax, sc, hm, test_center_patches = init_figure(root, points, test_centers, args.H, args.W)
-        fig2, axs = plt.subplots(2, 2)
+        fig2, axs = plt.subplots(2, 4)
 
-    for i in range(5):
-        print(f"initializing {i}")
+    # initial iterations to initialize positions of the people
+    for t in range(5):
+        print(f"initializing {t}")
         root.process_people_movement(0)
 
-    for i in range(iterations):
-        print(f"Iteration: {i} {i_to_time(i)}")
-        if DEBUG:
-            debug_people(points)
+    # main iteration loop
+    for t in range(iterations):
+        log.log(f"Iteration: {t} {i_to_time(t)}", 'w')
+        log.log_people(points)
+
         # process movement
-        root.process_people_movement(i % Location._day)
+        root.process_people_movement(t)
 
         # process transmission and recovery
-        disease_transmission(points, i % Location._day)
+        disease_transmission(points, t)
         process_recovery(points)
 
         # process testing
-        if i % testing_freq == 0:
-            testing_procedure(points, test_centers, i % Location._day)
+        if t % testing_freq == 0:
+            testing_procedure(points, test_centers, t)
 
         # change routes randomly for some people
         for p in points:
             if np.random.rand() < 0.0001:
-                p.update_route(root, i % Location._day, get_alternate_route(p))
+                p.update_route(root, t % Location._day, get_alternate_route(p))
 
         # spawn new test centers
-        if i % test_center_spawn_check_freq == 0:
+        if t % test_center_spawn_check_freq == 0:
             test_center = TestCenter.spawn_test_center(test_center_spawn_method, points, test_centers, args.H,
                                                        args.W, args.test_center_r, test_center_spawn_threshold)
             if test_center is not None:
@@ -261,18 +252,22 @@ def main():
 
         # reset day
 
-        if i % Location._day == 0:
+        if t % Location._day == 0:
             for p in points:
-                p._reset_day = False
+                p.is_day_finished = False
 
-                # overriding routes if necessary. (tested positives, etc)
-                if p.is_tested_positive() and p.is_infected():
-                    p.update_route(root, 0, get_containment_strategy_for_tested_positives(p), replace=True)
+            # overriding routes if necessary. (tested positives, etc)
+            for p in points:
+                if ContainmentEngine.check(p, root, args.containment, t):
+                    break
+
+        # check locations for any changes to quarantine state
+        ContainmentEngine.check_locations(root, t)
 
         # ==================================== plotting ==============================================================
         if PLOT:
-            if i % 100 == 0:
-                update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, args.H, args.W, i)
+            if t % 100 == 0:
+                update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, args.H, args.W, t)
                 plot_info(fig2, axs, points)
 
         # move_points(test_centers)

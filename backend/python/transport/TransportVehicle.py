@@ -16,6 +16,15 @@ class TransportVehicle(Transport):
         self.vehicles_in_route = {}
         self.vehicles_in_route_leaving_t = {}
 
+    def get_description_dict(self):
+        d = super().get_description_dict()
+        d['_vehicle_capacity'] = self._vehicle_capacity
+        d['_vehicle_waiting_time_after_initialization'] = self._vehicle_waiting_time_after_initialization
+        d['route_label'] = self.route_label.__str__().replace(' ', '').replace(',', '|')
+        d['vehicles_in_route'] = self.vehicles_in_route.__str__().replace(' ', '').replace(',', '|')
+        d['vehicles_in_route_leaving_t'] = self.vehicles_in_route_leaving_t.__str__().replace(' ', '').replace(',', '|')
+        return d
+
     @staticmethod
     def get_route_name(f, t):
         return str(f) + '->' + str(t)
@@ -25,7 +34,7 @@ class TransportVehicle(Transport):
         locs = [str(location)] + [str(l) for l in location.locations]
 
         pairs = list(itertools.combinations(locs, 2))
-        n = len(pairs)
+
         for idx, pair in enumerate(pairs):
             self.route_label[TransportVehicle.get_route_name(pair[0], pair[1])] = idx // 3
             self.route_label[TransportVehicle.get_route_name(pair[1], pair[0])] = idx // 3
@@ -76,7 +85,7 @@ class TransportVehicle(Transport):
         if Transport.DEBUG:
             print(f"""Added person {point} going in {TransportVehicle.get_route_name(fr,
                                                                                      to)} which belong to route {rlabel} to {self} {self._current_label} {len(
-                self.vehicles_in_route[rlabel][key])}/{self._vehicle_capacity}""")
+                self.vehicles_in_route[rlabel][self._current_label])}/{self._vehicle_capacity}""")
 
     def get_point_label(self, point):
         return self._current_label
@@ -85,17 +94,20 @@ class TransportVehicle(Transport):
         return 0.8
 
     def transport_point(self, idx, destination_xy, t):
-        rlabel = self.route_label[TransportVehicle.get_route_name(self.points_source[idx], self.points_destination[idx])]
+        rlabel = self.route_label[
+            TransportVehicle.get_route_name(self.points_source[idx], self.points_destination[idx])]
         vlabel = self.points_label[idx]
         point = self.points[idx]
-        if t > self.vehicles_in_route_leaving_t[rlabel][vlabel] or self.points_source[idx]==self.points_destination[idx]:
+        if t > self.vehicles_in_route_leaving_t[rlabel][vlabel] or self.points_source[idx] == self.points_destination[
+            idx]:
             point.x += np.sign(destination_xy[0] - point.x) * self.vcap if abs(
                 destination_xy[0] - point.x) > self.vcap else destination_xy[0] - point.x
             point.y += np.sign(destination_xy[1] - point.y) * self.vcap if abs(
                 destination_xy[1] - point.y) > self.vcap else destination_xy[1] - point.y
         else:
             if Transport.DEBUG:
-                print(f"""At {t} point {point} is waiting till vehicle leaves at {self.vehicles_in_route_leaving_t[rlabel][vlabel]}. {len(
-                self.vehicles_in_route[rlabel][vlabel])}/{self._vehicle_capacity}""")
+                print(f"""At {t} point {point} is waiting till vehicle leaves at {
+                self.vehicles_in_route_leaving_t[rlabel][vlabel]}. {len(
+                    self.vehicles_in_route[rlabel][vlabel])}/{self._vehicle_capacity}""")
             point.x += np.random.rand() / 10
             point.y += np.random.rand() / 10

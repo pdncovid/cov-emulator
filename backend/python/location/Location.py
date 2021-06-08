@@ -1,4 +1,6 @@
+from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.MovementEngine import MovementEngine
+from backend.python.const import DAY
 from backend.python.enums import Shape
 from backend.python.functions import is_inside_polygon, get_time, get_duration
 import numpy as np
@@ -7,7 +9,6 @@ import numpy as np
 class Location:
     DEBUG = False
     _id = 0
-    _day = get_duration(24)
 
     def __init__(self, shape, x, y, name, exittheta=0.0, exitdist=0.9, infectiousness=1.0, **kwargs):
         self.ID = Location._id
@@ -17,6 +18,8 @@ class Location:
         self.shape = shape
         self.depth = 0
         self.capacity = kwargs.get('capacity')
+        self.recovery_p = 0.1  # todo find this, add to repr
+
         self.quarantined = kwargs.get('quarantined', False)
         self.quarantined_time = -1
 
@@ -195,25 +198,22 @@ class Location:
         for point in self.points:
             point.current_trans.move(point, t)
 
-    def process_people_movement(self, t):
-        # DFS each location graph and process leaf locations
-        for i, point in enumerate(self.points):
+    def check_for_leaving(self, t):
+        for i, p in enumerate(self.points):
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
 
             # come to route[0] if not there even if day is finished
-            if t >= point.current_loc_leave and \
-                    (not point.is_day_finished or point.current_loc != point.route[0]) and \
-                    not point.in_inter_trans:
+            if t >= p.current_loc_leave and \
+                    (not p.is_day_finished or p.current_loc != p.route[0]) and \
+                    not p.in_inter_trans:
                 # overstay. move point to the transport medium
-                next_location = MovementEngine.find_next_location(point)
-                move_out = False
+                next_location = MovementEngine.find_next_location(p)
+
                 if self.depth == next_location.depth:
                     transporting_location = self.parent_location
-                    move_out = True
                 elif self.depth > next_location.depth:
                     transporting_location = next_location
-                    move_out = True
                 else:
                     transporting_location = self
 
@@ -221,11 +221,12 @@ class Location:
                     transporting_location = self  # this is because when we update route we set current_loc to root sometimes
 
                 # leaving current location
-                if self.quarantined and move_out and not point.is_recovered():  # todo get this logic from Containment Engine
-                    pass
-                else:
-                    transporting_location.enter_person(point, t, next_location)
-                    point.in_inter_trans = True
+                if ContainmentEngine.can_go_there(p, self, next_location):
+                    transporting_location.enter_person(p, t, next_location)
+                    p.in_inter_trans = True
+
+    def process_people_movement(self, t):
+        self.check_for_leaving(t)
 
         if len(self.locations) == 0:
             if self.override_transport is None:
@@ -243,9 +244,11 @@ class Location:
             pass
         else:
             p.current_loc.remove_point(p)
-            if p.get_next_location() == self:
+            if p.get_next_target() == self:
                 p.increment_target_location()
                 current_loc_leave = self.get_leaving_time(p, t)
+            elif p.get_current_target() == self:
+                pass
             else:
                 current_loc_leave = t - 1
 
@@ -264,9 +267,11 @@ class Location:
                 # CURRENT LOCATION FULL. IMMEDIATELY REMOVE.
                 # Add it to the parent location (and move to next target. AUTOMATICALLY pushed to next target when moved to parent location??)
                 # move to parent location because we can't add to current location and we can move down the tree
-                p.increment_target_location() # todo check this
+                p.increment_target_location()  # todo check this
+                print("CAPACITY!!!!")
                 if self.parent_location is not None:
-                    self.parent_location.enter_person(p, t)
+                    next_location = MovementEngine.find_next_location(p)
+                    self.parent_location.enter_person(p, t, next_location)
                     # todo bug: if p is in home, when cap is full current_loc jump to self.parent
                     return  # don't add to this location because capacity reached
 
@@ -274,13 +279,13 @@ class Location:
             print(f"### Enter {p} to {target_location} through {self} using {trans}")
 
     def get_leaving_time(self, p, t):
-        if p.duration_time[p.current_target_idx] != -1:  # p.current
-            current_loc_leave = min(t + p.duration_time[p.current_target_idx], Location._day - 1)
+        if p.duration_time[p.current_target_idx] != -1:  # p.current # todo error list index out of range
+            current_loc_leave = min(t + p.duration_time[p.current_target_idx], t-t%DAY+DAY - 1)
         else:
-            bias = (t // Location._day) * Location._day
-            if p.is_day_finished:
-                bias += Location._day
-            current_loc_leave = bias + p.leaving_time[p.current_target_idx]
+            # bias = (t // DAY) * DAY
+            # if p.is_day_finished:
+            #     bias += DAY
+            current_loc_leave =  p.leaving_time[p.current_target_idx]#bias +
         return current_loc_leave
 
     def remove_point(self, point):

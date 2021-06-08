@@ -1,5 +1,6 @@
 import numpy as np
 
+from backend.python.const import DAY
 from backend.python.enums import State
 from backend.python.functions import get_random_element
 from backend.python.location.Location import Location
@@ -15,11 +16,17 @@ class Person:
     def __init__(self):
         self.ID = Person._id
         Person._id += 1
+
+        self.gender = 0 if np.random.rand() < 0.5 else 1  # gender of the person
+        self.age = np.random.uniform(1, 80)  # age todo add to repr
+        self.immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find and add to repr
+        self.wealth = 0  # wealth class of the point
+        self.behaviour = 0  # behaviour of the point (healthy medical practices -> unhealthy)
+
         self.x = 0  # x location
         self.y = 0  # y location
         self.vx = 0  # velocity x
         self.vy = 0  # velocity y
-        self.gender = 0  # gender of the person
 
         self._backup_route = None
         self._backup_duration_time = None
@@ -39,14 +46,12 @@ class Person:
         self.current_trans = None
         self.in_inter_trans = False
 
-        self.wealth = 0  # wealth class of the point
-        self.behaviour = 0  # behaviour of the point (healthy medical practices -> unhealthy)
-
         self.state = State.SUSCEPTIBLE.value  # current state of the point (infected/dead/recovered etc.)
 
         self.source = None  # infected source point
         self.infected_time = -1  # infected time
         self.infected_location = None  # infected location (ID)
+        self.disease_state = 0  # disease state, higher value means bad for the patient # todo add to repr
 
         self.tested_positive_time = -1  # tested positive time
 
@@ -111,6 +116,18 @@ class Person:
             self._backup_duration_time = None
             self._backup_leaving_time = None
 
+    def adjust_leaving_time(self, t):
+        _t = t - t % DAY
+        for i in range(len(self.route)):
+            if self.leaving_time[i] == -1:
+                continue
+            if self.leaving_time[i] < _t or self.leaving_time[i] > _t + DAY:
+                self.leaving_time[i] = self.leaving_time[i] % DAY + _t
+
+    def reset_day(self, t):
+        self.is_day_finished = False
+        self.adjust_leaving_time(t)
+
     def increment_target_location(self):
         self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
         if self.current_target_idx == 0:
@@ -150,7 +167,7 @@ class Person:
         """
         if new_route_classes is None:
             return
-        _t = t % Location._day
+        _t = t % DAY
         self.backup_route()
         if replace:
             self.route = []
@@ -178,11 +195,11 @@ class Person:
         self.route += route
         self.duration_time += duration
         self.leaving_time += leaving
-
+        self.adjust_leaving_time(t)
         if self.current_target_idx >= len(self.route):
             self.current_target_idx = len(route) - 1
         if replace:
-            self.route[0].enter_person(self, t-t % Location._day, target_location=None)
+            self.route[0].enter_person(self, t - _t, target_location=None)
 
     def set_route(self, route, duration, leaving, t):
         assert len(route) == len(duration) == len(leaving)
@@ -199,7 +216,10 @@ class Person:
     def get_current_location(self) -> Location:
         return self.current_loc
 
-    def get_next_location(self) -> Location:
+    def get_current_target(self) -> Location:
+        return self.route[self.current_target_idx]
+
+    def get_next_target(self) -> Location:
         return self.route[(self.current_target_idx + 1) % len(self.route)]
 
     def set_infected(self, t, p, common_p):
@@ -208,12 +228,21 @@ class Person:
         self.source = p
         self.infected_location = p.current_loc
         self.update_temp(common_p)
+        self.disease_state = 1
 
     def set_recovered(self):
         self.state = State.RECOVERED.value
+        self.restore_route()
+        self.disease_state = 0
 
     def set_susceptible(self):
         self.state = State.SUSCEPTIBLE.value
+
+    def set_dead(self):
+        self.state = State.DEAD.value
+        self.temp = 25
+        self.vx = 0
+        self.vy = 0
 
     # def transmit_disease(self, points, beta, common_p, d, t):
     #     c = 0
@@ -231,14 +260,22 @@ class Person:
     def is_recovered(self):
         return self.state == State.RECOVERED.value
 
+    def is_dead(self):
+        return self.state == State.DEAD.value
+
+    def is_susceptible(self):
+        return self.state == State.SUSCEPTIBLE.value
+
     def is_tested_positive(self):
         return self.tested_positive_time > 0
 
     def update_temp(self, common_p):
-        if self.state == State.INFECTED.value:
+        if self.is_infected():
             self.temp = np.random.normal(*Person.infect_temperature)
-        else:
+        elif self.is_recovered() or self.is_susceptible():
             if np.random.rand() < common_p:  # Common fever
                 self.temp = np.random.normal(*Person.infect_temperature)
             else:
                 self.temp = np.random.normal(*Person.normal_temperature)
+        elif self.is_dead():
+            self.temp = 25

@@ -120,50 +120,16 @@ def plot_info(fig, axs, points):
         ax.set_xlim(0, len(y))
         ax.set_ylim(0, max_value + 2)
         fig.canvas.draw(), fig.canvas.flush_events()
-
-
-def get_heatmap(points, h, w):
-    res = 20
-    yy, xx = np.meshgrid(np.linspace(-h, h, res), np.linspace(-w, w, res))
-    zz = np.zeros_like(xx)
-    dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
-    for p in points:
-        if p.state == State.INFECTED.value:
-            zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1
-    return xx, yy, zz
-
-
-def init_figure(root, points, test_centers, h, w):
-    fig = plt.figure(1)
-    ax = plt.gca()
-    ax.annotate(i_to_time(0), (-w, h), xytext=(-w, h), fontsize=7)
-    # drawing heat-map
-    xx, yy, zz = get_heatmap(points, h, w)
-    hm = ax.pcolormesh(xx, yy, zz, cmap='Reds', shading='auto', alpha=0.9)
-    fig.colorbar(hm, ax=ax)
-
-    # drawing points
-    x, y = [p.x for p in points], [p.y for p in points]
-    if len(points) > 10000:
-        x, y = [], []
-    sc = plt.scatter(x, y, alpha=0.8)
-    legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label=point_names[key], markerfacecolor=point_colors[key],
-               markersize=15) for key in point_colors.keys()
-    ]
-    ax.legend(handles=legend_elements, loc='upper right')
-
+def draw_map(ax, root, test_centers):
     # drawing test centers
-    test_center_patches = []
     for test in test_centers:
         circle = plt.Circle((test.x, test.y), test.r, color=test_center_color, fill=True, alpha=0.3)
         ax.add_patch(circle)
-        test_center_patches.append(circle)
 
     # drawing locations
     def dfs(rr: Location):
         if rr.shape == Shape.CIRCLE.value:
-            circle = plt.Circle((rr.x, rr.y), rr.radius, color='g', fill=False)
+            circle = plt.Circle((rr.x, rr.y), rr.radius, facecolor=[1, 0, 0, 0.5], fill=rr.quarantined, edgecolor='g')
             ax.add_patch(circle)
         elif rr.shape == Shape.POLYGON.value:
             coord = rr.boundary
@@ -181,13 +147,49 @@ def init_figure(root, points, test_centers, h, w):
 
     dfs(root)
 
+def get_heatmap(points, h, w):
+    res = 20
+    yy, xx = np.meshgrid(np.linspace(-h, h, res), np.linspace(-w, w, res))
+    zz = np.zeros_like(xx)
+    dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
+    for p in points:
+        if p.state == State.INFECTED.value:
+            zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1
+    return xx, yy, zz
+
+
+def init_figure(root, points, test_centers, h, w, t):
+    fig = plt.figure(1)
+    fig.clf()
+    ax = plt.gca()
+    ax.annotate(i_to_time(t), (-w, h), xytext=(-w, h), fontsize=7)
+    # drawing heat-map
+    xx, yy, zz = get_heatmap(points, h, w)
+    hm = ax.pcolormesh(xx, yy, zz, cmap='Reds', shading='auto', alpha=0.9)
+    fig.colorbar(hm, ax=ax)
+
+    # drawing points
+    x, y = [p.x for p in points], [p.y for p in points]
+    if len(points) > 10000:
+        x, y = [], []
+    sc = plt.scatter(x, y, alpha=0.8)
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label=point_names[key], markerfacecolor=point_colors[key],
+               markersize=15) for key in point_colors.keys()
+    ]
+    ax.legend(handles=legend_elements, loc='upper right')
+
+    draw_map(ax, root, test_centers)
+
     plt.xlim(-w, w)
     plt.ylim(-h, h)
     plt.draw()
-    return fig, ax, sc, hm, test_center_patches
+
+    plt.pause(0.01)
+    return fig, ax, sc, hm
 
 
-def update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, h, w, t):
+def update_figure(fig, ax, sc, hm, root, points, test_centers, h, w, t):
     ax.texts[0]._text = i_to_time(t)
     if len(points) <= 10000:
         x, y = [p.x for p in points], [p.y for p in points]
@@ -204,13 +206,9 @@ def update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, h,
 
     # v = [(p.vx ** 2 + p.vy ** 2) ** 0.5 + 1 for p in points]
 
-    for i, test in enumerate(test_centers):
-        if i == len(test_center_patches):
-            circle = plt.Circle((test.x, test.y), test.r, color=test_center_color, fill=True, alpha=0.3)
-            ax.add_patch(circle)
-            test_center_patches.append(circle)
-        else:
-            test_center_patches[i].center = test.x, test.y
+    ax.set_patches([])
+    draw_map(ax, root, test_centers)
+
 
     xx, yy, zz = get_heatmap(points, h, w)
     hm.set_array(zz.ravel())

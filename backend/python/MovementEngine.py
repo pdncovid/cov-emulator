@@ -6,7 +6,7 @@ class MovementEngine:
     @staticmethod
     def find_lcp_location(point):
         lc = point.get_current_location()
-        ln = point.get_next_location()
+        ln = point.get_next_target()
 
         dc, dn = lc.depth, ln.depth
 
@@ -22,7 +22,7 @@ class MovementEngine:
     @staticmethod
     def find_next_location(point):
         lc = point.current_loc
-        ln = point.get_next_location()
+        ln = point.get_next_target()
         if lc == ln:
             return ln
 
@@ -38,7 +38,7 @@ class MovementEngine:
         if lc == ln:  # same line
             if point.current_loc.depth > lc.depth:
                 return point.current_loc.parent_location
-            ln = point.get_next_location()
+            ln = point.get_next_target()
             while ln.depth != point.current_loc.depth + 1:
                 ln = ln.parent_location
             return ln

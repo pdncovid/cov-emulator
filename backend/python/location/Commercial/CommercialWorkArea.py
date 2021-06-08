@@ -1,3 +1,4 @@
+from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_time, get_duration, get_current_time
 from backend.python.location.Location import Location
@@ -24,7 +25,7 @@ class CommercialWorkArea(Location):
                     break
             else:
                 _r = [self]
-                _d = [min(get_duration(1), Location._day - t)]
+                _d = [min(get_duration(1), DAY - t)]
                 _l = [-1]
         else:
             raise NotImplementedError()

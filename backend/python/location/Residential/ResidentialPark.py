@@ -1,3 +1,4 @@
+from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_duration, get_time, get_current_time
 from backend.python.location.Location import Location
@@ -8,7 +9,7 @@ class ResidentialPark(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if force_dt:
             _r = [self]
-            _d = [np.random.randint(0, min(get_duration(1), Location._day - t))]
+            _d = [np.random.randint(0, min(get_duration(1), DAY - t))]
             _l = [-1]
         else:
             _r = [self]

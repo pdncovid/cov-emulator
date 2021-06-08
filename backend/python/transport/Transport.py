@@ -77,14 +77,6 @@ class Transport():
             self.transport_point(idx, destination.exit, t)
 
             if MovementEngine.is_close(point, destination.exit, eps=self.destination_reach_eps):
-
-                if point.current_target_idx + 1 == len(point.route):
-                    point.restore_route()
-                    point.current_target_idx = len(point.route) - 1
-
-                    # for _i in range(len(point.route)):
-                    #     if point.leaving_time[_i] != -1:
-                    #         point.leaving_time[_i] += Location._day
                 destination.enter_person(point, t)  # destination point reached
                 point.in_inter_trans = False
 

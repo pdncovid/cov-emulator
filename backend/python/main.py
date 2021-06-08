@@ -6,10 +6,13 @@ import matplotlib.pyplot as plt
 
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
+from backend.python.CovEngine import CovEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import init_figure, update_figure, plot_info
+from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape, State, TestSpawn, Containment
 from backend.python.functions import bs, i_to_time, get_duration, count_graph_n
+from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Commercial.CommercialZone import CommercialZone
 from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
 from backend.python.location.Medical.MedicalZone import MedicalZone
@@ -25,18 +28,23 @@ from backend.python.transport.Walk import Walk
 TODO: 
 Infection using contagious areas
 """
+iterations = 10000
+testing_freq = 10
+test_center_spawn_check_freq = 10
+test_center_spawn_method = TestSpawn.HEATMAP.value
+test_center_spawn_threshold = 100
+
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-parser.add_argument('-n', help='target population', default=100)
+parser.add_argument('-n', help='target population', default=1000)
 parser.add_argument('-H', help='height', type=int, default=102)
 parser.add_argument('-W', help='width', type=int, default=102)
 parser.add_argument('-i', help='initial infected', type=int, default=1)
 
 parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
-parser.add_argument('--beta', help='transmission probability', type=float, default=0.1)
-parser.add_argument('--gamma', help='recovery rate', type=float, default=1 / 14 / get_duration(24))
 parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
-parser.add_argument('--containment', help='containment strategy used ', type=int, default=Containment.QUARANTINECENTER.value)
+parser.add_argument('--containment', help='containment strategy used ', type=int,
+                    default=Containment.QUARANTINECENTER.value)
 parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
 parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
 parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)
@@ -58,10 +66,13 @@ def initialize_graph():
     comm1 = CommercialZone(Shape.CIRCLE.value, 40, -50, "C1", r=30, n_buildings=6, building_r=5)
     hosp = MedicalZone(Shape.CIRCLE.value, -30, 40, "M1", r=30, n_buildings=2, building_r=10)
 
+    cemetery = Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3)
+
     root.add_sub_location(resi1)
     root.add_sub_location(resi2)
     root.add_sub_location(comm1)
     root.add_sub_location(hosp)
+    root.add_sub_location(cemetery)
     leaves = []
 
     def dfs(rr: Location):
@@ -126,23 +137,15 @@ def disease_transmission(points, t):
 
     contacts, distance, sourceid = TransmissionEngine.get_close_contacts_and_distance(x, y, state, r)
 
-    new_infected = TransmissionEngine.transmit_disease(points, contacts, distance, sourceid, args.beta, args.common_p,
-                                                       t)
+    new_infected = TransmissionEngine.transmit_disease(points, contacts, distance, sourceid, t)
 
-    print(f"""{new_infected}/{sum(contacts > 0)}/{int(sum(contacts))}/{sum(
-        state == State.INFECTED.value)} Infected/Unique/Contacts/Active""")
+    log.log(f"""{new_infected}/{sum(contacts > 0)}/{int(sum(contacts))}/{sum(
+        state == State.INFECTED.value)} Infected/Unique/Contacts/Active""", 'd')
 
 
 def update_point_parameters(points):
     for i in range(args.n):
-        points[i].update_temp()
-
-
-def process_recovery(points):
-    for i in range(args.n):
-        if points[i].state == State.INFECTED.value:
-            if np.random.rand() < args.gamma:
-                points[i].set_recovered()
+        points[i].update_temp(args.common_p)
 
 
 def testing_procedure(points, test_centers, t):
@@ -160,10 +163,10 @@ def testing_procedure(points, test_centers, t):
         r = test_centers[i].r
 
         x_idx_r = bs(xs, test_centers[i].x + r)
-        x_idx_l = bs(xs, test_centers[i].x - r) + 1
+        x_idx_l = bs(xs, test_centers[i].x - r)  # + 1
 
         y_idx_r = bs(ys, test_centers[i].y + r)
-        y_idx_l = bs(ys, test_centers[i].y - r) + 1
+        y_idx_l = bs(ys, test_centers[i].y - r)  # + 1
 
         close_points = np.intersect1d(xs_idx[x_idx_l:x_idx_r], ys_idx[y_idx_l:y_idx_r])
         for close_point in close_points:
@@ -188,16 +191,10 @@ def get_alternate_route(point):
     return get_common_route(point)[1:]
 
 
-iterations = 10000
-testing_freq = 10
-test_center_spawn_check_freq = 10
-test_center_spawn_method = TestSpawn.HEATMAP.value
-test_center_spawn_threshold = 100
-
-
 def main():
-    PLOT = True
-    log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=True)
+    PLOT = False
+    global log
+    log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
 
     # initialize graphs and people
     points, root = initialize()
@@ -211,9 +208,12 @@ def main():
         test_center = TestCenter(mz.x, mz.y, mz.radius)
         test_centers.append(test_center)
 
+    # find cemeteries
+    cemetery = classes[Cemetery]
+
     # initialize plots
     if PLOT:
-        fig, ax, sc, hm, test_center_patches = init_figure(root, points, test_centers, args.H, args.W)
+        fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, 0)
         fig2, axs = plt.subplots(2, 4)
 
     # initial iterations to initialize positions of the people
@@ -231,7 +231,8 @@ def main():
 
         # process transmission and recovery
         disease_transmission(points, t)
-        process_recovery(points)
+        CovEngine.process_recovery(points, t)
+        CovEngine.process_death(points, t, cemetery)
 
         # process testing
         if t % testing_freq == 0:
@@ -239,8 +240,10 @@ def main():
 
         # change routes randomly for some people
         for p in points:
-            if np.random.rand() < 0.0001:
-                p.update_route(root, t % Location._day, get_alternate_route(p))
+            if p.is_infected() and p.is_tested_positive():  # these people cant change route randomly!!!
+                continue
+            if np.random.rand() < 0.001:
+                p.update_route(root, t % DAY, get_alternate_route(p))
 
         # spawn new test centers
         if t % test_center_spawn_check_freq == 0:
@@ -250,24 +253,27 @@ def main():
                 print(f"Added new TEST CENTER at {test_center.x} {test_center.y}")
                 test_centers.append(test_center)
 
+        # check locations for any changes to quarantine state
+        ContainmentEngine.check_locations(root, t)
+
+        update_point_parameters(points)
+
         # reset day
 
-        if t % Location._day == 0:
+        if t % DAY == 0:
             for p in points:
-                p.is_day_finished = False
+                p.reset_day(t)
 
             # overriding routes if necessary. (tested positives, etc)
             for p in points:
-                if ContainmentEngine.check(p, root, args.containment, t):
+                if ContainmentEngine.check_to_update_route(p, root, args.containment, t):
                     break
-
-        # check locations for any changes to quarantine state
-        ContainmentEngine.check_locations(root, t)
 
         # ==================================== plotting ==============================================================
         if PLOT:
             if t % 100 == 0:
-                update_figure(fig, ax, sc, hm, points, test_centers, test_center_patches, args.H, args.W, t)
+                fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
+                # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
                 plot_info(fig2, axs, points)
 
         # move_points(test_centers)

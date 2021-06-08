@@ -1,9 +1,6 @@
-from backend.python.enums import Mobility, Shape
-from backend.python.functions import get_duration, get_time, get_current_time
+from backend.python.enums import Shape
+from backend.python.functions import get_current_time
 from backend.python.location.Location import Location
-from backend.python.transport.Transport import Transport
-from backend.python.transport.Walk import Walk
-import numpy as np
 
 
 class COVIDQuarantineZone(Location):

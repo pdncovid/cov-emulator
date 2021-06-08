@@ -6,7 +6,7 @@ from enum import Enum
 
 Mobility = Enum('Mobility', "RANDOM BROWNIAN")
 
-State = Enum('State', "SUSCEPTIBLE INFECTED RECOVERED")
+State = Enum('State', "SUSCEPTIBLE INFECTED RECOVERED DEAD")
 Shape = Enum('Shape', "POLYGON CIRCLE")
 TestSpawn = Enum('Test center spawning method', 'RANDOM HEATMAP')
 Containment = Enum('Containment strategy', "NONE LOCKDOWN QUARANTINE QUARANTINECENTER")

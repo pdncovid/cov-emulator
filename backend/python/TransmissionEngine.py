@@ -1,15 +1,16 @@
 import numpy as np
 
 from backend.python.enums import State
-from backend.python.functions import bs
+from backend.python.functions import bs, get_duration
 from numba import njit
 
 
 class TransmissionEngine:
-    debug = True
+    base_transmission_p = 0.1
+    common_fever_p = 0.1
 
     @staticmethod
-    @njit
+    # @njit
     def get_close_contacts_and_distance(x, y, state, r):
         contacts = np.zeros(len(x))
         distance = np.ones(len(x)) * 1000
@@ -52,14 +53,14 @@ class TransmissionEngine:
         return contacts, distance, sourceid
 
     @staticmethod
-    def transmit_disease(points, contacts, distance, sourceid, beta, common_p, t):
+    def transmit_disease(points, contacts, distance, sourceid, t):
         valid = np.where(contacts > 0)[0]
         validsourceid = sourceid[valid]
         infected_duration = []
         for i in validsourceid:
             infected_duration.append(t - points[i].infected_time)
         infected_duration = np.array(infected_duration)
-        tr_p = TransmissionEngine.get_transmission_p(beta, distance[valid], infected_duration, contacts[valid])
+        tr_p = TransmissionEngine.get_transmission_p(distance[valid], infected_duration, contacts[valid])
 
         rand = np.random.rand(len(valid))
 
@@ -68,23 +69,23 @@ class TransmissionEngine:
             contact_person = points[valid[i]]
             infected_person = points[sourceid[valid[i]]]
 
-            location_p = contact_person.current_loc.infectious if contact_person.current_loc == infected_person.current_loc else 0
+            location_p = contact_person.current_loc.infectious  # if contact_person.current_loc == infected_person.current_loc else 0
             trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
 
             if rand[i] < tr_p[i] * trans_p * location_p:
-                contact_person.set_infected(t, infected_person, common_p)
+                contact_person.set_infected(t, infected_person, TransmissionEngine.common_fever_p)
                 c += 1
         return c
 
     @staticmethod
-    def get_transmission_p(beta, ds, infected_durations, contacts):
+    def get_transmission_p(ds, infected_durations, contacts):
         # 0 - 1
         def distance_f(d):
             return np.exp(-d / 5)
 
         def duration_f(dt):
-            return ((np.tanh(dt - 5) + 0.2) * (np.tanh(-dt + 8) + 0.5) + 1.19987) / 2.6683940
-            # return np.exp(-abs(np.random.normal(7, 2, len(dt)) - dt))
+            return ((np.tanh((dt - get_duration(24 * 5)) / get_duration(24 * 5)) + 0.2) *
+                    (np.tanh((-dt + get_duration(24 * 8)) / get_duration(24 * 8)) + 0.5) + 1.19987) / 2.6683940
 
         def count_f(c):
             c[c > 10] = 10
@@ -94,7 +95,7 @@ class TransmissionEngine:
         dp = distance_f(ds)
         tp = duration_f(infected_durations)
         cp = count_f(contacts)
-        return beta * dp * tp * cp
+        return TransmissionEngine.base_transmission_p * dp * tp * cp
 
     @staticmethod
     def get_transport_transmission_p(p1, p2):

@@ -14,7 +14,7 @@ class TestCenter:
         self.vx = 0
         self.vy = 0
 
-        self.max_tests = 1000
+        self.max_tests = 100
 
     def test(self, p, t, args):
         rnd = np.random.rand()

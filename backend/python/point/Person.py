@@ -129,6 +129,18 @@ class Person:
         self.is_day_finished = False
         self.adjust_leaving_time(t)
 
+    def adjust_leaving_time(self, t):
+        _t = t - t % DAY
+        for i in range(len(self.route)):
+            if self.leaving_time[i] == -1:
+                continue
+            if self.leaving_time[i] < _t or self.leaving_time[i] > _t + DAY:
+                self.leaving_time[i] = self.leaving_time[i] % DAY + _t
+
+    def reset_day(self, t):
+        self.is_day_finished = False
+        self.adjust_leaving_time(t)
+
     def increment_target_location(self):
         self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
         if self.current_target_idx == 0:

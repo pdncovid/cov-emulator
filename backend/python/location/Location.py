@@ -79,8 +79,8 @@ class Location:
         return d
 
     def spawn_sub_locations(self, cls, n, r, infectiousness, trans, **kwargs):
-        print(f"Automatically creating {n} {cls.__name__} for {self.__class__.__name__} {self.name}")
         xs, ys = self.get_suggested_positions(n, r)
+        print(f"Automatically creating {len(xs)}/{n} {cls.__name__} for {self.__class__.__name__} {self.name}")
         i = 0
         for x, y in zip(xs, ys):
             building = cls(Shape.CIRCLE.value, x, y, self.name + '-' + cls.__name__[:3] + str(i),
@@ -102,7 +102,6 @@ class Location:
                 _r = r1 - r2 - 2 * r2 * _r
 
                 theta = np.arcsin(r2 / _r)
-                print(_r, theta, np.pi // theta, np.pi % theta)
                 for _theta in range(int(np.pi * 1000) // int(theta * 1000)):
                     _theta = theta * 2 * _theta
                     _x = _r * np.cos(_theta)

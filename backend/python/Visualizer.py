@@ -154,7 +154,7 @@ def get_heatmap(points, h, w):
     dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
     for p in points:
         if p.state == State.INFECTED.value:
-            zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1
+            zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1 # todo bugsy
     return xx, yy, zz
 
 
@@ -172,7 +172,7 @@ def init_figure(root, points, test_centers, h, w, t):
     x, y = [p.x for p in points], [p.y for p in points]
     if len(points) > 10000:
         x, y = [], []
-    sc = plt.scatter(x, y, alpha=0.8)
+    sc = plt.scatter(x, y, alpha=0.8, s=1)
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label=point_names[key], markerfacecolor=point_colors[key],
                markersize=15) for key in point_colors.keys()
@@ -201,7 +201,7 @@ def update_figure(fig, ax, sc, hm, root, points, test_centers, h, w, t):
         # s = (s * 256 / 3)
         # sc.set_facecolor(plt.get_cmap('brg')(s))
 
-        sc._sizes = [10 for _ in points]  # v
+        sc._sizes = [1 for _ in points]  # v
         sc.set_offsets(np.c_[x, y])
 
     # v = [(p.vx ** 2 + p.vy ** 2) ** 0.5 + 1 for p in points]

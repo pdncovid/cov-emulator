@@ -12,16 +12,17 @@ from backend.python.Visualizer import init_figure, update_figure, plot_info
 from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape, State, TestSpawn, Containment
 from backend.python.functions import bs, i_to_time, get_duration, count_graph_n
+from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Commercial.CommercialZone import CommercialZone
-from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
+from backend.python.location.Districts.DenseDistrict import DenseDistrict
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
-from backend.python.location.Town import Town
 from backend.python.location.Location import Location
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.TestCenter import TestCenter
 from backend.python.transport.Bus import Bus
+from backend.python.transport.TransportVehicle import TransportVehicle
 from backend.python.transport.Walk import Walk
 
 """
@@ -35,10 +36,10 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-parser.add_argument('-n', help='target population', default=1000)
-parser.add_argument('-H', help='height', type=int, default=102)
-parser.add_argument('-W', help='width', type=int, default=102)
-parser.add_argument('-i', help='initial infected', type=int, default=1)
+parser.add_argument('-n', help='target population', default=10000)
+parser.add_argument('-H', help='height', type=int, default=1002)
+parser.add_argument('-W', help='width', type=int, default=1002)
+parser.add_argument('-i', help='initial infected', type=int, default=10)
 
 parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
 parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
@@ -53,25 +54,16 @@ parser.add_argument('--asymptotic_t', help='Mean asymptotic period. (Test acc gr
                     type=int, default=14)
 
 parser.add_argument('--initialize',
-                    help='How to initialize the positions (0-Random, 1-From file 2-From probability map)', type=int,
-                    default=0)
+                    help='How to initialize the positions (0-Random, 1-From file 2-From probability map)',
+                    type=int, default=0)
 
 args = parser.parse_args()
 
 
 def initialize_graph():
-    root = Town(Shape.CIRCLE.value, 0, 0, "T1", r=100)
-    resi1 = ResidentialZone(Shape.CIRCLE.value, 50, 10, "R1", r=20, n_houses=5, house_r=6)
-    resi2 = ResidentialZone(Shape.CIRCLE.value, -40, -50, "R2", r=20, n_houses=5, house_r=6)
-    comm1 = CommercialZone(Shape.CIRCLE.value, 40, -50, "C1", r=30, n_buildings=6, building_r=5)
-    hosp = MedicalZone(Shape.CIRCLE.value, -30, 40, "M1", r=30, n_buildings=2, building_r=10)
-
+    root = DenseDistrict(Shape.CIRCLE.value, 0, 0, "D1", r=1000)
     cemetery = Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3)
 
-    root.add_sub_location(resi1)
-    root.add_sub_location(resi2)
-    root.add_sub_location(comm1)
-    root.add_sub_location(hosp)
     root.add_sub_location(cemetery)
     leaves = []
 
@@ -121,6 +113,8 @@ def initialize():
     # setting up bus routes
     def dfs(rr: Location):
         bus.initialize_locations(rr)  # set up bus routes
+        if isinstance(rr.override_transport, TransportVehicle):
+            rr.override_transport.initialize_locations(rr)
         for child in rr.locations:
             dfs(child)
 
@@ -240,7 +234,8 @@ def main():
 
         # change routes randomly for some people
         for p in points:
-            if (p.is_infected() and p.is_tested_positive()) or p.is_dead():  # these people cant change route randomly!!!
+            if (
+                    p.is_infected() and p.is_tested_positive()) or p.is_dead():  # these people cant change route randomly!!!
                 continue
             if np.random.rand() < 0.001:
                 p.update_route(root, t % DAY, get_alternate_route(p))
@@ -263,14 +258,11 @@ def main():
             if ContainmentEngine.check_to_update_route(p, root, args.containment, t):
                 break
 
-
         # reset day
 
         if t % DAY == 0:
             for p in points:
                 p.reset_day(t)
-
-
 
         # ==================================== plotting ==============================================================
         if PLOT:

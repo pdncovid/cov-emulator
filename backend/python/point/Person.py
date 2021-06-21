@@ -2,7 +2,7 @@ import numpy as np
 
 from backend.python.const import DAY
 from backend.python.enums import State
-from backend.python.functions import get_random_element
+from backend.python.functions import get_random_element, find_in_subtree
 from backend.python.location.Location import Location
 from backend.python.location.Residential.Home import Home
 from backend.python.transport.Transport import Transport
@@ -41,6 +41,8 @@ class Person:
         self.current_loc_enter = -1
         self.current_loc_leave = -1
 
+        self.home_loc = None
+        self.work_loc = None
         self.current_loc = None
         self.main_trans = None  # main transport medium the point will use
         self.current_trans = None
@@ -117,14 +119,6 @@ class Person:
             self._backup_leaving_time = None
             self.current_target_idx = len(self.route) - 1
 
-    def adjust_leaving_time(self, t):
-        _t = t - t % DAY
-        for i in range(len(self.route)):
-            if self.leaving_time[i] == -1:
-                continue
-            if self.leaving_time[i] < _t or self.leaving_time[i] > _t + DAY:
-                self.leaving_time[i] = self.leaving_time[i] % DAY + _t
-
     def reset_day(self, t):
         self.is_day_finished = False
         self.adjust_leaving_time(t)
@@ -136,27 +130,50 @@ class Person:
                 continue
             if self.leaving_time[i] < _t or self.leaving_time[i] > _t + DAY:
                 self.leaving_time[i] = self.leaving_time[i] % DAY + _t
-
-    def reset_day(self, t):
-        self.is_day_finished = False
-        self.adjust_leaving_time(t)
 
     def increment_target_location(self):
         self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
         if self.current_target_idx == 0:
             self.is_day_finished = True
 
-    def suggested_route(self, root, t, common_route_classes, force_dt=False):
-        classes = Location.separate_into_classes(root)
+    def initialize_main_suggested_route(self):
+        if self.home_loc is None or self.work_loc is None:
+            raise Exception("Initialize home and workplace before initializing route")
+        self.route, self.duration_time, self.leaving_time, time = self.home_loc.get_suggested_sub_route(self, 0, False)
+        self.route[0].enter_person(self, 0)
 
-        route = []
-        duration = []
-        leaving = []
-        time = t
-        for zone in common_route_classes:
-            if zone not in classes.keys():
-                raise Exception(f"{zone} locations not available in the location tree")
-            objs = classes[zone]
+    def find_closest(self, target, cur=None):
+        # find closest (in tree) object to target
+        if cur is None:
+            cur = self.get_current_target()  # todo current target or current location
+        selected = find_in_subtree(cur, target, None)
+        while selected is None:
+            selected = find_in_subtree(cur.parent_location, target, cur)
+            cur = cur.parent_location
+        return selected
+
+    def get_suggested_route(self, t, target_classes_or_objs, force_dt=False):
+        if self.current_target_idx >= len(self.route):
+            self.current_target_idx = len(self.route) - 1
+        route, duration, leaving, time = [], [], [], t
+        for target in target_classes_or_objs:
+            selected = self.find_closest(target)
+            if selected is None:
+                raise Exception(f"Couldn't find {target} where {self} is currently at {self.get_current_target()}")
+            _route, _duration, _leaving, time = selected.get_suggested_sub_route(self, time, force_dt)
+
+            route += _route
+            duration += _duration
+            leaving += _leaving
+        return route, duration, leaving, time
+
+    def get_suggested_route2(self, root, t, common_route_classes, force_dt=False):
+        classes = Location.separate_into_classes(root)
+        route, duration, leaving, time = [], [], [], t
+        for target in common_route_classes:
+            if target not in classes.keys():
+                raise Exception(f"{target} locations not available in the location tree")
+            objs = classes[target]
             selected = get_random_element(objs)
 
             _route, _duration, _leaving, time = selected.get_suggested_sub_route(self, time, force_dt)
@@ -166,7 +183,7 @@ class Person:
             leaving += _leaving
         return route, duration, leaving, time
 
-    def set_random_route(self, root, t, common_route_classes=None):
+    def set_random_route(self, root, t, target_classes_or_objs=None):
         raise NotImplementedError()
 
     def update_route(self, root, t, new_route_classes=None, replace=False, keephome=True):
@@ -195,15 +212,15 @@ class Person:
             #     self.duration_time += [1]
             #     self.leaving_time += [-1]
             #     self.current_location += 1
-        if keephome:
+        if keephome: # todo update this
             if len(self.route) > 0 and isinstance(self.route[0], Home):
                 pass
             else:
                 self.route = [self._backup_route[0]] + self.route
                 self.duration_time = [self._backup_duration_time[0]] + self.duration_time
                 self.leaving_time = [self._backup_leaving_time[0]] + self.leaving_time
-
-        route, duration, leaving, time = self.suggested_route(root, _t, new_route_classes, force_dt=True)
+        # todo make sure current_target_idx is consistent with route
+        route, duration, leaving, time = self.get_suggested_route(_t, new_route_classes, force_dt=True)
 
         self.route += route
         self.duration_time += duration
@@ -257,16 +274,6 @@ class Person:
         self.vx = 0
         self.vy = 0
 
-    # def transmit_disease(self, points, beta, common_p, d, t):
-    #     c = 0
-    #     infected_duration = t - self.infected_time
-    #     for i in range(len(points)):
-    #         tr_p = get_transmission_p(beta, d[i], infected_duration)
-    #         rnd = np.random.rand()
-    #         if rnd < tr_p:
-    #             points[i].set_infected(t, self, common_p)
-    #             c += 1
-    #     return c
     def is_infected(self):
         return self.state == State.INFECTED.value
 

@@ -14,4 +14,4 @@ class DenseDistrict(Location):
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
         self.spawn_sub_locations(UrbanBlock, 15, r=100, infectiousness=0.8, trans=None)
-        self.spawn_sub_locations(RuralBlock, 5, r=250, infectiousness=0.8, trans=None)
+        self.spawn_sub_locations(RuralBlock, 5, r=250, infectiousness=0.4, trans=None)

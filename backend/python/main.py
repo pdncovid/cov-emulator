@@ -3,20 +3,22 @@ import time
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
 from backend.python.CovEngine import CovEngine
 from backend.python.TransmissionEngine import TransmissionEngine
-from backend.python.Visualizer import init_figure, update_figure, plot_info
+from backend.python.Visualizer import init_figure, update_figure, plot_info, plot_position
 from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape, State, TestSpawn, Containment
-from backend.python.functions import bs, i_to_time, get_duration, count_graph_n
+from backend.python.functions import bs, i_to_time, get_duration, count_graph_n, find_in_subtree, get_random_element
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Commercial.CommercialZone import CommercialZone
 from backend.python.location.Districts.DenseDistrict import DenseDistrict
 from backend.python.location.Medical.MedicalZone import MedicalZone
+from backend.python.location.Residential.Home import Home
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
 from backend.python.location.Location import Location
 from backend.python.point.CommercialWorker import CommercialWorker
@@ -36,9 +38,9 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-parser.add_argument('-n', help='target population', default=10000)
-parser.add_argument('-H', help='height', type=int, default=1002)
-parser.add_argument('-W', help='width', type=int, default=1002)
+parser.add_argument('-n', help='target population', default=100)
+parser.add_argument('-H', help='height', type=int, default=102)
+parser.add_argument('-W', help='width', type=int, default=102)
 parser.add_argument('-i', help='initial infected', type=int, default=10)
 
 parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
@@ -59,9 +61,10 @@ parser.add_argument('--initialize',
 
 args = parser.parse_args()
 
+work_map = {CommercialWorker:CommercialZone}
 
 def initialize_graph():
-    root = DenseDistrict(Shape.CIRCLE.value, 0, 0, "D1", r=1000)
+    root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
     cemetery = Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3)
 
     root.add_sub_location(cemetery)
@@ -103,11 +106,16 @@ def initialize():
     root, leaves = initialize_graph()
 
     # set random routes for each person and set their main transportation method
-    walk = Walk(np.random.randint(1, 10), Mobility.RANDOM.value)
-    bus = Bus(np.random.randint(10, 20), Mobility.RANDOM.value)
+    walk = Walk(np.random.randint(1*1000/get_duration(1), 10*1000/get_duration(1)), Mobility.RANDOM.value)
+    bus = Bus(np.random.randint(30*1000/get_duration(1), 40*1000/get_duration(1)), Mobility.RANDOM.value)
     main_trans = [walk, bus]
+    loc_classes = Location.separate_into_classes(root)
     for point in points:
-        point.set_random_route(root, 0, common_route_classes=get_common_route(point))
+        point.home_loc = get_random_element(loc_classes[Home])  # todo
+        point.work_loc = point.find_closest(work_map[point.__class__], point.home_loc)  # todo
+
+        point.initialize_main_suggested_route()
+        point.set_random_route(root, 0, target_classes_or_objs=[point.home_loc, point.work_loc])
         point.main_trans = main_trans[np.random.randint(0, len(main_trans))]
 
     # setting up bus routes
@@ -176,13 +184,13 @@ def testing_procedure(points, test_centers, t):
 
 def get_common_route(point):
     if isinstance(point, CommercialWorker):
-        return [ResidentialZone, CommercialZone]
+        return [CommercialZone]
 
 
 def get_alternate_route(point):
     if point.temp > point.infect_temperature[0]:
         return [MedicalZone, CommercialZone]
-    return get_common_route(point)[1:]
+    return get_common_route(point)
 
 
 def main():
@@ -194,6 +202,11 @@ def main():
     points, root = initialize()
     log.log(f"{len(points)} {count_graph_n(root)}", 'i')
     log.log_graph(root)
+
+    # DAILY REPORT
+    df = pd.DataFrame(columns=['loc', 'person', 'time','loc_class'])
+    df = df.astype(dtype= {"loc":"int64","person":"int64","time":"int64","loc_class":'object'})
+    # df.set_index('time')
 
     # add test centers to medical zones
     test_centers = []
@@ -234,10 +247,12 @@ def main():
 
         # change routes randomly for some people
         for p in points:
-            if (
-                    p.is_infected() and p.is_tested_positive()) or p.is_dead():  # these people cant change route randomly!!!
+            if (p.is_infected() and p.is_tested_positive()) or p.is_dead():  # these people cant change route randomly!!!
                 continue
-            if np.random.rand() < 0.001:
+            change_change = 0.001
+            if t%DAY > 1000:
+                change_change *= 0.0001
+            if np.random.rand() < change_change:
                 p.update_route(root, t % DAY, get_alternate_route(p))
 
         # spawn new test centers
@@ -264,12 +279,22 @@ def main():
             for p in points:
                 p.reset_day(t)
 
+        # record in daily report
+        tmp_list = []
+        # _str_i = len("<class backend.python.location")
+        for p in points:
+            cur = p.get_current_location()
+            person = p.ID
+            tmp_list.append({'loc':cur.ID, 'person':person, 'time':t, 'loc_class':cur.__class__.__name__})
+        df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % 100 == 0:
+            if t % (DAY//2) == 0:
                 fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
                 plot_info(fig2, axs, points)
+                plot_position(df)
+                plt.pause(0.1)
 
         # move_points(test_centers)
 

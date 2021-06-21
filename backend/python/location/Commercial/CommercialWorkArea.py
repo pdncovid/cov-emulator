@@ -25,7 +25,7 @@ class CommercialWorkArea(Location):
                     break
             else:
                 _r = [self]
-                _d = [min(get_duration(1), DAY - t)]
+                _d = [min(np.random.randint(0,get_duration(1)), DAY - t)]
                 _l = [-1]
         else:
             raise NotImplementedError()

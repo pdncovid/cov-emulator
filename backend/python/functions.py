@@ -19,6 +19,24 @@ def bs(arr, v):
     return l
 
 
+def find_in_subtree(c, tar, skip):
+    def dfs(r):
+        if r == tar or r is None:
+            return r
+        if type(tar) == type:
+            if isinstance(r, tar):
+                return r
+
+        for child in r.locations:
+            if child == skip:
+                continue
+            ret = dfs(child)
+            if ret is not None:
+                return ret
+
+    return dfs(c)
+
+
 def get_random_element(arr):
     return arr[np.random.randint(0, len(arr))]
 
@@ -33,20 +51,21 @@ def get_current_time(duration, leaving, time):
 
 
 def get_duration(hours: float):
-    return int(hours * (60//_scale))
+    return int(hours * (60 // _scale))
 
 
 _shift_hrs = 4
 _scale = 1
 
+
 def get_time(hours, mins=0):
-    return (hours - _shift_hrs) % 24 * (60//_scale) + mins//_scale
+    return (hours - _shift_hrs) % 24 * (60 // _scale) + mins // _scale
 
 
 def i_to_time(i):
-    hrs = _shift_hrs + (i // (60//_scale))
+    hrs = _shift_hrs + (i // (60 // _scale))
     days = hrs // 24
-    return f"Day {days} {(hrs % 24):02d}{(i % (60//_scale)*_scale):02d}h"
+    return f"Day {days} {(hrs % 24):02d}{(i % (60 // _scale) * _scale):02d}h"
 
 
 def count_graph_n(r):

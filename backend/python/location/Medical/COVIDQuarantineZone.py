@@ -15,6 +15,7 @@ class COVIDQuarantineZone(Location):
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
+        self.recovery_p = 0.8
 
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = True

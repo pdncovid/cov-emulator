@@ -266,9 +266,10 @@ class Location:
                 # CURRENT LOCATION FULL. IMMEDIATELY REMOVE.
                 # Add it to the parent location (and move to next target. AUTOMATICALLY pushed to next target when moved to parent location??)
                 # move to parent location because we can't add to current location and we can move down the tree
-                p.increment_target_location()  # todo check this
+                # p.increment_target_location()  # todo check this
                 print("CAPACITY!!!!")
                 if self.parent_location is not None:
+                    # p.current_loc = self.parent_location
                     next_location = MovementEngine.find_next_location(p)
                     self.parent_location.enter_person(p, t, next_location)
                     # todo bug: if p is in home, when cap is full current_loc jump to self.parent

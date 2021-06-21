@@ -5,6 +5,7 @@ import seaborn as sns
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
+from backend.python.const import DAY
 from backend.python.functions import i_to_time
 from backend.python.location.Location import Location
 
@@ -120,32 +121,35 @@ def plot_info(fig, axs, points):
         ax.set_xlim(0, len(y))
         ax.set_ylim(0, max_value + 2)
         fig.canvas.draw(), fig.canvas.flush_events()
-def draw_map(ax, root, test_centers):
+
+
+def draw_map(ax, root, test_centers, scale):
     # drawing test centers
     for test in test_centers:
-        circle = plt.Circle((test.x, test.y), test.r, color=test_center_color, fill=True, alpha=0.3)
+        circle = plt.Circle((test.x/scale, test.y/scale), test.r/scale, color=test_center_color, fill=True, alpha=0.3)
         ax.add_patch(circle)
 
     # drawing locations
     def dfs(rr: Location):
         if rr.shape == Shape.CIRCLE.value:
-            circle = plt.Circle((rr.x, rr.y), rr.radius, facecolor=[1, 0, 0, 0.5], fill=rr.quarantined, edgecolor='g')
+            circle = plt.Circle((rr.x/scale, rr.y/scale), rr.radius/scale, facecolor=[1, 0, 0, 0.5], fill=rr.quarantined, edgecolor='g')
             ax.add_patch(circle)
         elif rr.shape == Shape.POLYGON.value:
             coord = rr.boundary
             coord = np.concatenate([coord, coord[0:1, :]], axis=0)  # repeat the first point to create a 'closed loop'
-            xs, ys = coord[:, 0], coord[:, 1]  # create lists of x and y values
+            xs, ys = coord[:, 0]/scale, coord[:, 1]/scale  # create lists of x and y values
             ax.plot(xs, ys)
-        x = rr.exit[0]
-        y = rr.exit[1]
+        x = rr.exit[0]/scale
+        y = rr.exit[1]/scale
         ax.scatter(x, y, marker='x', s=5)
         if rr.depth <= 2:
-            ax.annotate(rr.name, (x, y), xytext=(x + 10, y + 10), fontsize=7,
+            ax.annotate(rr.name, (x, y), xytext=(x + 10/scale, y + 10/scale), fontsize=7,
                         arrowprops=dict(arrowstyle="->", connectionstyle="angle3,angleA=0,angleB=-90"))
         for child in rr.locations:
             dfs(child)
 
     dfs(root)
+
 
 def get_heatmap(points, h, w):
     res = 20
@@ -154,35 +158,37 @@ def get_heatmap(points, h, w):
     dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
     for p in points:
         if p.state == State.INFECTED.value:
-            zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1 # todo bugsy
+            zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1  # todo bugsy
     return xx, yy, zz
 
 
 def init_figure(root, points, test_centers, h, w, t):
     fig = plt.figure(1)
     fig.clf()
+    scale = 1000
     ax = plt.gca()
-    ax.annotate(i_to_time(t), (-w, h), xytext=(-w, h), fontsize=7)
     # drawing heat-map
     xx, yy, zz = get_heatmap(points, h, w)
-    hm = ax.pcolormesh(xx, yy, zz, cmap='Reds', shading='auto', alpha=0.9)
+    hm = ax.pcolormesh(xx/scale, yy/scale, zz, cmap='Reds', shading='auto', alpha=0.9)
     fig.colorbar(hm, ax=ax)
 
+    ax.annotate(i_to_time(t), (-w/scale, h/scale), xytext=(-w/scale, h/scale), fontsize=7)
+
     # drawing points
-    x, y = [p.x for p in points], [p.y for p in points]
+    x, y = [p.x/scale for p in points], [p.y/scale for p in points]
     if len(points) > 10000:
         x, y = [], []
     sc = plt.scatter(x, y, alpha=0.8, s=1)
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label=point_names[key], markerfacecolor=point_colors[key],
-               markersize=15) for key in point_colors.keys()
+               markersize=5) for key in point_colors.keys()
     ]
     ax.legend(handles=legend_elements, loc='upper right')
 
-    draw_map(ax, root, test_centers)
+    draw_map(ax, root, test_centers, scale)
 
-    plt.xlim(-w, w)
-    plt.ylim(-h, h)
+    plt.xlim(-w/scale, w/scale)
+    plt.ylim(-h/scale, h/scale)
     plt.draw()
 
     plt.pause(0.01)
@@ -209,7 +215,6 @@ def update_figure(fig, ax, sc, hm, root, points, test_centers, h, w, t):
     ax.set_patches([])
     draw_map(ax, root, test_centers)
 
-
     xx, yy, zz = get_heatmap(points, h, w)
     hm.set_array(zz.ravel())
 
@@ -222,3 +227,12 @@ def update_figure(fig, ax, sc, hm, root, points, test_centers, h, w, t):
 
     fig.canvas.draw_idle()
     plt.pause(0.01)
+
+def plot_position(df):
+    plt.figure(3)
+    plt.clf()
+    plt.subplot(121)
+    sns.lineplot(data=df, x='time', hue='person', y='loc')
+    plt.subplot(122)
+    df['day_time'] = df['time']%DAY
+    sns.histplot(data=df, x='day_time', hue='loc_class')

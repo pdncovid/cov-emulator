@@ -23,7 +23,7 @@ class CommercialZone(Location):
                 _r += _r1
                 _d += _d1
                 _l += _l1
-                if np.random.rand() < 0.8:
+                if np.random.rand() < 0.2:
                     _r2, _d2, _l2, t = get_random_element(canteens).get_suggested_sub_route(point, t, True)
                     _r += _r2
                     _d += _d2

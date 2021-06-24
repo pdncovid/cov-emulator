@@ -165,21 +165,6 @@ class Location:
 
             f(self)
 
-    @staticmethod
-    def separate_into_classes(root):
-        classes = {}
-
-        def dfs(rr: Location):
-            if rr.__class__ not in classes.keys():
-                classes[rr.__class__] = []
-            classes[rr.__class__].append(rr)
-            for child in rr.locations:
-                dfs(child)
-
-        dfs(root)
-
-        return classes
-
     def add_sub_location(self, location):
         location.parent_location = self
         location.depth = self.depth + 1
@@ -192,11 +177,6 @@ class Location:
 
         f(location)
 
-    def process_inter_location_transport(self, t):
-        # processing transportation handled by this location
-        for point in self.points:
-            point.current_trans.move(point, t)
-
     def check_for_leaving(self, t):
         for i, p in enumerate(self.points):
             # check if the time spent in the current location is above
@@ -204,7 +184,7 @@ class Location:
 
             # come to route[0] if not there even if day is finished
             if t >= p.current_loc_leave and \
-                    (not p.is_day_finished or p.current_loc != p.route[0]) and \
+                    (not p.is_day_finished or p.get_current_location() != p.route[0]) and \
                     not p.in_inter_trans:
                 # overstay. move point to the transport medium
                 next_location = MovementEngine.find_next_location(p)
@@ -224,25 +204,13 @@ class Location:
                     transporting_location.enter_person(p, t, next_location)
                     p.in_inter_trans = True
 
-    def process_people_movement(self, t):
-        self.check_for_leaving(t)
-
-        if len(self.locations) == 0:
-            if self.override_transport is None:
-                raise Exception("Leaf locations should always override transport")
-        else:
-            for location in self.locations:
-                location.process_people_movement(t)
-
-        self.process_inter_location_transport(t)
-
     def enter_person(self, p, t, target_location=None):
 
         current_loc_leave = self.get_leaving_time(p, t)
-        if p.current_loc is None:  # initialize
+        if p.get_current_location() is None:  # initialize
             pass
         else:
-            p.current_loc.remove_point(p)
+            p.get_current_location().remove_point(p)
             if p.get_next_target() == self:
                 p.increment_target_location()
                 current_loc_leave = self.get_leaving_time(p, t)
@@ -251,41 +219,46 @@ class Location:
             else:
                 current_loc_leave = t - 1
 
-        p.current_loc = self
+        p.set_current_location(self, t)
         p.current_loc_enter = t
         p.current_loc_leave = current_loc_leave
         self.points.append(p)
-        if self.override_transport is not None:
-            trans = self.override_transport
-        else:
-            trans = p.main_trans
-        trans.add_point_to_transport(p, target_location, t)
 
-        if self.capacity is not None:
-            if self.capacity < len(self.points):
-                # CURRENT LOCATION FULL. IMMEDIATELY REMOVE.
-                # Add it to the parent location (and move to next target. AUTOMATICALLY pushed to next target when moved to parent location??)
-                # move to parent location because we can't add to current location and we can move down the tree
-                # p.increment_target_location()  # todo check this
-                print("CAPACITY!!!!")
-                if self.parent_location is not None:
-                    # p.current_loc = self.parent_location
-                    next_location = MovementEngine.find_next_location(p)
-                    self.parent_location.enter_person(p, t, next_location)
-                    # todo bug: if p is in home, when cap is full current_loc jump to self.parent
-                    return  # don't add to this location because capacity reached
+        # following lines should be always after the above code
+        p.on_enter_location()
+
+        if not p.is_latched:
+            if self.override_transport is not None:
+                trans = self.override_transport
+            else:
+                trans = p.main_trans
+            trans.add_point_to_transport(p, target_location, t)
+
+            if self.capacity is not None:
+                if self.capacity < len(self.points):
+                    # CURRENT LOCATION FULL. IMMEDIATELY REMOVE.
+                    # Add it to the parent location (and move to next target. AUTOMATICALLY pushed to next target when moved to parent location??)
+                    # move to parent location because we can't add to current location and we can move down the tree
+                    # p.increment_target_location()  # todo check this
+                    print("CAPACITY!!!!")
+                    if self.parent_location is not None:
+                        # p.current_loc = self.parent_location
+                        next_location = MovementEngine.find_next_location(p)
+                        self.parent_location.enter_person(p, t, next_location)
+                        # todo bug: if p is in home, when cap is full current_loc jump to self.parent
+                        return  # don't add to this location because capacity reached
 
         if Location.DEBUG:
             print(f"### Enter {p} to {target_location} through {self} using {trans}")
 
     def get_leaving_time(self, p, t):
         if p.duration_time[p.current_target_idx] != -1:
-            current_loc_leave = min(t + p.duration_time[p.current_target_idx], t-t%DAY+DAY - 1)
+            current_loc_leave = min(t + p.duration_time[p.current_target_idx], t - t % DAY + DAY - 1)
         else:
             # bias = (t // DAY) * DAY
             # if p.is_day_finished:
             #     bias += DAY
-            current_loc_leave =  p.leaving_time[p.current_target_idx]#bias +
+            current_loc_leave = p.leaving_time[p.current_target_idx]  # bias +
         return current_loc_leave
 
     def remove_point(self, point):

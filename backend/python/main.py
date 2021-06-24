@@ -1,3 +1,4 @@
+import sys
 import time
 
 import numpy as np
@@ -8,11 +9,13 @@ import pandas as pd
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
 from backend.python.CovEngine import CovEngine
+from backend.python.MovementEngine import MovementEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import init_figure, update_figure, plot_info, plot_position
 from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape, State, TestSpawn, Containment
-from backend.python.functions import bs, i_to_time, get_duration, count_graph_n, find_in_subtree, get_random_element
+from backend.python.functions import bs, i_to_time, get_duration, count_graph_n, find_in_subtree, get_random_element, \
+    separate_into_classes
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Commercial.CommercialZone import CommercialZone
@@ -21,10 +24,11 @@ from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.Home import Home
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
 from backend.python.location.Location import Location
+from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.TestCenter import TestCenter
 from backend.python.transport.Bus import Bus
-from backend.python.transport.TransportVehicle import TransportVehicle
+from backend.python.transport.Movement import Movement
 from backend.python.transport.Walk import Walk
 
 """
@@ -61,7 +65,8 @@ parser.add_argument('--initialize',
 
 args = parser.parse_args()
 
-work_map = {CommercialWorker:CommercialZone}
+work_map = {CommercialWorker:CommercialZone,
+            BusDriver:None}
 
 def initialize_graph():
     root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
@@ -91,6 +96,7 @@ def initialize():
     # initialize people
     if args.initialize == 0:  # Random
         points = [CommercialWorker() for _ in range(n)]
+        points += [BusDriver() for _ in range(max(n//100,10))]
     elif args.initialize == 1:
         raise NotImplemented()
     elif args.initialize == 2:
@@ -107,26 +113,27 @@ def initialize():
 
     # set random routes for each person and set their main transportation method
     walk = Walk(np.random.randint(1*1000/get_duration(1), 10*1000/get_duration(1)), Mobility.RANDOM.value)
-    bus = Bus(np.random.randint(30*1000/get_duration(1), 40*1000/get_duration(1)), Mobility.RANDOM.value)
-    main_trans = [walk, bus]
-    loc_classes = Location.separate_into_classes(root)
+    bus = Bus(np.random.randint(60*1000/get_duration(1), 80*1000/get_duration(1)), Mobility.RANDOM.value)
+    main_trans = [bus]
+    loc_classes = separate_into_classes(root)
     for point in points:
         point.home_loc = get_random_element(loc_classes[Home])  # todo
         point.work_loc = point.find_closest(work_map[point.__class__], point.home_loc)  # todo
 
         point.initialize_main_suggested_route()
-        point.set_random_route(root, 0, target_classes_or_objs=[point.home_loc, point.work_loc])
-        point.main_trans = main_trans[np.random.randint(0, len(main_trans))]
+        target_classes_or_objs = [point.home_loc, point.work_loc]
+        point.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
+        point.main_trans = get_random_element(main_trans)
 
     # setting up bus routes
-    def dfs(rr: Location):
-        bus.initialize_locations(rr)  # set up bus routes
-        if isinstance(rr.override_transport, TransportVehicle):
-            rr.override_transport.initialize_locations(rr)
-        for child in rr.locations:
-            dfs(child)
-
-    dfs(root)
+    # def dfs(rr: Location):
+    #     bus.initialize_locations(rr)  # set up bus routes
+    #     if isinstance(rr.override_transport, MovementGroup):
+    #         rr.override_transport.initialize_locations(rr)
+    #     for child in rr.locations:
+    #         dfs(child)
+    #
+    # dfs(root)
 
     return points, root
 
@@ -210,7 +217,7 @@ def main():
 
     # add test centers to medical zones
     test_centers = []
-    classes = Location.separate_into_classes(root)
+    classes = separate_into_classes(root)
     for mz in classes[MedicalZone]:
         test_center = TestCenter(mz.x, mz.y, mz.radius)
         test_centers.append(test_center)
@@ -226,7 +233,7 @@ def main():
     # initial iterations to initialize positions of the people
     for t in range(5):
         print(f"initializing {t}")
-        root.process_people_movement(0)
+        MovementEngine.move_people(Movement.all_transports, 0)
 
     # main iteration loop
     for t in range(iterations):
@@ -234,7 +241,8 @@ def main():
         log.log_people(points)
 
         # process movement
-        root.process_people_movement(t)
+        MovementEngine.process_people_switching(root, t)
+        MovementEngine.move_people(Movement.all_transports, t)
 
         # process transmission and recovery
         disease_transmission(points, t)
@@ -289,7 +297,7 @@ def main():
         df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % (DAY//2) == 0:
+            if t % (DAY//20) == 0:
                 fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
                 plot_info(fig2, axs, points)
@@ -300,4 +308,5 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.setrecursionlimit(1000000)
     main()

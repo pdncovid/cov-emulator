@@ -1,15 +1,15 @@
 from backend.python.MovementEngine import MovementEngine
 from backend.python.enums import Mobility
-from backend.python.location.Location import Location
 
 
-class Transport():
+class Movement:
     DEBUG = False
     _id = 0
+    all_transports = []
 
-    def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
-        self.ID = Transport._id
-        Transport._id += 1
+    def __init__(self, velocity_cap: float, mobility_pattern):
+        self.ID = Movement._id
+        Movement._id += 1
         self.vcap = velocity_cap
         self.mobility = mobility_pattern
 
@@ -18,10 +18,10 @@ class Transport():
         self.infectious = 1.0
 
         self.points = []
-        self.points_label = []
         self.points_enter_time = []
         self.points_source = []
         self.points_destination = []
+        Movement.all_transports.append(self)
 
     def __repr__(self):
         d = self.get_description_dict()
@@ -42,36 +42,37 @@ class Transport():
         point.current_trans = self
         self.points.append(point)
         self.points_enter_time.append(t)
-        self.points_source.append(point.current_loc)
+        self.points_source.append(point.get_current_location())
         self.points_destination.append(target_location)
-        self.points_label.append(self.get_point_label(point))
 
     def update_point_destination(self, point, target_location, t):
         idx = self.points.index(point)
         self.points_enter_time[idx] = t
         self.points_destination[idx] = target_location
-        self.points_label[idx] = self.get_point_label(point)
 
     def remove_point_from_transport(self, point):
         idx = self.points.index(point)
+        if self.points[idx].is_latched and self.points[idx].current_trans != self:
+            raise Exception("Can't remove latched people from this movement method to another movement method"
+                            "Un-latch first, or the behaviour is unexpected!")
         self.points.pop(idx)
         self.points_enter_time.pop(idx)
         self.points_source.pop(idx)
         self.points_destination.pop(idx)
-        self.points_label.pop(idx)
-
-    def get_point_label(self, point):
-        raise NotImplementedError()
 
     def get_in_transport_transmission_p(self):
         raise NotImplementedError()
+
+    def move_people(self, t):
+        for p in self.points:
+            self.move(p, t)
 
     def move(self, point, t):
         idx = self.points.index(point)
         destination = self.points_destination[idx]
         if destination is None:
             # move inside location mode
-            self.move_point(idx, t)
+            self.in_location_move(idx, t)
         else:
             # inter location movement
             self.transport_point(idx, destination.exit, t)
@@ -80,14 +81,14 @@ class Transport():
                 destination.enter_person(point, t)  # destination point reached
                 point.in_inter_trans = False
 
-    def move_point(self, idx, t):
+    def in_location_move(self, idx, t):
         point = self.points[idx]
         if self.mobility == Mobility.RANDOM.value:
-            MovementEngine.random_move(point.current_loc, point, self.vcap, self.vcap)
+            MovementEngine.random_move(point.get_current_location(), point, self.vcap, self.vcap)
             # MovementEngine.containment(p)
         elif self.mobility == Mobility.BROWNIAN.value:
             pass
 
     def transport_point(self, idx, destination_xy, t):
         point = self.points[idx]
-        MovementEngine.move_towards(point, destination_xy[0], destination_xy[1])
+        MovementEngine.move_towards(point, destination_xy[0], destination_xy[1], self.vcap, self.vcap)

@@ -19,6 +19,20 @@ def bs(arr, v):
     return l
 
 
+def separate_into_classes(root):
+    classes = {}
+
+    def dfs(rr):
+        if rr.__class__ not in classes.keys():
+            classes[rr.__class__] = []
+        classes[rr.__class__].append(rr)
+        for child in rr.locations:
+            dfs(child)
+
+    dfs(root)
+
+    return classes
+
 def find_in_subtree(c, tar, skip):
     def dfs(r):
         if r == tar or r is None:

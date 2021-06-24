@@ -3,7 +3,7 @@ from backend.python.functions import get_random_element
 from backend.python.location.Commercial.CommercialWorkArea import CommercialWorkArea
 from backend.python.location.Location import Location
 from backend.python.point.CommercialWorker import CommercialWorker
-from backend.python.transport.Transport import Transport
+from backend.python.transport.Movement import Movement
 from backend.python.transport.Walk import Walk
 
 
@@ -35,6 +35,8 @@ class CommercialBuilding(Location):
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
+        self.override_transport = Walk(0.5, Mobility.RANDOM.value)
+
         CommercialBuilding._id_building += 1
 
         n_areas = kwargs.get('n_areas')

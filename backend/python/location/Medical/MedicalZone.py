@@ -6,6 +6,7 @@ from backend.python.location.Commercial.CommercialWorkArea import CommercialWork
 from backend.python.location.Location import Location
 from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
 from backend.python.location.Medical.Hospital import Hospital
+from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.transport.Walk import Walk
 import numpy as np
@@ -18,7 +19,8 @@ class MedicalZone(Location):
             hospitals = self.get_children_of_class(Hospital)
 
             _r, _d, _l, t = get_random_element(hospitals).get_suggested_sub_route(point, t, force_dt)
-
+        elif isinstance(point, BusDriver):
+            _r, _d, _l, t = [self], [1], [-1], t + 1
         else:
             raise NotImplementedError()
 

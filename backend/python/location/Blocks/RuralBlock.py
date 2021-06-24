@@ -4,7 +4,7 @@ from backend.python.location.Commercial.CommercialZone import CommercialZone
 from backend.python.location.Location import Location
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
-from backend.python.transport.Transport import Transport
+from backend.python.transport.Movement import Movement
 from backend.python.transport.Walk import Walk
 
 

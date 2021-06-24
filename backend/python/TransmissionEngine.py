@@ -69,7 +69,7 @@ class TransmissionEngine:
             contact_person = points[valid[i]]
             infected_person = points[sourceid[valid[i]]]
 
-            location_p = contact_person.current_loc.infectious  # if contact_person.current_loc == infected_person.current_loc else 0
+            location_p = contact_person.get_current_location().infectious  # if contact_person.current_loc == infected_person.current_loc else 0
             trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
 
             if rand[i] < tr_p[i] * trans_p * location_p:
@@ -105,6 +105,7 @@ class TransmissionEngine:
         p2_idx = p2.current_trans.points.index(p2)
         if p1_idx == -1 or p2_idx == -1:
             return 0
-        if p1.current_trans.points_label[p1_idx] != p2.current_trans.points_label[p2_idx]:
-            return 0
+        # todo implement infection within latched people only! (in MovementByTransporter)
+        # if p1.current_trans.points_label[p1_idx] != p2.current_trans.points_label[p2_idx]:
+        #     return 0
         return p1.current_trans.get_in_transport_transmission_p()

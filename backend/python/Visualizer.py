@@ -158,6 +158,9 @@ def get_heatmap(points, h, w):
     dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
     for p in points:
         if p.state == State.INFECTED.value:
+            if p.x > w or p.y > h:
+                print("Person outside map")
+                continue
             zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1  # todo bugsy
     return xx, yy, zz
 

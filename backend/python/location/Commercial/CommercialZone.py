@@ -4,6 +4,7 @@ from backend.python.location.Commercial.CommercialBuilding import CommercialBuil
 from backend.python.location.Commercial.CommercialCanteen import CommercialCanteen
 from backend.python.location.Commercial.CommercialWorkArea import CommercialWorkArea
 from backend.python.location.Location import Location
+from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.transport.Walk import Walk
 import numpy as np
@@ -17,7 +18,7 @@ class CommercialZone(Location):
             buildings = self.get_children_of_class(CommercialBuilding)
             working_building: Location = get_random_element(buildings)
             _r, _d, _l = [], [], []
-            t_end = min(np.random.normal(get_time(17, 0), abs(np.random.normal(0,get_duration(1)))), get_time(20,0))
+            t_end = min(np.random.normal(get_time(17, 0), abs(np.random.normal(0, get_duration(1)))), get_time(20, 0))
             while t < t_end:
                 _r1, _d1, _l1, t = working_building.get_suggested_sub_route(point, t, force_dt)
                 _r += _r1
@@ -28,6 +29,8 @@ class CommercialZone(Location):
                     _r += _r2
                     _d += _d2
                     _l += _l2
+        elif isinstance(point, BusDriver):
+            _r, _d, _l, t = [self], [10], [-1], t + 10
         else:
             raise NotImplementedError()
 

@@ -1,8 +1,8 @@
 from backend.python.enums import Mobility
-from backend.python.transport.TransportVehicle import TransportVehicle
+from backend.python.transport.MovementGroup import MovementGroup
 
 
-class Car(TransportVehicle):
+class Car(MovementGroup):
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
         super().__init__(velocity_cap, mobility_pattern)
         self._vehicle_capacity = 4

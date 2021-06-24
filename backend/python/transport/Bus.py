@@ -1,15 +1,16 @@
 from backend.python.enums import Mobility
-from backend.python.transport.TransportVehicle import TransportVehicle
+from backend.python.transport.MovementByTransporter import MovementByTransporter
 
 
-class Bus(TransportVehicle):
+class Bus(MovementByTransporter):
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
         super().__init__(velocity_cap, mobility_pattern)
-        self._vehicle_capacity = 5
-        self._vehicle_waiting_time_after_initialization = 50
 
         self.destination_reach_eps = 10.0
-
         self.infectiousness = 1.0
+
+
+    def get_in_transport_transmission_p(self): # todo function of latch density
+        return 0.9
 
 

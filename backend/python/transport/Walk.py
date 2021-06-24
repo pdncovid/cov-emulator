@@ -1,17 +1,14 @@
 from backend.python.enums import Mobility
-from backend.python.transport.Transport import Transport
+from backend.python.transport.Movement import Movement
 import numpy as np
 
 
-class Walk(Transport):
+class Walk(Movement):
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
         super().__init__(velocity_cap, mobility_pattern)
         self.destination_reach_eps = 1.0
 
         self.infectiousness = 1.0
-
-    def get_point_label(self, point):
-        return 0
 
     def get_in_transport_transmission_p(self):
         return 1

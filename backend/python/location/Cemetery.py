@@ -2,6 +2,7 @@ from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_time, get_random_element
 from backend.python.location.Location import Location
 from backend.python.transport.Movement import Movement
+from backend.python.transport.Walk import Walk
 
 
 class Cemetery(Location):
@@ -13,6 +14,10 @@ class Cemetery(Location):
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
         self.set_quarantined(True, 0)
+        self.override_transport = Walk(1.1, Mobility.RANDOM.value)
+
+    def set_quarantined(self, quarantined, t, recursive=False):
+        self.quarantined = True
 
     def process_people_switching(self, t):
         pass  # no movement when entered. cant go out. therefore we put only dead people here
@@ -24,5 +29,13 @@ class Cemetery(Location):
             p.y = self.y
             if p.current_trans is not None:
                 p.current_trans.remove_point_from_transport(p)
+            if p.latched_to is not None:
+                p.latched_to.delatch(p)  # bus ekedi malaa
         else:
-            raise Exception("Put only dead people! :P")
+            raise Exception(f"Put only dead people! :P {p.__repr__()}")
+
+    def remove_point(self, point):
+        raise Exception("Cant remove from cemetery!!!")
+
+    def check_for_leaving(self, t):
+        pass

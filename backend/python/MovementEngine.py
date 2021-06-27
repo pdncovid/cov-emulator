@@ -5,8 +5,14 @@ class MovementEngine:
 
     @staticmethod
     def move_people(all_transports, t):
+        total=0
+        pp = []
+        for trans in all_transports:
+            total+=len(trans.points)
+            pp += trans.points
         for trans in all_transports:
             trans.move_people(t)
+        return total
 
     @staticmethod
     def process_people_switching(loc, t):
@@ -62,12 +68,8 @@ class MovementEngine:
             return ln
 
         return point.get_current_location().parent_location
-
     @staticmethod
-    def get_next_target_path(point):
-
-        lc = point.get_current_location()
-        ln = point.get_next_target()
+    def get_path(lc, ln):
         if lc == ln:
             return [ln]
 
@@ -83,6 +85,13 @@ class MovementEngine:
         # path = path_1 + [lc] + path_2  # this will add root of subtree to path!
         path = path_1 + path_2
         return path
+
+    @staticmethod
+    def get_next_target_path(point):
+
+        lc = point.get_current_location()
+        ln = point.get_next_target()
+        return MovementEngine.get_path(lc, ln)
 
     @staticmethod
     def random_move(location, p, vx_cap, vy_cap):

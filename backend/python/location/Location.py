@@ -1,4 +1,5 @@
 from backend.python.ContainmentEngine import ContainmentEngine
+from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.const import DAY
 from backend.python.enums import Shape
@@ -181,11 +182,24 @@ class Location:
         for i, p in enumerate(self.points):
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
+            if t - p.current_loc_leave  >  get_duration(5):
+                Logger.log(
+                    f"OT while check for leaving {p} Not leaving current place {p.get_current_location().name} "
+                    f"after timeout! dt={t - p.current_loc_leave} "
+                    f"Day over? {p.is_day_finished} "
+                    f"In home? {p.get_current_location() == p.route[0]} "
+                    f"Going to another? {p.in_inter_trans} "
+                    f"Logic ({p.is_day_finished} and {p.get_current_location() == p.route[0]}) or {p.in_inter_trans} "
+                    f"Move  {p.current_trans}"
+                    , 'w'
+                )
 
             # come to route[0] if not there even if day is finished
-            if t >= p.current_loc_leave and \
-                    (not p.is_day_finished or p.get_current_location() != p.route[0]) and \
-                    not p.in_inter_trans:
+            if t >= p.current_loc_leave:
+                if p.is_day_finished and p.get_current_location() == p.route[0]:
+                    continue
+                if p.in_inter_trans:
+                    continue
                 # overstay. move point to the transport medium
                 next_location = MovementEngine.find_next_location(p)
 
@@ -198,7 +212,7 @@ class Location:
 
                 if transporting_location is None:
                     transporting_location = self  # this is because when we update route we set current_loc to root sometimes
-
+                assert next_location is not None
                 # leaving current location
                 if ContainmentEngine.can_go_there(p, self, next_location):
                     transporting_location.enter_person(p, t, next_location)
@@ -219,15 +233,15 @@ class Location:
             else:
                 current_loc_leave = t - 1
 
-        p.set_current_location(self, t)
         p.current_loc_enter = t
         p.current_loc_leave = current_loc_leave
         self.points.append(p)
+        p.set_current_location(self, t)
 
         # following lines should be always after the above code
-        p.on_enter_location()
+        p.on_enter_location(t)
 
-        if not p.is_latched:
+        if not p.latched_to:
             if self.override_transport is not None:
                 trans = self.override_transport
             else:
@@ -247,9 +261,9 @@ class Location:
                         self.parent_location.enter_person(p, t, next_location)
                         # todo bug: if p is in home, when cap is full current_loc jump to self.parent
                         return  # don't add to this location because capacity reached
-
-        if Location.DEBUG:
-            print(f"### Enter {p} to {target_location} through {self} using {trans}")
+            Logger.log(f"Entered {p.ID} to {self.name} using {trans}. Destination {target_location}", 'e')
+        else:
+            Logger.log(f"{p.ID} entered {self.name} latched with {p.latched_to.ID} Destination {target_location}", 'e')
 
     def get_leaving_time(self, p, t):
         if p.duration_time[p.current_target_idx] != -1:
@@ -258,7 +272,10 @@ class Location:
             # bias = (t // DAY) * DAY
             # if p.is_day_finished:
             #     bias += DAY
-            current_loc_leave = p.leaving_time[p.current_target_idx]  # bias +
+            current_loc_leave = p.leaving_time[p.current_target_idx] + t - t % DAY
+        if p.is_day_finished:
+            if current_loc_leave < t - t % DAY + DAY:
+                current_loc_leave += DAY
         return current_loc_leave
 
     def remove_point(self, point):

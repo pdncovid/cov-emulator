@@ -1,3 +1,4 @@
+from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.enums import Mobility
 from backend.python.point.Person import Person
@@ -28,11 +29,13 @@ class MovementByTransporter(Movement):
 
     # override
     def transport_point(self, idx, destination_xy, t):
-        super().transport_point(idx, destination_xy, t)
+        point = self.points[idx]
+        if not point.latched_to:
+            super().transport_point(idx, destination_xy, t)
 
     def find_feasibility(self, tr, path2next_tar):
         hops2reach = [-1. for _ in path2next_tar]
-        print(list(map(str,path2next_tar)))
+
         for i in range(len(path2next_tar)):
             tar = path2next_tar[i]
             hops = 0
@@ -43,7 +46,7 @@ class MovementByTransporter(Movement):
             else:
                 hops = -1
             hops2reach[i] = hops
-        print(hops2reach)
+        Logger.log(f"Path to target {list(map(str,path2next_tar))} {hops2reach}", 'e')
         des = None
         best = 1e10
 
@@ -63,10 +66,10 @@ class MovementByTransporter(Movement):
         path2next_tar = MovementEngine.get_next_target_path(p)
         for pl in p.get_current_location().points:
             if isinstance(pl, Transporter):
-                print(f"Trying to latch {p.ID} in {self.__class__.__name__}{self.ID} to transporter {pl.ID}")
+                Logger.log(f"Trying to latch {p.ID} ({path2next_tar[-1].name}) in {self} to transporter "
+                           f"{pl.ID} ({list(map(str,pl.route))}) {pl.get_current_location()}", 'e')
                 cost, des = self.find_feasibility(pl, path2next_tar)
                 if des is not None:
-                    print("+1")
                     possible_transporters.append((cost, pl, des))
         if len(possible_transporters) == 0:
             print("No one to latch")
@@ -74,7 +77,7 @@ class MovementByTransporter(Movement):
         possible_transporters.sort(key=lambda x:x[0])
 
         (cost, transporter, destination) = possible_transporters[0]
-        print(f"{p.ID} in {self.__class__.__name__}{self.ID} latched to transporter {transporter.ID} and will goto {destination.__class__.__name__}")
+        print(f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}")
         transporter.latch(p, destination)
 
 
@@ -83,6 +86,6 @@ class MovementByTransporter(Movement):
         for p in self.points:
             if isinstance(p, Transporter):
                 continue
-            if not p.is_latched:
+            if not p.latched_to:
                 self.try_to_latch_person(p, t)
 

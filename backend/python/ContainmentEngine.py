@@ -38,7 +38,7 @@ class ContainmentEngine:
                 return False
 
     @staticmethod
-    def check_locations(root, t):
+    def check_location_state_updates(root, t):
         def f(r):
             if r.quarantined and t - r.quarantined_time > ContainmentEngine.quarantineduration:
                 r.set_quarantined(False, t)

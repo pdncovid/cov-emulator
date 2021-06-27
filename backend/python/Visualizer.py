@@ -5,19 +5,27 @@ import seaborn as sns
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
+from backend.python.Logger import Logger
 from backend.python.const import DAY
 from backend.python.functions import i_to_time
 from backend.python.location.Location import Location
 
 from backend.python.enums import Mobility, Shape, State
+from backend.python.point.Transporter import Transporter
 from backend.python.transport import Walk, Bus
 
-point_colors = {State.SUSCEPTIBLE.value: 'b', State.INFECTED.value: 'r', State.RECOVERED.value: 'g'}
-point_edgecolors = {Bus.__name__.split('.')[-1]: [0, 1, 1, 0.1], Walk.__name__.split('.')[-1]: [1, 0, 1, 0.1]}
+point_colors = {State.SUSCEPTIBLE.value: 'b',
+                State.INFECTED.value: 'r',
+                State.RECOVERED.value: 'g',
+                State.DEAD.value: 'k'}
+
+point_edgecolors = {Bus.__name__.split('.')[-1]: [0, 1, 1, 0.1],
+                    Walk.__name__.split('.')[-1]: [1, 0, 1, 0.1]}
 
 point_names = {State.SUSCEPTIBLE.value: State.SUSCEPTIBLE.name,
                State.INFECTED.value: State.INFECTED.name,
-               State.RECOVERED.value: State.RECOVERED.name}
+               State.RECOVERED.value: State.RECOVERED.name,
+               State.DEAD.value: State.DEAD.name}
 test_center_color = 'yellow'
 
 
@@ -126,24 +134,26 @@ def plot_info(fig, axs, points):
 def draw_map(ax, root, test_centers, scale):
     # drawing test centers
     for test in test_centers:
-        circle = plt.Circle((test.x/scale, test.y/scale), test.r/scale, color=test_center_color, fill=True, alpha=0.3)
+        circle = plt.Circle((test.x / scale, test.y / scale), test.r / scale, color=test_center_color, fill=True,
+                            alpha=0.3)
         ax.add_patch(circle)
 
     # drawing locations
     def dfs(rr: Location):
         if rr.shape == Shape.CIRCLE.value:
-            circle = plt.Circle((rr.x/scale, rr.y/scale), rr.radius/scale, facecolor=[1, 0, 0, 0.5], fill=rr.quarantined, edgecolor='g')
+            circle = plt.Circle((rr.x / scale, rr.y / scale), rr.radius / scale, facecolor=[1, 0, 0, 0.5],
+                                fill=rr.quarantined, edgecolor='g')
             ax.add_patch(circle)
         elif rr.shape == Shape.POLYGON.value:
             coord = rr.boundary
             coord = np.concatenate([coord, coord[0:1, :]], axis=0)  # repeat the first point to create a 'closed loop'
-            xs, ys = coord[:, 0]/scale, coord[:, 1]/scale  # create lists of x and y values
+            xs, ys = coord[:, 0] / scale, coord[:, 1] / scale  # create lists of x and y values
             ax.plot(xs, ys)
-        x = rr.exit[0]/scale
-        y = rr.exit[1]/scale
+        x = rr.exit[0] / scale
+        y = rr.exit[1] / scale
         ax.scatter(x, y, marker='x', s=5)
         if rr.depth <= 2:
-            ax.annotate(rr.name, (x, y), xytext=(x + 10/scale, y + 10/scale), fontsize=7,
+            ax.annotate(rr.name, (x, y), xytext=(x + 10 / scale, y + 10 / scale), fontsize=7,
                         arrowprops=dict(arrowstyle="->", connectionstyle="angle3,angleA=0,angleB=-90"))
         for child in rr.locations:
             dfs(child)
@@ -159,9 +169,12 @@ def get_heatmap(points, h, w):
     for p in points:
         if p.state == State.INFECTED.value:
             if p.x > w or p.y > h:
-                print("Person outside map")
+                Logger.log("Person outside map", 'c')
                 continue
-            zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1  # todo bugsy
+            try:
+                zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1  # todo bugsy
+            except IndexError as e:
+                Logger.log(str(e), 'c')
     return xx, yy, zz
 
 
@@ -172,16 +185,20 @@ def init_figure(root, points, test_centers, h, w, t):
     ax = plt.gca()
     # drawing heat-map
     xx, yy, zz = get_heatmap(points, h, w)
-    hm = ax.pcolormesh(xx/scale, yy/scale, zz, cmap='Reds', shading='auto', alpha=0.9)
+    hm = ax.pcolormesh(xx / scale, yy / scale, zz, cmap='Reds', shading='auto', alpha=0.9)
     fig.colorbar(hm, ax=ax)
 
-    ax.annotate(i_to_time(t), (-w/scale, h/scale), xytext=(-w/scale, h/scale), fontsize=7)
+    ax.annotate(i_to_time(t), (-w / scale, h / scale), xytext=(-w / scale, h / scale), fontsize=7)
 
     # drawing points
-    x, y = [p.x/scale for p in points], [p.y/scale for p in points]
+    x, y = [p.x / scale for p in points], [p.y / scale for p in points]
     if len(points) > 10000:
         x, y = [], []
-    sc = plt.scatter(x, y, alpha=0.8, s=1)
+    sc = plt.scatter(x, y, alpha=0.8, s=5)
+    sc.set_facecolor([point_colors[p.state] for p in points])
+    sc.set_edgecolor([point_edgecolors[p.current_trans.__class__.__name__] for p in points])
+    sc.set_linewidth([2 for _ in points])
+    sc._sizes = [40 + 2 * len(p.latched_people) if isinstance(p, Transporter) else 20 for p in points]
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label=point_names[key], markerfacecolor=point_colors[key],
                markersize=5) for key in point_colors.keys()
@@ -190,8 +207,8 @@ def init_figure(root, points, test_centers, h, w, t):
 
     draw_map(ax, root, test_centers, scale)
 
-    plt.xlim(-w/scale, w/scale)
-    plt.ylim(-h/scale, h/scale)
+    plt.xlim(-w / scale, w / scale)
+    plt.ylim(-h / scale, h / scale)
     plt.draw()
 
     plt.pause(0.01)
@@ -231,11 +248,40 @@ def update_figure(fig, ax, sc, hm, root, points, test_centers, h, w, t):
     fig.canvas.draw_idle()
     plt.pause(0.01)
 
-def plot_position(df):
+
+def plot_position(df, root):
+    # ============================================================== find all the class names and creates color palette
+    cmap = sns.color_palette("Spectral", as_cmap=True)
+    classes = []
+
+    def g(r):
+        classes.append(r.__class__.__name__)
+        for ch in r.locations:
+            g(ch)
+
+    g(root)
+    classes = np.unique(classes)
+    classes.sort()
+
+    palette = {}
+    for i, cls in enumerate(classes):
+        cc = i / len(classes)
+        palette[cls] = cmap(cc)
+
+    # ======================================================================= plot line plot
     plt.figure(3)
     plt.clf()
     plt.subplot(121)
-    sns.lineplot(data=df, x='time', hue='person', y='loc')
+    ax = sns.lineplot(data=df, x='time', hue='person', y='loc')
+
+    # ======================================================================= sets background color in line plot
+    def f(r):
+        ax.axhspan(r.ID - 0.49, r.ID + 0.49, color=palette[r.__class__.__name__], alpha=0.5)
+        for ch in r.locations:
+            f(ch)
+
+    f(root)
+
     plt.subplot(122)
-    df['day_time'] = df['time']%DAY
-    sns.histplot(data=df, x='day_time', hue='loc_class')
+    df['day_time'] = df['time'] % DAY
+    sns.histplot(data=df, x='day_time', hue='loc_class', palette=palette)

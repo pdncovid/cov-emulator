@@ -35,11 +35,11 @@ class CommercialBuilding(Location):
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.override_transport = Walk(0.5, Mobility.RANDOM.value)
+        self.override_transport = Walk(1.5, Mobility.RANDOM.value)
 
         CommercialBuilding._id_building += 1
 
         n_areas = kwargs.get('n_areas')
         area_r = kwargs.get('area_r')
         if n_areas != -1:
-            self.spawn_sub_locations(CommercialWorkArea, n_areas, area_r, 0.99, Walk(0.1, Mobility.RANDOM.value))
+            self.spawn_sub_locations(CommercialWorkArea, n_areas, area_r, 0.99, Walk(1.1, Mobility.RANDOM.value))

@@ -19,9 +19,9 @@ class UrbanBlock(Location):
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.spawn_sub_locations(ResidentialZone, 2, r=20, infectiousness=0.8, trans=Walk(0.5, Mobility.RANDOM.value),
+        self.spawn_sub_locations(ResidentialZone, 2, r=20, infectiousness=0.8, trans=Walk(1.5, Mobility.RANDOM.value),
                                  n_houses=10, house_r=4)
-        self.spawn_sub_locations(CommercialZone, 1,  r=30, infectiousness=1.0, trans=Walk(0.5, Mobility.RANDOM.value),
+        self.spawn_sub_locations(CommercialZone, 1,  r=30, infectiousness=1.0, trans=Walk(1.5, Mobility.RANDOM.value),
                                  n_buildings=6, building_r=5)
-        self.spawn_sub_locations(MedicalZone, 1, r=30, infectiousness=1.0, trans=Walk(0.5, Mobility.RANDOM.value),
+        self.spawn_sub_locations(MedicalZone, 1, r=30, infectiousness=1.0, trans=Walk(1.5, Mobility.RANDOM.value),
                                  n_buildings=2, building_r=10)

@@ -20,13 +20,4 @@ class COVIDQuarantineZone(Location):
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = True
 
-        if recursive:
-            def f(r: Location):
-                r.quarantined = quarantined
-                r.quarantined_time = t
-                for ch in r.locations:
-                    f(ch)
-
-            f(self)
-
 

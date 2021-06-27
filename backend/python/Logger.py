@@ -1,17 +1,29 @@
 import logging
-from logging.handlers import RotatingFileHandler
 
-from backend.python.location.Location import Location
+class MyFileHandler(logging.FileHandler):
+    def emit(self, record):
+        if record.levelno == self.level:
+            super().emit(record)
+class MyStreamHandler(logging.StreamHandler):
+    def __init__(self, skip_print):
+        super().__init__()
+        self.skip = skip_print
 
+    def emit(self, record):
+        if record.levelno != self.skip:
+            super().emit(record)
 
 class Logger:
     _logger = None
-
+    write_level = None
+    write_level_ = None
     def __init__(self, logpath, filename, print=True, write=False):
         if Logger._logger is None:
-            debug_level = logging.INFO
+            Logger.write_level = 'i'
+            Logger.write_level_ = logging.INFO
+
             logging.basicConfig(
-                                level=debug_level,
+                                level=logging.DEBUG,
                                 format='%(message)s',
                                 # format='%(levelname)s %(asctime)s %(message)s',
                                 datefmt='%m/%d/%Y%I:%M:%S %p')
@@ -20,51 +32,50 @@ class Logger:
             Logger._logger.propagate = False
 
             if print:
-                ch = logging.StreamHandler()
-                ch.setLevel(logging.WARN)
+                ch = MyStreamHandler(Logger.write_level_)
+                ch.setLevel(logging.ERROR)
                 Logger._logger.addHandler(ch)
 
             if write:
-                fh = logging.FileHandler(logpath + filename)
-                fh.setLevel(debug_level)
+                fh = MyFileHandler(logpath + filename)
+                fh.setLevel(Logger.write_level_)
                 Logger._logger.addHandler(fh)
-            # Logger._logger.addHandler(RotatingFileHandler(
-            #     filename=logpath + filename,
-            #     mode='a',
-            #     maxBytes=512000,
-            #     backupCount=4))
 
-    def log(self, message, _type='d'):
+    @staticmethod
+    def log(message, _type='d'):
         if _type == 'd':
-            Logger._logger.debug(message)
+            Logger._logger.debug('Debug: '+message)
         elif _type == 'i':
-            Logger._logger.info(message)
+            Logger._logger.info('Info: '+message)
         elif _type == 'w':
-            Logger._logger.warn(message)
+            Logger._logger.warn('Warning: '+message)
         elif _type == 'e':
-            Logger._logger.error(message)
+            Logger._logger.error('Error: '+message)
         elif _type == 'c':
-            Logger._logger.critical(message)
+            Logger._logger.critical('Critical: '+message)
 
+    @staticmethod
+    def log_location(loc):
+        Logger.log(loc.__repr__(), Logger.write_level)
 
-    def log_location(self, loc):
-        self.log(loc.__repr__(), 'i')
+    @staticmethod
+    def log_person(p):
+        Logger.log(p.__repr__(), Logger.write_level)
 
-    def log_person(self, p):
-        self.log(p.__repr__(), 'i')
-
-    def log_graph(self, root):
-        def f(r: Location):
-            self.log_location(r)
+    @staticmethod
+    def log_graph(root):
+        def f(r):
+            Logger.log_location(r)
             for ch in r.locations:
                 f(ch)
 
         f(root)
 
-    def log_people(self, people):
+    @staticmethod
+    def log_people(people):
         for p in people:
-            self.log_person(p)
-
-    def close(self):
+            Logger.log_person(p)
+    @staticmethod
+    def close():
         # Shut down the logger
         logging.shutdown()

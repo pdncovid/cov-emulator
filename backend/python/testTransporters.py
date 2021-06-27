@@ -14,7 +14,7 @@ from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import init_figure, plot_position
 from backend.python.const import DAY
-from backend.python.enums import Mobility, Shape, State, TestSpawn, Containment
+from backend.python.enums import Mobility, Shape, TestSpawn, Containment
 from backend.python.functions import bs, i_to_time, count_graph_n, get_random_element, \
     separate_into_classes
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
@@ -25,6 +25,7 @@ from backend.python.location.Residential.Home import Home
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.location.TestCenter import TestCenter
+from backend.python.point.Transporter import Transporter
 from backend.python.transport.Bus import Bus
 from backend.python.transport.Movement import Movement
 from backend.python.transport.Walk import Walk
@@ -40,7 +41,7 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-parser.add_argument('-n', help='target population', default=100)
+parser.add_argument('-n', help='target population', default=0)
 parser.add_argument('-i', help='initial infected', type=int, default=2)
 parser.add_argument('-H', help='height', type=int, default=102)
 parser.add_argument('-W', help='width', type=int, default=102)
@@ -62,8 +63,9 @@ parser.add_argument('--initialize',
                     type=int, default=0)
 
 args = parser.parse_args()
-work_map = {CommercialWorker:CommercialZone,
-            BusDriver:None}
+work_map = {CommercialWorker: CommercialZone,
+            BusDriver: None}
+
 
 def initialize_graph():
     root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
@@ -71,70 +73,19 @@ def initialize_graph():
     return root
 
 
-# def initialize():
-#     n = args.n
-#     i = args.i
-#
-#     # initialize people
-#     if args.initialize == 0:  # Random
-#         points = [CommercialWorker() for _ in range(n)]
-#         points += [BusDriver() for _ in range(max(n//100,10))]
-#     elif args.initialize == 1:
-#         raise NotImplemented()
-#     elif args.initialize == 2:
-#         raise NotImplemented()
-#     else:
-#         raise NotImplemented()
-#
-#     for _ in range(i):
-#         idx = np.random.randint(0, n)
-#         points[idx].set_infected(0, points[idx], args.common_p)
-#
-#     # initialize location tree
-#     root, leaves = initialize_graph()
-#
-#     # set random routes for each person and set their main transportation method
-#     walk = Walk(np.random.randint(1*1000/get_duration(1), 10*1000/get_duration(1)), Mobility.RANDOM.value)
-#     bus = Bus(np.random.randint(60*1000/get_duration(1), 80*1000/get_duration(1)), Mobility.RANDOM.value)
-#     main_trans = [bus]
-#     loc_classes = separate_into_classes(root)
-#     for point in points:
-#         point.home_loc = get_random_element(loc_classes[Home])  # todo
-#         point.work_loc = point.find_closest(work_map[point.__class__], point.home_loc)  # todo
-#
-#         point.initialize_main_suggested_route()
-#         target_classes_or_objs = [point.home_loc, point.work_loc]
-#         point.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
-#         point.main_trans = get_random_element(main_trans)
-#
-#     # setting up bus routes
-#     # def dfs(rr: Location):
-#     #     bus.initialize_locations(rr)  # set up bus routes
-#     #     if isinstance(rr.override_transport, MovementGroup):
-#     #         rr.override_transport.initialize_locations(rr)
-#     #     for child in rr.locations:
-#     #         dfs(child)
-#     #
-#     # dfs(root)
-#
-#     return points, root
-
 def initialize():
-
-
     # initialize people
 
     points = [CommercialWorker() for _ in range(args.n)]
-    points += [BusDriver() for _ in range(5)]
+    points += [BusDriver() for _ in range(10)]
 
     for _ in range(args.i):
-        idx = np.random.randint(0, args.n)
+        idx = np.random.randint(0, len(points))
         points[idx].set_infected(0, points[idx], args.common_p)
 
     # initialize location tree
     root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
     root.add_sub_location(Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3))
-
 
     # set random routes for each person and set their main transportation method
     walk = Walk(np.random.randint(1, 10), Mobility.RANDOM.value)
@@ -152,9 +103,11 @@ def initialize():
 
     return points, root
 
+
 def update_point_parameters(points):
     for i in range(args.n):
         points[i].update_temp(args.common_p)
+
 
 def get_common_route(point):
     if isinstance(point, CommercialWorker):
@@ -177,12 +130,12 @@ def main():
     # initialize graphs and people
     points, root = initialize()
     log.log(f"{len(points)} {count_graph_n(root)}", 'i')
-    log.log(f"{len(points)} {count_graph_n(root)}", 'c')
+    log.log(f"{len(points)} {count_graph_n(root)}", 'w')
     log.log_graph(root)
 
     # DAILY REPORT
-    df = pd.DataFrame(columns=['loc', 'person', 'time','loc_class'])
-    df = df.astype(dtype= {"loc":"int64","person":"int64","time":"int64","loc_class":'object'})
+    df = pd.DataFrame(columns=['loc', 'person', 'time', 'loc_class'])
+    df = df.astype(dtype={"loc": "int64", "person": "int64", "time": "int64", "loc_class": 'object'})
     # df.set_index('time')
 
     # add test centers to medical zones
@@ -207,18 +160,16 @@ def main():
 
     # main iteration loop
     for t in range(iterations):
-        log.log(f"Iteration: {t} {i_to_time(t)}", 'c')
+        log.log(f"Iteration: {t} {i_to_time(t)}", 'i')
         log.log(f"=========================Iteration: {t} {i_to_time(t)}======================", 'd')
         log.log_people(points)
 
         # process movement
         MovementEngine.process_people_switching(root, t)
-        moved = MovementEngine.move_people(Movement.all_transports, t)
-        # if moved != len(points):
-        #     raise Exception(f"Only moved {moved}/{len(points)}")
+        MovementEngine.move_people(Movement.all_transports, t)
 
         # process transmission and recovery
-        TransmissionEngine.disease_transmission(points, t, args.infect_r)
+        TransmissionEngine.disease_transmission(points, t,args.infect_r)
         CovEngine.process_recovery(points, t)
         CovEngine.process_death(points, t, cemetery)
 
@@ -227,14 +178,16 @@ def main():
             TestingEngine.testing_procedure(points, test_centers, t)
 
         # change routes randomly for some people
-        # for p in points:
-        #     if (p.is_infected() and p.is_tested_positive()) or p.is_dead():  # these people cant change route randomly!!!
-        #         continue
-        #     change_change = 0.001
-        #     if t%DAY > 1000:
-        #         change_change *= 0.0001
-        #     if np.random.rand() < change_change:
-        #         p.update_route(root, t % DAY, get_alternate_route(p))
+        for p in points:
+            if (p.is_infected() and p.is_tested_positive()) or p.is_dead() or isinstance(p, Transporter):
+                # these people cant change route randomly!!!
+                # Logger.log(f"Can't update {p.ID}'s route!")
+                continue
+            change_change = 0.001
+            if t % DAY > 1000:
+                change_change *= 0.0001
+            if np.random.rand() < change_change:
+                p.update_route(root, t % DAY, get_alternate_route(p))
 
         # spawn new test centers
         if t % test_center_spawn_check_freq == 0:
@@ -249,7 +202,7 @@ def main():
 
         update_point_parameters(points)
 
-        # overriding daily routes if necessary. (tested positives, etc)
+        # overriding routes if necessary. (tested positives, etc)
         for p in points:
             if ContainmentEngine.check_to_update_route(p, root, args.containment, t):
                 break
@@ -257,12 +210,9 @@ def main():
         # reset day
 
         if t % DAY == 0:
-            good = True
             for p in points:
-                if not p.reset_day(t):
-                    good=False
-            if not good:
-                raise Exception("Day reset failed")
+                p.reset_day(t)
+
 
         # record in daily report
         tmp_list = []
@@ -270,11 +220,11 @@ def main():
         for p in points:
             cur = p.get_current_location()
             person = p.ID
-            tmp_list.append({'loc':cur.ID, 'person':person, 'time':t, 'loc_class':cur.__class__.__name__})
+            tmp_list.append({'loc': cur.ID, 'person': person, 'time': t, 'loc_class': cur.__class__.__name__})
         df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % (DAY//10) == 0:
+            if t % (DAY // 2) == 0:
                 fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
                 # plot_info(fig2, axs, points)

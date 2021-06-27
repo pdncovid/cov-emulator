@@ -1,5 +1,6 @@
 import numpy as np
 
+from backend.python.Logger import Logger
 from backend.python.enums import State
 from backend.python.functions import bs, get_duration
 from numba import njit
@@ -8,6 +9,19 @@ from numba import njit
 class TransmissionEngine:
     base_transmission_p = 0.1
     common_fever_p = 0.1
+
+    @staticmethod
+    def disease_transmission(points, t, r):
+        x, y = np.array([p.x for p in points]), np.array([p.y for p in points])
+        state = np.array([p.state for p in points])
+
+        contacts, distance, sourceid = TransmissionEngine.get_close_contacts_and_distance(x, y, state, r)
+
+        new_infected = TransmissionEngine.transmit_disease(points, contacts, distance, sourceid, t)
+
+        Logger.log(f"""{new_infected}/{sum(contacts > 0)}/{int(sum(contacts))}/{sum(
+            state == State.INFECTED.value)} Infected/Unique/Contacts/Active""", 'e')
+
 
     @staticmethod
     # @njit

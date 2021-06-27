@@ -1,5 +1,7 @@
+from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.enums import Mobility
+from backend.python.functions import get_duration
 
 
 class Movement:
@@ -11,6 +13,7 @@ class Movement:
         self.ID = Movement._id
         Movement._id += 1
         self.vcap = velocity_cap
+        assert self.vcap >= 1
         self.mobility = mobility_pattern
 
         self.destination_reach_eps = 10.0
@@ -28,7 +31,7 @@ class Movement:
         return ','.join(map(str, d.values()))
 
     def __str__(self):
-        return self.__class__.__name__
+        return self.__class__.__name__ + f"{self.ID}-P:{len(self.points)}"
 
     def get_description_dict(self):
         d = {'class': self.__class__.__name__, 'id': self.ID, 'vcap': self.vcap,
@@ -51,8 +54,8 @@ class Movement:
         self.points_destination[idx] = target_location
 
     def remove_point_from_transport(self, point):
-        idx = self.points.index(point)
-        if self.points[idx].is_latched and self.points[idx].current_trans != self:
+        idx = self.points.index(point)  # todo point not in points bug
+        if self.points[idx].latched_to and self.points[idx].current_trans != self:
             raise Exception("Can't remove latched people from this movement method to another movement method"
                             "Un-latch first, or the behaviour is unexpected!")
         self.points.pop(idx)
@@ -70,6 +73,14 @@ class Movement:
     def move(self, point, t):
         idx = self.points.index(point)
         destination = self.points_destination[idx]
+        dt = t - point.current_loc_leave
+        if dt > get_duration(1):
+            msg = f"OT move {t}-{point.current_loc_leave}={dt} P:{point.ID} in {point.get_current_location().name}(by {self}) "
+            msg += f"->{destination}->{point.get_next_target().name} "
+            msg += f"(inter_trans {point.in_inter_trans}) "
+            msg += " " if destination is None else f"(d={point.x - destination.exit[0]:.2f},{point.y - destination.exit[1]:.2f}) "
+
+            Logger.log(msg, "w")
         if destination is None:
             # move inside location mode
             self.in_location_move(idx, t)

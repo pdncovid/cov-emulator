@@ -5,6 +5,8 @@ from backend.python.enums import State, TestSpawn
 
 
 class TestCenter:
+    asymptotic_t = -1
+    test_acc = -1
 
     def __init__(self, x, y, r):
         self.x = x
@@ -16,14 +18,19 @@ class TestCenter:
 
         self.max_tests = 100
 
-    def test(self, p, t, args):
+    @staticmethod
+    def set_parameters(asymptotic_t, test_acc):
+        TestCenter.asymptotic_t = asymptotic_t
+        TestCenter.test_acc = test_acc
+
+    def test(self, p, t):
         rnd = np.random.rand()
         if p.state == State.INFECTED.value:
             if p.tested_positive_time > 0:
                 return
             else:
-                boost_by_infected_period = min(args.asymptotic_t, t - p.infected_time) / args.asymptotic_t
-                result = True if rnd < args.test_acc * boost_by_infected_period else False
+                boost_by_infected_period = min(TestCenter.asymptotic_t, t - p.infected_time) / TestCenter.asymptotic_t
+                result = True if rnd < TestCenter.test_acc * boost_by_infected_period else False
         else:
             result = False  # True if rnd > args.test_acc else False
         if result:

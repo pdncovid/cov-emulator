@@ -41,6 +41,6 @@ class CommercialZone(Location):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
 
         if n_buildings != -1:
-            self.spawn_sub_locations(CommercialBuilding, n_buildings, building_r, 0.8, Walk(0.5, Mobility.RANDOM.value),
+            self.spawn_sub_locations(CommercialBuilding, n_buildings, building_r, 0.8, Walk(1.5, Mobility.RANDOM.value),
                                      n_areas=10, area_r=building_r / 5)
-            self.spawn_sub_locations(CommercialCanteen, 2, building_r / 2, 0.95, Walk(0.1, Mobility.RANDOM.value))
+            self.spawn_sub_locations(CommercialCanteen, 2, building_r / 2, 0.95, Walk(1.1, Mobility.RANDOM.value))

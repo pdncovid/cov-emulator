@@ -1,5 +1,6 @@
 import numpy as np
 
+from backend.python.Logger import Logger
 from backend.python.const import DAY
 from backend.python.enums import State
 from backend.python.functions import get_random_element, find_in_subtree, separate_into_classes
@@ -47,7 +48,7 @@ class Person:
         self.current_trans = None
 
         self.in_inter_trans = False
-        self.is_latched = False
+        self.latched_to = None
         self.latch_onto_hash = None
 
         self.state = State.SUSCEPTIBLE.value  # current state of the point (infected/dead/recovered etc.)
@@ -125,7 +126,17 @@ class Person:
         self.is_day_finished = False
         self.adjust_leaving_time(t)
 
-    def on_enter_location(self):
+        if self.get_current_location() != self.home_loc and not self.get_current_location().quarantined:
+            Logger.log(f"{self.ID} not at home when day resets. (Now at {self.get_current_location().name} "
+                       f"from {self.current_trans.points_enter_time[self.current_trans.points.index(self)]}) "
+                       f"CTarget {self.current_target_idx}/{len(self.route)} "
+                       f"Route {list(map(str, self.route))}. "
+
+                       , 'c')
+            return False
+        return True
+
+    def on_enter_location(self, t):
         pass
 
     def adjust_leaving_time(self, t):
@@ -140,6 +151,7 @@ class Person:
         self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
         if self.current_target_idx == 0:
             self.is_day_finished = True
+            Logger.log(f"{self.ID} finished daily route!",'c')
 
     def initialize_main_suggested_route(self):
         if self.home_loc is None:
@@ -188,6 +200,8 @@ class Person:
         """
         if new_route_classes is None:
             return
+
+        Logger.log(f"Current route for {self.ID} is {list(map(str, self.route))}", 'e')
         _t = t % DAY
         self.backup_route()
         if replace:
@@ -217,6 +231,14 @@ class Person:
         self.duration_time += duration
         self.leaving_time += leaving
         self.adjust_leaving_time(t)
+
+        Logger.log(f"Route updated for {self.ID} as {list(map(str, self.route))}", 'e')
+
+        if self.latched_to:
+            Logger.log(f"{self.ID} is latched to {self.latched_to.ID}. "
+                       f"Delatching at {self.get_current_location().name}!", 'e')
+            self.latched_to.delatch(self)
+
         if self.current_target_idx >= len(self.route):
             self.current_target_idx = len(route) - 1
         if replace:
@@ -235,13 +257,15 @@ class Person:
         self.route[0].enter_person(self, t)
 
     def set_position(self, new_x, new_y, is_updated_by_transporter=False):
-        if not self.is_latched or is_updated_by_transporter:
+        if not self.latched_to or is_updated_by_transporter:
             self.x = new_x
             self.y = new_y
         else:
             idx = self.current_trans.points.index(self)
             start = self.current_trans.points_enter_time[idx]
-            print(f"{self.ID} is waiting for latch in {self.get_current_location()} to {self.get_next_target()} since {start}")
+            print(f"Tried to move {self.ID} in {self.get_current_location()} (enter at:{start})."
+                  f"Going to {self.get_next_target()}"
+                  f" ")
 
     def set_current_location(self, loc, t):
         self.current_loc = loc

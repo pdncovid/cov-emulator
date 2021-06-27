@@ -1,5 +1,6 @@
 import numpy as np
 
+from backend.python.Logger import Logger
 from backend.python.functions import get_duration
 class CovEngine:
     base_recovery_p = 0.8
@@ -27,7 +28,7 @@ class CovEngine:
                 if t - p.infected_time > CovEngine.death_after and np.random.rand() < 0.5: # todo find this value
                     p.set_dead()
                 if p.is_dead():
-                    print("DEATH!!!")
+                    Logger.log(f"DEAD {p.ID}", 'e')
                     cemetery[0].enter_person(p, t)
 
     @staticmethod

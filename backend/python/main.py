@@ -274,7 +274,7 @@ def main():
         df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % (DAY//10) == 0:
+            if t % (DAY//1) == 0:
                 fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
                 # plot_info(fig2, axs, points)

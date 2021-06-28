@@ -44,15 +44,15 @@ class Logger:
     @staticmethod
     def log(message, _type='d'):
         if _type == 'd':
-            Logger._logger.debug('Debug: '+message)
+            Logger._logger.debug('D: '+message)
         elif _type == 'i':
-            Logger._logger.info('Info: '+message)
+            Logger._logger.info('I: '+message)
         elif _type == 'w':
-            Logger._logger.warn('Warning: '+message)
+            Logger._logger.warn('W: '+message)
         elif _type == 'e':
-            Logger._logger.error('Error: '+message)
+            Logger._logger.error('E: '+message)
         elif _type == 'c':
-            Logger._logger.critical('Critical: '+message)
+            Logger._logger.critical('C: '+message)
 
     @staticmethod
     def log_location(loc):

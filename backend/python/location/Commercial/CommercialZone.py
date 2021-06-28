@@ -18,7 +18,7 @@ class CommercialZone(Location):
             buildings = self.get_children_of_class(CommercialBuilding)
             working_building: Location = get_random_element(buildings)
             _r, _d, _l = [], [], []
-            t_end = min(np.random.normal(get_time(17, 0), abs(np.random.normal(0, get_duration(1)))), get_time(20, 0))
+            t_end = min(np.random.normal(get_time(17, 0), abs(np.random.normal(0, get_duration(1)))), get_time(18, 0))
             while t < t_end:
                 _r1, _d1, _l1, t = working_building.get_suggested_sub_route(point, t, force_dt)
                 _r += _r1

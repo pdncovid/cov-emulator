@@ -34,7 +34,7 @@ from backend.python.transport.Walk import Walk
 TODO: 
 Infection using contagious areas
 """
-iterations = 10000
+iterations = 100000
 testing_freq = 10
 test_center_spawn_check_freq = 10
 test_center_spawn_method = TestSpawn.HEATMAP.value
@@ -130,12 +130,12 @@ def main():
     # initialize graphs and people
     points, root = initialize()
     log.log(f"{len(points)} {count_graph_n(root)}", 'i')
-    log.log(f"{len(points)} {count_graph_n(root)}", 'w')
+    log.log(f"{len(points)} {count_graph_n(root)}", 'c')
     log.log_graph(root)
 
     # DAILY REPORT
-    df = pd.DataFrame(columns=['loc', 'person', 'time', 'loc_class'])
-    df = df.astype(dtype={"loc": "int64", "person": "int64", "time": "int64", "loc_class": 'object'})
+    df = pd.DataFrame(columns=['loc', 'person', 'time','loc_class'])
+    df = df.astype(dtype= {"loc":"int64","person":"int64","time":"int64","loc_class":'object'})
     # df.set_index('time')
 
     # add test centers to medical zones
@@ -160,16 +160,18 @@ def main():
 
     # main iteration loop
     for t in range(iterations):
-        log.log(f"Iteration: {t} {i_to_time(t)}", 'i')
+        log.log(f"Iteration: {t} {i_to_time(t)}", 'c')
         log.log(f"=========================Iteration: {t} {i_to_time(t)}======================", 'd')
         log.log_people(points)
 
         # process movement
         MovementEngine.process_people_switching(root, t)
-        MovementEngine.move_people(Movement.all_transports, t)
+        moved = MovementEngine.move_people(Movement.all_transports, t)
+        # if moved != len(points):
+        #     raise Exception(f"Only moved {moved}/{len(points)}")
 
         # process transmission and recovery
-        TransmissionEngine.disease_transmission(points, t,args.infect_r)
+        TransmissionEngine.disease_transmission(points, t, args.infect_r)
         CovEngine.process_recovery(points, t)
         CovEngine.process_death(points, t, cemetery)
 
@@ -178,16 +180,14 @@ def main():
             TestingEngine.testing_procedure(points, test_centers, t)
 
         # change routes randomly for some people
-        for p in points:
-            if (p.is_infected() and p.is_tested_positive()) or p.is_dead() or isinstance(p, Transporter):
-                # these people cant change route randomly!!!
-                # Logger.log(f"Can't update {p.ID}'s route!")
-                continue
-            change_change = 0.001
-            if t % DAY > 1000:
-                change_change *= 0.0001
-            if np.random.rand() < change_change:
-                p.update_route(root, t % DAY, get_alternate_route(p))
+        # for p in points:
+        #     if (p.is_infected() and p.is_tested_positive()) or p.is_dead():  # these people cant change route randomly!!!
+        #         continue
+        #     change_change = 0.001
+        #     if t%DAY > 1000:
+        #         change_change *= 0.0001
+        #     if np.random.rand() < change_change:
+        #         p.update_route(root, t % DAY, get_alternate_route(p))
 
         # spawn new test centers
         if t % test_center_spawn_check_freq == 0:
@@ -202,7 +202,7 @@ def main():
 
         update_point_parameters(points)
 
-        # overriding routes if necessary. (tested positives, etc)
+        # overriding daily routes if necessary. (tested positives, etc)
         for p in points:
             if ContainmentEngine.check_to_update_route(p, root, args.containment, t):
                 break
@@ -210,9 +210,12 @@ def main():
         # reset day
 
         if t % DAY == 0:
+            good = True
             for p in points:
-                p.reset_day(t)
-
+                if not p.reset_day(t):
+                    good=False
+            if not good:
+                raise Exception("Day reset failed")
 
         # record in daily report
         tmp_list = []
@@ -220,11 +223,11 @@ def main():
         for p in points:
             cur = p.get_current_location()
             person = p.ID
-            tmp_list.append({'loc': cur.ID, 'person': person, 'time': t, 'loc_class': cur.__class__.__name__})
+            tmp_list.append({'loc':cur.ID, 'person':person, 'time':t, 'loc_class':cur.__class__.__name__})
         df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % (DAY // 2) == 0:
+            if t % (DAY//1) == 0:
                 fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
                 # plot_info(fig2, axs, points)

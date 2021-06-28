@@ -182,7 +182,7 @@ class Location:
         for i, p in enumerate(self.points):
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
-            if t - p.current_loc_leave  >  get_duration(5):
+            if t - p.current_loc_leave > get_duration(5):
                 Logger.log(
                     f"OT while check for leaving {p} Not leaving current place {p.get_current_location().name} "
                     f"after timeout! dt={t - p.current_loc_leave} "
@@ -272,8 +272,8 @@ class Location:
             # bias = (t // DAY) * DAY
             # if p.is_day_finished:
             #     bias += DAY
-            current_loc_leave = p.leaving_time[p.current_target_idx] + t - t % DAY
-        if p.is_day_finished:
+            current_loc_leave = p.leaving_time[p.current_target_idx]%DAY + t - t % DAY
+        if p.is_day_finished and self == p.home_loc:
             if current_loc_leave < t - t % DAY + DAY:
                 current_loc_leave += DAY
         return current_loc_leave

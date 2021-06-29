@@ -1,6 +1,6 @@
 from backend.python.const import DAY
-from backend.python.enums import Mobility, Shape
-from backend.python.functions import get_duration, get_time, get_current_time
+from backend.python.enums import Shape
+from backend.python.Time import Time
 from backend.python.location.Location import Location
 from backend.python.transport.Movement import Movement
 import numpy as np
@@ -10,13 +10,13 @@ class CommercialCanteen(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if force_dt:
             _r = [self]
-            _d = [np.random.randint(0, min(np.random.normal(get_duration(0.5),get_duration(0.1)), DAY - t))]
+            _d = [np.random.randint(0, min(np.random.normal(Time.get_duration(0.5),Time.get_duration(0.1)), DAY - t))]
             _l = [-1]
         else:
             _r = [self]
             _d = [-1]
-            _l = [np.random.randint(get_time(11, 0), get_time(17, 30))]
-        t = get_current_time(_d, _l, t)
+            _l = [np.random.randint(Time.get_time(11, 0), Time.get_time(17, 30))]
+        t = Time.get_current_time(_d, _l, t)
         return _r, _d, _l, t
 
     _id_canteen = 0

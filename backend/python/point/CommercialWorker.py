@@ -1,7 +1,4 @@
-from backend.python.functions import get_random_element
-from backend.python.location.Location import Location
 from backend.python.point.Person import Person
-import numpy as np
 
 
 class CommercialWorker(Person):

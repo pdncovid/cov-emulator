@@ -2,7 +2,8 @@ import numpy as np
 
 from backend.python.Logger import Logger
 from backend.python.enums import State
-from backend.python.functions import bs, get_duration
+from backend.python.functions import bs
+from backend.python.Time import Time
 from numba import njit
 
 
@@ -21,7 +22,6 @@ class TransmissionEngine:
 
         Logger.log(f"""{new_infected}/{sum(contacts > 0)}/{int(sum(contacts))}/{sum(
             state == State.INFECTED.value)} Infected/Unique/Contacts/Active""", 'e')
-
 
     @staticmethod
     # @njit
@@ -98,8 +98,8 @@ class TransmissionEngine:
             return np.exp(-d / 5)
 
         def duration_f(dt):
-            return ((np.tanh((dt - get_duration(24 * 5)) / get_duration(24 * 5)) + 0.2) *
-                    (np.tanh((-dt + get_duration(24 * 8)) / get_duration(24 * 8)) + 0.5) + 1.19987) / 2.6683940
+            return ((np.tanh((dt - Time.get_duration(24 * 5)) / Time.get_duration(24 * 5)) + 0.2) *
+                    (np.tanh((-dt + Time.get_duration(24 * 8)) / Time.get_duration(24 * 8)) + 0.5) + 1.19987) / 2.6683940
 
         def count_f(c):
             c[c > 10] = 10
@@ -120,6 +120,8 @@ class TransmissionEngine:
         if p1_idx == -1 or p2_idx == -1:
             return 0
         # todo implement infection within latched people only! (in MovementByTransporter)
+        if p1.latched_to != p2.latched_to:
+            return 0
         # if p1.current_trans.points_label[p1_idx] != p2.current_trans.points_label[p2_idx]:
         #     return 0
         return p1.current_trans.get_in_transport_transmission_p()

@@ -15,8 +15,9 @@ from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import init_figure, plot_position
 from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape, TestSpawn, Containment
-from backend.python.functions import bs, i_to_time, count_graph_n, get_random_element, \
+from backend.python.functions import bs, count_graph_n, get_random_element, \
     separate_into_classes
+from backend.python.Time import Time
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Commercial.CommercialZone import CommercialZone
@@ -160,8 +161,8 @@ def main():
 
     # main iteration loop
     for t in range(iterations):
-        log.log(f"Iteration: {t} {i_to_time(t)}", 'c')
-        log.log(f"=========================Iteration: {t} {i_to_time(t)}======================", 'd')
+        log.log(f"Iteration: {t} {Time.i_to_time(t)}", 'c')
+        log.log(f"=========================Iteration: {t} {Time.i_to_time(t)}======================", 'd')
         log.log_people(points)
 
         # process movement

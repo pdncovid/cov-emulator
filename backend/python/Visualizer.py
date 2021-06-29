@@ -7,7 +7,7 @@ from matplotlib.lines import Line2D
 
 from backend.python.Logger import Logger
 from backend.python.const import DAY
-from backend.python.functions import i_to_time
+from backend.python.Time import Time
 from backend.python.location.Location import Location
 
 from backend.python.enums import Mobility, Shape, State
@@ -188,7 +188,7 @@ def init_figure(root, points, test_centers, h, w, t):
     hm = ax.pcolormesh(xx / scale, yy / scale, zz, cmap='Reds', shading='auto', alpha=0.9)
     fig.colorbar(hm, ax=ax)
 
-    ax.annotate(i_to_time(t), (-w / scale, h / scale), xytext=(-w / scale, h / scale), fontsize=7)
+    ax.annotate(Time.i_to_time(t), (-w / scale, h / scale), xytext=(-w / scale, h / scale), fontsize=7)
 
     # drawing points
     x, y = [p.x / scale for p in points], [p.y / scale for p in points]
@@ -216,7 +216,7 @@ def init_figure(root, points, test_centers, h, w, t):
 
 
 def update_figure(fig, ax, sc, hm, root, points, test_centers, h, w, t):
-    ax.texts[0]._text = i_to_time(t)
+    ax.texts[0]._text = Time.i_to_time(t)
     if len(points) <= 10000:
         x, y = [p.x for p in points], [p.y for p in points]
 

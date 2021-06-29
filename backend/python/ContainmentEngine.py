@@ -1,10 +1,10 @@
 from backend.python.enums import Containment
-from backend.python.functions import get_duration
+from backend.python.Time import Time
 
 
 class ContainmentEngine:
-    testresultdelay = get_duration(5)
-    quarantineduration = get_duration(24 * 2)
+    testresultdelay = Time.get_duration(5)
+    quarantineduration = Time.get_duration(24 * 2)
 
     @staticmethod
     def can_go_there(p, current_l, next_l):

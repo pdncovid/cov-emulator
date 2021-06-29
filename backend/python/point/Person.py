@@ -1,9 +1,10 @@
 import numpy as np
 
 from backend.python.Logger import Logger
+from backend.python.MovementEngine import MovementEngine
 from backend.python.const import DAY
 from backend.python.enums import State
-from backend.python.functions import get_random_element, find_in_subtree, separate_into_classes
+from backend.python.functions import find_in_subtree
 from backend.python.location.Residential.Home import Home
 
 
@@ -11,6 +12,7 @@ class Person:
     normal_temperature = (36.8, 1.0)
     infect_temperature = (37.4, 1.2)
     _id = 0
+    all_people = []
 
     def __init__(self):
         self.ID = Person._id
@@ -62,6 +64,7 @@ class Person:
 
         self.temp = 0  # temperature of the point
         self.update_temp(0.0)
+        Person.all_people.append(self)
 
     def __repr__(self):
         d = self.get_description_dict()
@@ -148,7 +151,12 @@ class Person:
                 self.leaving_time[i] = self.leaving_time[i] % DAY + _t
 
     def increment_target_location(self):
+
+        msg = f"{self.ID} incremented target from {self.get_current_target()} to "
         self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
+        next_loc = MovementEngine.find_next_location(self)
+        msg += f"{self.get_current_target()} ({self.current_target_idx} th target). Next location is {next_loc}."
+        Logger.log(msg, 'c')
         if self.current_target_idx == 0:
             self.is_day_finished = True
             Logger.log(f"{self.ID} finished daily route!",'c')
@@ -263,9 +271,8 @@ class Person:
         else:
             idx = self.current_trans.points.index(self)
             start = self.current_trans.points_enter_time[idx]
-            print(f"Tried to move {self.ID} in {self.get_current_location()} (enter at:{start})."
-                  f"Going to {self.get_next_target()}"
-                  f" ")
+            raise Exception(f"Tried to move {self.ID} in {self.get_current_location()} (enter at:{start})."
+                  f"Going to {self.get_next_target()}")
 
     def set_current_location(self, loc, t):
         self.current_loc = loc

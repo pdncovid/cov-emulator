@@ -3,7 +3,6 @@ from backend.python.functions import get_random_element
 from backend.python.location.Commercial.CommercialWorkArea import CommercialWorkArea
 from backend.python.location.Location import Location
 from backend.python.point.CommercialWorker import CommercialWorker
-from backend.python.transport.Movement import Movement
 from backend.python.transport.Walk import Walk
 
 
@@ -42,4 +41,5 @@ class CommercialBuilding(Location):
         n_areas = kwargs.get('n_areas')
         area_r = kwargs.get('area_r')
         if n_areas != -1:
-            self.spawn_sub_locations(CommercialWorkArea, n_areas, area_r, 0.99, Walk(1.1, Mobility.RANDOM.value))
+            self.spawn_sub_locations(CommercialWorkArea, n_areas, area_r, 0.99, Walk(1.1, Mobility.RANDOM.value),
+                                     capacity=5)

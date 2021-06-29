@@ -28,7 +28,7 @@ class Transporter(Person):
         do_check = False
         while i < (len(self.latched_people)):
             if self.latched_dst[i] == self.latched_people[i].get_current_location():
-                Logger.log(f"{self.latched_people[i].ID} reached latched desetination {self.get_current_location()}"
+                Logger.log(f"{self.latched_people[i].ID} reached latched destination {self.get_current_location()}"
                            f"from  transporter {self.ID}")
                 self.delatch(i)
                 do_check = True
@@ -86,10 +86,10 @@ class Transporter(Person):
             self.latched_people.append(p)
             self.latched_dst.append(des)
             p.latched_to = self
-            print(f"{p.ID} latched to {self.ID}")
+            Logger.log(f"{p.ID} latched to {self.ID}", 'w')
             return True
         else:
-            print("Not enough space to latch onto!")
+            Logger.log(f"Not enough space ({len(self.latched_people)}/{self.max_latches}) to latch onto!", 'e')
             return False
 
     def delatch_all(self):

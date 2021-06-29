@@ -4,15 +4,10 @@ import numpy as np
 class MovementEngine:
 
     @staticmethod
-    def move_people(all_transports, t):
-        total=0
-        pp = []
-        for trans in all_transports:
-            total+=len(trans.points)
-            pp += trans.points
-        for trans in all_transports:
-            trans.move_people(t)
-        return total
+    def move_people(all_people, t):
+        for p in all_people:
+            p.current_trans.move_people(t)
+
 
     @staticmethod
     def process_people_switching(loc, t):

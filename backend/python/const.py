@@ -1,3 +1,3 @@
-from backend.python.functions import get_duration
+from backend.python.Time import Time
 
-DAY = get_duration(24)
+DAY = Time.get_duration(24)

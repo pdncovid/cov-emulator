@@ -1,12 +1,8 @@
 from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.enums import Mobility
-from backend.python.point.Person import Person
 from backend.python.point.Transporter import Transporter
 from backend.python.transport.Movement import Movement
-import numpy as np
-import itertools
-
 
 class MovementByTransporter(Movement):
 
@@ -72,12 +68,12 @@ class MovementByTransporter(Movement):
                 if des is not None:
                     possible_transporters.append((cost, pl, des))
         if len(possible_transporters) == 0:
-            print("No one to latch")
+            Logger.log("No one to latch", 'e')
             return
         possible_transporters.sort(key=lambda x:x[0])
 
         (cost, transporter, destination) = possible_transporters[0]
-        print(f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}")
+        Logger.log(f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}", 'c')
         transporter.latch(p, destination)
 
 

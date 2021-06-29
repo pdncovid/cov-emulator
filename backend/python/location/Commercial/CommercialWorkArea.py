@@ -1,6 +1,6 @@
 from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape
-from backend.python.functions import get_time, get_duration, get_current_time
+from backend.python.Time import Time
 from backend.python.location.Location import Location
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.transport.Movement import Movement
@@ -13,7 +13,7 @@ class CommercialWorkArea(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if isinstance(point, CommercialWorker):
 
-            lts = [get_time(10, 0), get_time(12, 0), get_time(17, 0)]
+            lts = [Time.get_time(10, 0), Time.get_time(12, 0), Time.get_time(17, 0)]
             for lt in lts:
                 if t < lt:
                     if force_dt:
@@ -27,12 +27,12 @@ class CommercialWorkArea(Location):
                     break
             else:
                 _r = [self]
-                _d = [min(np.random.randint(0,get_duration(1)), DAY - t)]
+                _d = [min(np.random.randint(0,Time.get_duration(1)), DAY - t)]
                 _l = [-1]
         else:
             raise NotImplementedError()
 
-        t = get_current_time(_d, _l, t)
+        t = Time.get_current_time(_d, _l, t)
         return _r, _d, _l, t
 
     _id_area = 0

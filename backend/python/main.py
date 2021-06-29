@@ -14,9 +14,10 @@ from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import init_figure, plot_position
 from backend.python.const import DAY
-from backend.python.enums import Mobility, Shape, State, TestSpawn, Containment
-from backend.python.functions import bs, i_to_time, count_graph_n, get_random_element, \
+from backend.python.enums import Mobility, Shape,  TestSpawn, Containment
+from backend.python.functions import bs, count_graph_n, get_random_element, \
     separate_into_classes
+from backend.python.Time import Time
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Commercial.CommercialZone import CommercialZone
@@ -25,6 +26,7 @@ from backend.python.location.Residential.Home import Home
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.location.TestCenter import TestCenter
+from backend.python.point.Person import Person
 from backend.python.transport.Bus import Bus
 from backend.python.transport.Movement import Movement
 from backend.python.transport.Walk import Walk
@@ -203,19 +205,17 @@ def main():
     # initial iterations to initialize positions of the people
     for t in range(5):
         print(f"initializing {t}")
-        MovementEngine.move_people(Movement.all_transports, 0)
+        MovementEngine.move_people(Person.all_people, 0)
 
     # main iteration loop
     for t in range(iterations):
-        log.log(f"Iteration: {t} {i_to_time(t)}", 'c')
-        log.log(f"=========================Iteration: {t} {i_to_time(t)}======================", 'd')
+        log.log(f"Iteration: {t} {Time.i_to_time(t)}", 'c')
+        log.log(f"=========================Iteration: {t} {Time.i_to_time(t)}======================", 'd')
         log.log_people(points)
 
         # process movement
         MovementEngine.process_people_switching(root, t)
-        moved = MovementEngine.move_people(Movement.all_transports, t)
-        # if moved != len(points):
-        #     raise Exception(f"Only moved {moved}/{len(points)}")
+        MovementEngine.move_people(Person.all_people, t)
 
         # process transmission and recovery
         TransmissionEngine.disease_transmission(points, t, args.infect_r)

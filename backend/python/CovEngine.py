@@ -1,10 +1,12 @@
 import numpy as np
 
 from backend.python.Logger import Logger
-from backend.python.functions import get_duration
+from backend.python.Time import  Time
+
+
 class CovEngine:
     base_recovery_p = 0.8
-    death_after = get_duration(24*21)
+    death_after = Time.get_duration(24*21)
     dead_disease_state = 5
 
     @staticmethod
@@ -35,8 +37,8 @@ class CovEngine:
     def get_recovery_p(p, t):
         # 0 - 1
         def duration_f(dt):
-            return ((np.tanh((dt - get_duration(24 * 5)) / get_duration(24 * 5)) + 0.2) *
-                    (np.tanh((-dt + get_duration(24 * 8)) / get_duration(24 * 8)) + 0.5) + 1.19987) / 2.6683940
+            return ((np.tanh((dt - Time.get_duration(24 * 5)) / Time.get_duration(24 * 5)) + 0.2) *
+                    (np.tanh((-dt + Time.get_duration(24 * 8)) / Time.get_duration(24 * 8)) + 0.5) + 1.19987) / 2.6683940
             # return np.exp(-abs(np.random.normal(7, 2, len(dt)) - dt))
 
         lp = p.get_current_location().recovery_p
@@ -47,8 +49,8 @@ class CovEngine:
     def get_worsen_p(p, t):
         # 0 - 1
         def duration_f(dt):
-            return ((np.tanh((dt - get_duration(24 * 14)) / get_duration(24 * 14)) + 0.2) *
-                    (np.tanh((-dt + get_duration(24 * 20)) / get_duration(24 * 20)) + 0.5) + 1.19987) / 2.6683940
+            return ((np.tanh((dt - Time.get_duration(24 * 14)) / Time.get_duration(24 * 14)) + 0.2) *
+                    (np.tanh((-dt + Time.get_duration(24 * 20)) / Time.get_duration(24 * 20)) + 0.5) + 1.19987) / 2.6683940
             # return np.exp(-abs(np.random.normal(7, 2, len(dt)) - dt))
 
         lp = p.get_current_location().recovery_p
@@ -59,7 +61,7 @@ class CovEngine:
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    dt = np.linspace(0, get_duration(24 * 60), 100000)
-    plt.plot(dt, ((np.tanh((dt - get_duration(24 * 14)) / get_duration(24 * 14)) + 0.2) *
-                    (np.tanh((-dt + get_duration(24 * 20)) / get_duration(24 * 20)) + 0.5) + 1.19987) / 2.6683940)
+    dt = np.linspace(0, Time.get_duration(24 * 60), 100000)
+    plt.plot(dt, ((np.tanh((dt - Time.get_duration(24 * 14)) / Time.get_duration(24 * 14)) + 0.2) *
+                    (np.tanh((-dt + Time.get_duration(24 * 20)) / Time.get_duration(24 * 20)) + 0.5) + 1.19987) / 2.6683940)
     plt.show()

@@ -1,5 +1,6 @@
 from backend.python.enums import Mobility, Shape
-from backend.python.functions import get_random_element, get_time
+from backend.python.functions import get_random_element
+from backend.python.Time import Time
 from backend.python.location.Residential.Home import Home
 from backend.python.location.Location import Location
 from backend.python.location.Residential.ResidentialPark import ResidentialPark
@@ -16,10 +17,10 @@ class ResidentialZone(Location):
         home: Location = get_random_element(homes)
         _r, _d, _l = [], [], []
         if isinstance(point, CommercialWorker):
-            if t < get_time(5, 0):
+            if t < Time.get_time(5, 0):
                 _r1, _d1, _l1, t = home.get_suggested_sub_route(point, t, False)
                 _r, _d, _l = _r+_r1, _d+_d1, _l+_l1
-            elif t < get_time(15, 0):
+            elif t < Time.get_time(15, 0):
                 _r1, _d1, _l1, t = get_random_element(parks).get_suggested_sub_route(point, t, True)
                 _r, _d, _l = _r + _r1, _d + _d1, _l + _l1
         elif isinstance(point, BusDriver):

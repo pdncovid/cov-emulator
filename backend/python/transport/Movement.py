@@ -1,7 +1,7 @@
 from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.enums import Mobility
-from backend.python.functions import get_duration
+from backend.python.Time import Time
 
 
 class Movement:
@@ -74,7 +74,7 @@ class Movement:
         idx = self.points.index(point)
         destination = self.points_destination[idx]
         dt = t - point.current_loc_leave
-        if dt > get_duration(1):
+        if dt > Time.get_duration(1):
             msg = f"OT move {t}-{point.current_loc_leave}={dt} P:{point.ID} in {point.get_current_location().name}(by {self}) "
             msg += f"->{destination}->{point.get_next_target().name} "
             msg += f"(inter_trans {point.in_inter_trans}) "

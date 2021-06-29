@@ -1,15 +1,11 @@
 from backend.python.enums import Mobility, Shape
-from backend.python.functions import get_duration, get_random_element, get_time
-from backend.python.location.Commercial.CommercialBuilding import CommercialBuilding
-from backend.python.location.Commercial.CommercialCanteen import CommercialCanteen
-from backend.python.location.Commercial.CommercialWorkArea import CommercialWorkArea
+from backend.python.functions import get_random_element
 from backend.python.location.Location import Location
 from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
 from backend.python.location.Medical.Hospital import Hospital
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.transport.Walk import Walk
-import numpy as np
 
 
 class MedicalZone(Location):

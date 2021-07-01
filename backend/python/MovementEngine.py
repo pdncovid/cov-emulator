@@ -8,7 +8,6 @@ class MovementEngine:
         for p in all_people:
             p.current_trans.move_people(t)
 
-
     @staticmethod
     def process_people_switching(loc, t):
         loc.check_for_leaving(t)
@@ -63,6 +62,7 @@ class MovementEngine:
             return ln
 
         return point.get_current_location().parent_location
+
     @staticmethod
     def get_path(lc, ln):
         if lc == ln:
@@ -113,7 +113,7 @@ class MovementEngine:
 
     @staticmethod
     def is_close(p, xy, eps):
-        return (p.x - xy[0]) ** 2 + (p.y - xy[1]) ** 2 < eps**2
+        return (p.x - xy[0]) ** 2 + (p.y - xy[1]) ** 2 < eps ** 2
 
     @staticmethod
     def containment(p, args):

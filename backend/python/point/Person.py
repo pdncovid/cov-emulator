@@ -21,7 +21,7 @@ class Person:
         self.gender = 0 if np.random.rand() < 0.5 else 1  # gender of the person
         self.age = np.random.uniform(1, 80)  # age todo add to repr
         self.immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find and add to repr
-        self.wealth = 0  # wealth class of the point
+        self.character_vector = np.zeros((3,))  # wealth class of the point
         self.behaviour = 0  # behaviour of the point (healthy medical practices -> unhealthy)
 
         self.x = 0  # x location
@@ -77,7 +77,7 @@ class Person:
         d = {'class': self.__class__.__name__, 'id': self.ID, 'x': self.x, 'y': self.y, 'vx': self.vx, 'vy': self.vy,
              'state': self.state, 'gender': self.gender, 'is_day_finished': self.is_day_finished,
              'current_target_idx': self.current_target_idx, 'current_loc_enter': self.current_loc_enter,
-             'current_loc_leave': self.current_loc_leave, 'in_inter_trans': self.in_inter_trans, 'wealth': self.wealth,
+             'current_loc_leave': self.current_loc_leave, 'in_inter_trans': self.in_inter_trans, 'wealth': self.character_vector,
              'behaviour': self.behaviour, 'infected_time': self.infected_time, 'temp': self.temp,
              "tested_positive_time": self.tested_positive_time}
 
@@ -108,6 +108,9 @@ class Person:
         d['duration_time'] = self.duration_time.__str__().replace(',', '|').replace(' ', '')
         d['leaving_time'] = self.leaving_time.__str__().replace(',', '|').replace(' ', '')
         return d
+
+    def initialize_character_vector(self, vec):
+        self.character_vector = vec
 
     def backup_route(self):
         if self._backup_route is None:
@@ -151,7 +154,6 @@ class Person:
                 self.leaving_time[i] = self.leaving_time[i] % DAY + _t
 
     def increment_target_location(self):
-
         msg = f"{self.ID} incremented target from {self.get_current_target()} to "
         self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
         next_loc = MovementEngine.find_next_location(self)

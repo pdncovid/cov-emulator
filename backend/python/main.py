@@ -10,11 +10,12 @@ from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
 from backend.python.CovEngine import CovEngine
 from backend.python.MovementEngine import MovementEngine
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import init_figure, plot_position
 from backend.python.const import DAY
-from backend.python.enums import Mobility, Shape,  TestSpawn, Containment
+from backend.python.enums import Mobility, Shape, TestSpawn, Containment
 from backend.python.functions import bs, count_graph_n, get_random_element, \
     separate_into_classes
 from backend.python.Time import Time
@@ -64,8 +65,8 @@ parser.add_argument('--initialize',
                     type=int, default=0)
 
 args = parser.parse_args()
-work_map = {CommercialWorker:CommercialZone,
-            BusDriver:None}
+work_map = {CommercialWorker: CommercialZone, BusDriver: None}
+
 
 def initialize_graph():
     root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
@@ -122,8 +123,6 @@ def initialize_graph():
 #     return points, root
 
 def initialize():
-
-
     # initialize people
 
     points = [CommercialWorker() for _ in range(args.n)]
@@ -136,7 +135,6 @@ def initialize():
     # initialize location tree
     root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
     root.add_sub_location(Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3))
-
 
     # set random routes for each person and set their main transportation method
     walk = Walk(np.random.randint(1, 10), Mobility.RANDOM.value)
@@ -154,19 +152,10 @@ def initialize():
 
     return points, root
 
+
 def update_point_parameters(points):
     for i in range(args.n):
         points[i].update_temp(args.common_p)
-
-def get_common_route(point):
-    if isinstance(point, CommercialWorker):
-        return [CommercialZone]
-
-
-def get_alternate_route(point):
-    if point.temp > point.infect_temperature[0]:
-        return [MedicalZone, CommercialZone]
-    return get_common_route(point)
 
 
 def main():
@@ -183,8 +172,8 @@ def main():
     log.log_graph(root)
 
     # DAILY REPORT
-    df = pd.DataFrame(columns=['loc', 'person', 'time','loc_class'])
-    df = df.astype(dtype= {"loc":"int64","person":"int64","time":"int64","loc_class":'object'})
+    df = pd.DataFrame(columns=['loc', 'person', 'time', 'loc_class'])
+    df = df.astype(dtype={"loc": "int64", "person": "int64", "time": "int64", "loc_class": 'object'})
     # df.set_index('time')
 
     # add test centers to medical zones
@@ -227,14 +216,7 @@ def main():
             TestingEngine.testing_procedure(points, test_centers, t)
 
         # change routes randomly for some people
-        # for p in points:
-        #     if (p.is_infected() and p.is_tested_positive()) or p.is_dead():  # these people cant change route randomly!!!
-        #         continue
-        #     change_change = 0.001
-        #     if t%DAY > 1000:
-        #         change_change *= 0.0001
-        #     if np.random.rand() < change_change:
-        #         p.update_route(root, t % DAY, get_alternate_route(p))
+        RoutePlanningEngine.update_routes(root, t)
 
         # spawn new test centers
         if t % test_center_spawn_check_freq == 0:
@@ -260,7 +242,7 @@ def main():
             good = True
             for p in points:
                 if not p.reset_day(t):
-                    good=False
+                    good = False
             if not good:
                 raise Exception("Day reset failed")
 
@@ -270,11 +252,11 @@ def main():
         for p in points:
             cur = p.get_current_location()
             person = p.ID
-            tmp_list.append({'loc':cur.ID, 'person':person, 'time':t, 'loc_class':cur.__class__.__name__})
+            tmp_list.append({'loc': cur.ID, 'person': person, 'time': t, 'loc_class': cur.__class__.__name__})
         df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % (DAY//1) == 0:
+            if t % (DAY // 1) == 0:
                 fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
                 # plot_info(fig2, axs, points)

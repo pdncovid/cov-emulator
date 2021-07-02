@@ -17,7 +17,7 @@ class ContainmentEngine:
         return not current_l.quarantined or not move_out or p.is_recovered()
 
     @staticmethod
-    def check_to_update_route(p, root, containment, t):
+    def update_route_according_to_containment(p, root, containment, t):
         if p.is_tested_positive() and p.is_infected() and t - p.tested_positive_time > ContainmentEngine.testresultdelay:
             if containment == Containment.NONE.value:
                 return False

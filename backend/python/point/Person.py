@@ -1,3 +1,5 @@
+from typing import final
+
 import numpy as np
 
 from backend.python.Logger import Logger
@@ -109,15 +111,18 @@ class Person:
         d['leaving_time'] = self.leaving_time.__str__().replace(',', '|').replace(' ', '')
         return d
 
+    @final
     def initialize_character_vector(self, vec):
         self.character_vector = vec
 
+    @final
     def backup_route(self):
         if self._backup_route is None:
             self._backup_route = [r for r in self.route]
             self._backup_duration_time = [r for r in self.duration_time]
             self._backup_leaving_time = [r for r in self.leaving_time]
 
+    @final
     def restore_route(self):
         if self._backup_route is not None:
             self.route = [r for r in self._backup_route]
@@ -128,6 +133,7 @@ class Person:
             self._backup_leaving_time = None
             self.current_target_idx = len(self.route) - 1
 
+    @final
     def reset_day(self, t):
         self.is_day_finished = False
         self.adjust_leaving_time(t)
@@ -145,6 +151,7 @@ class Person:
     def on_enter_location(self, t):
         pass
 
+    @final
     def adjust_leaving_time(self, t):
         _t = t - t % DAY
         for i in range(len(self.route)):
@@ -163,12 +170,14 @@ class Person:
             self.is_day_finished = True
             Logger.log(f"{self.ID} finished daily route!",'c')
 
+    @final
     def initialize_main_suggested_route(self):
         if self.home_loc is None:
             raise Exception("Initialize home before initializing route")
         self.route, self.duration_time, self.leaving_time, time = self.home_loc.get_suggested_sub_route(self, 0, False)
         self.route[0].enter_person(self, 0)
 
+    @final
     def find_closest(self, target, cur=None):
         if target is None:
             return None
@@ -199,6 +208,7 @@ class Person:
     def set_random_route(self, root, t, target_classes_or_objs=None):
         raise NotImplementedError()
 
+    @final
     def update_route(self, root, t, new_route_classes=None, replace=False, keephome=True):
         """
         update the route of the person from current position onwards.
@@ -254,6 +264,7 @@ class Person:
         if replace:
             self.route[0].enter_person(self, t - _t, target_location=None)
 
+    @final
     def set_route(self, route, duration, leaving, t):
         assert len(route) == len(duration) == len(leaving)
 
@@ -279,12 +290,15 @@ class Person:
     def set_current_location(self, loc, t):
         self.current_loc = loc
 
+    @final
     def get_current_location(self):
         return self.current_loc
 
+    @final
     def get_current_target(self):
         return self.route[self.current_target_idx]
 
+    @final
     def get_next_target(self):
         return self.route[(self.current_target_idx + 1) % len(self.route)]
 

@@ -125,12 +125,12 @@ def initialize_graph():
 def initialize():
     # initialize people
 
-    points = [CommercialWorker() for _ in range(args.n)]
-    points += [BusDriver() for _ in range(5)]
+    people = [CommercialWorker() for _ in range(args.n)]
+    people += [BusDriver() for _ in range(5)]
 
     for _ in range(args.i):
         idx = np.random.randint(0, args.n)
-        points[idx].set_infected(0, points[idx], args.common_p)
+        people[idx].set_infected(0, people[idx], args.common_p)
 
     # initialize location tree
     root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
@@ -141,21 +141,21 @@ def initialize():
     bus = Bus(np.random.randint(60, 80), Mobility.RANDOM.value)
     main_trans = [bus]
     loc_classes = separate_into_classes(root)
-    for point in points:
-        point.home_loc = get_random_element(loc_classes[Home])  # todo
-        point.work_loc = point.find_closest(work_map[point.__class__], point.home_loc)  # todo
+    for person in people:
+        person.home_loc = get_random_element(loc_classes[Home])  # todo
+        person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc)  # todo
 
-        point.initialize_main_suggested_route()
-        target_classes_or_objs = [point.home_loc, point.work_loc]
-        point.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
-        point.main_trans = get_random_element(main_trans)
+        person.initialize_main_suggested_route()
+        target_classes_or_objs = [person.home_loc, person.work_loc]
+        person.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
+        person.main_trans = get_random_element(main_trans)
 
-    return points, root
+    return people, root
 
 
-def update_point_parameters(points):
-    for i in range(args.n):
-        points[i].update_temp(args.common_p)
+def update_point_parameters():
+    for p in Person.all_people:
+        p.update_temp(args.common_p)
 
 
 def main():
@@ -166,9 +166,9 @@ def main():
     TestCenter.set_parameters(args.asymptotic_t, args.test_acc)
 
     # initialize graphs and people
-    points, root = initialize()
-    log.log(f"{len(points)} {count_graph_n(root)}", 'i')
-    log.log(f"{len(points)} {count_graph_n(root)}", 'c')
+    people, root = initialize()
+    log.log(f"{len(people)} {count_graph_n(root)}", 'i')
+    log.log(f"{len(people)} {count_graph_n(root)}", 'c')
     log.log_graph(root)
 
     # DAILY REPORT
@@ -188,7 +188,7 @@ def main():
 
     # initialize plots
     if PLOT:
-        fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, 0)
+        fig, ax, sc, hm = init_figure(root, people, test_centers, args.H, args.W, 0)
         fig2, axs = plt.subplots(2, 4)
 
     # initial iterations to initialize positions of the people
@@ -200,27 +200,24 @@ def main():
     for t in range(iterations):
         log.log(f"Iteration: {t} {Time.i_to_time(t)}", 'c')
         log.log(f"=========================Iteration: {t} {Time.i_to_time(t)}======================", 'd')
-        log.log_people(points)
+        log.log_people(people)
 
         # process movement
         MovementEngine.process_people_switching(root, t)
         MovementEngine.move_people(Person.all_people, t)
 
         # process transmission and recovery
-        TransmissionEngine.disease_transmission(points, t, args.infect_r)
-        CovEngine.process_recovery(points, t)
-        CovEngine.process_death(points, t, cemetery)
+        TransmissionEngine.disease_transmission(people, t, args.infect_r)
+        CovEngine.process_recovery(people, t)
+        CovEngine.process_death(people, t, cemetery)
 
         # process testing
         if t % testing_freq == 0:
-            TestingEngine.testing_procedure(points, test_centers, t)
-
-        # change routes randomly for some people
-        RoutePlanningEngine.update_routes(root, t)
+            TestingEngine.testing_procedure(people, test_centers, t)
 
         # spawn new test centers
         if t % test_center_spawn_check_freq == 0:
-            test_center = TestCenter.spawn_test_center(test_center_spawn_method, points, test_centers, args.H,
+            test_center = TestCenter.spawn_test_center(test_center_spawn_method, people, test_centers, args.H,
                                                        args.W, args.test_center_r, test_center_spawn_threshold)
             if test_center is not None:
                 print(f"Added new TEST CENTER at {test_center.x} {test_center.y}")
@@ -229,27 +226,33 @@ def main():
         # check locations for any changes to quarantine state
         ContainmentEngine.check_location_state_updates(root, t)
 
-        update_point_parameters(points)
+        # update any parameters of each person
+        update_point_parameters()
+
+        # change routes randomly for some people
+        RoutePlanningEngine.update_routes(root, t)
 
         # overriding daily routes if necessary. (tested positives, etc)
-        for p in points:
-            if ContainmentEngine.check_to_update_route(p, root, args.containment, t):
+        for p in people:
+            if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
                 break
 
         # reset day
-
         if t % DAY == 0:
+            # check if the people are back at home_loc
             good = True
-            for p in points:
+            for p in people:
                 if not p.reset_day(t):
                     good = False
             if not good:
                 raise Exception("Day reset failed")
+            # change the route for the next day
+            # this is based on person state and containment strategy
 
         # record in daily report
         tmp_list = []
         # _str_i = len("<class backend.python.location")
-        for p in points:
+        for p in people:
             cur = p.get_current_location()
             person = p.ID
             tmp_list.append({'loc': cur.ID, 'person': person, 'time': t, 'loc_class': cur.__class__.__name__})
@@ -257,13 +260,11 @@ def main():
         # ==================================== plotting ==============================================================
         if PLOT:
             if t % (DAY // 1) == 0:
-                fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
-                # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
-                # plot_info(fig2, axs, points)
+                fig, ax, sc, hm = init_figure(root, people, test_centers, args.H, args.W, t)
+                # update_figure(fig, ax, sc, hm, root, people, test_centers, args.H, args.W, t)
+                # plot_info(fig2, axs, people)
                 plot_position(df, root)
                 plt.pause(0.1)
-
-        # move_points(test_centers)
 
 
 if __name__ == "__main__":

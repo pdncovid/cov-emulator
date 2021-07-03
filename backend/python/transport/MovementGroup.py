@@ -1,3 +1,4 @@
+from backend.python.Time import Time
 from backend.python.enums import Mobility
 from backend.python.transport.Movement import Movement
 import numpy as np
@@ -42,14 +43,14 @@ class MovementGroup(Movement):
         if MovementGroup.DEBUG:
             print(self.route_label)
 
-    def add_point_to_transport(self, point, target_location, t):
+    def add_point_to_transport(self, point, target_location):
 
         fr = point.current_loc
         to = target_location
         if to is not None:
-            self.insert_into_vehicle(point, fr, to, t)
+            self.insert_into_vehicle(point, fr, to)
 
-        super().add_point_to_transport(point, target_location, t)
+        super().add_point_to_transport(point, target_location)
 
     def remove_point_from_transport(self, point):
         idx = self.points.index(point)
@@ -62,14 +63,14 @@ class MovementGroup(Movement):
 
         super().remove_point_from_transport(point)
 
-    def insert_into_vehicle(self, point, fr, to, t):
+    def insert_into_vehicle(self, point, fr, to):
         rlabel = self.route_label[MovementGroup.get_route_name(fr, to)]
         if rlabel not in self.vehicles_in_route.keys():
             self.vehicles_in_route[rlabel] = {}
             self.vehicles_in_route_leaving_t[rlabel] = {}
 
         success = False
-
+        t = Time.get_time()
         for key in self.vehicles_in_route[rlabel].keys():
             if len(self.vehicles_in_route[rlabel][key]) < self._vehicle_capacity:
                 self.vehicles_in_route[rlabel][key].append(point)
@@ -94,7 +95,8 @@ class MovementGroup(Movement):
     def get_in_transport_transmission_p(self):
         return 0.8
 
-    def transport_point(self, idx, destination_xy, t):
+    def transport_point(self, idx, destination_xy):
+        t = Time.get_time()
         rlabel = self.route_label[
             MovementGroup.get_route_name(self.points_source[idx], self.points_destination[idx])]
         vlabel = self.points_label[idx]
@@ -107,7 +109,7 @@ class MovementGroup(Movement):
                 destination_xy[1] - point.y) > self.vcap else destination_xy[1] - point.y
         else:
             if Movement.DEBUG:
-                print(f"""At {t} point {point} is waiting till vehicle leaves at {
+                print(f"""point {point} is waiting till vehicle leaves at {
                 self.vehicles_in_route_leaving_t[rlabel][vlabel]}. {len(
                     self.vehicles_in_route[rlabel][vlabel])}/{self._vehicle_capacity}""")
             point.x += np.random.rand() / 10

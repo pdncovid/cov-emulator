@@ -39,18 +39,18 @@ class Movement:
              "infectious": self.infectious}
         return d
 
-    def add_point_to_transport(self, point, target_location, t):
+    def add_point_to_transport(self, point, target_location):
         if point.current_trans is not None:
             point.current_trans.remove_point_from_transport(point)
         point.current_trans = self
         self.points.append(point)
-        self.points_enter_time.append(t)
+        self.points_enter_time.append(Time.get_time())
         self.points_source.append(point.get_current_location())
         self.points_destination.append(target_location)
 
-    def update_point_destination(self, point, target_location, t):
+    def update_point_destination(self, point, target_location):
         idx = self.points.index(point)
-        self.points_enter_time[idx] = t
+        self.points_enter_time[idx] = Time.get_time()
         self.points_destination[idx] = target_location
 
     def remove_point_from_transport(self, point):
@@ -66,7 +66,8 @@ class Movement:
     def get_in_transport_transmission_p(self):
         raise NotImplementedError()
 
-    def move_people(self, t):
+    def move_people(self):
+        t = Time.get_time()
         for p in self.points:
             self.move(p, t)
 
@@ -83,16 +84,16 @@ class Movement:
             Logger.log(msg, "w")
         if destination is None:
             # move inside location mode
-            self.in_location_move(idx, t)
+            self.in_location_move(idx)
         else:
             # inter location movement
-            self.transport_point(idx, destination.exit, t)
+            self.transport_point(idx, destination.exit)
 
             if MovementEngine.is_close(point, destination.exit, eps=self.destination_reach_eps):
-                destination.enter_person(point, t)  # destination point reached
+                destination.enter_person(point)  # destination point reached
                 point.in_inter_trans = False
 
-    def in_location_move(self, idx, t):
+    def in_location_move(self, idx):
         point = self.points[idx]
         if self.mobility == Mobility.RANDOM.value:
             MovementEngine.random_move(point.get_current_location(), point, self.vcap, self.vcap)
@@ -100,6 +101,6 @@ class Movement:
         elif self.mobility == Mobility.BROWNIAN.value:
             pass
 
-    def transport_point(self, idx, destination_xy, t):
+    def transport_point(self, idx, destination_xy):
         point = self.points[idx]
         MovementEngine.move_towards(point, destination_xy[0], destination_xy[1], self.vcap, self.vcap)

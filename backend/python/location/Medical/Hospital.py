@@ -15,7 +15,7 @@ class Hospital(Location):
         else:
             _r = [self]
             _d = [-1]
-            _l = [np.random.randint(Time.get_time(9, 0), DAY)]
+            _l = [np.random.randint(Time.get_time_from_dattime(9, 0), DAY)]
 
         t = Time.get_current_time(_d, _l, t)
         return _r, _d, _l, t

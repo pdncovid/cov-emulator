@@ -4,9 +4,9 @@ import numpy as np
 class MovementEngine:
 
     @staticmethod
-    def move_people(all_people, t):
+    def move_people(all_people):
         for p in all_people:
-            p.current_trans.move_people(t)
+            p.current_trans.move_people()
 
     @staticmethod
     def process_people_switching(loc, t):

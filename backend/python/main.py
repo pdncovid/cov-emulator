@@ -13,7 +13,7 @@ from backend.python.MovementEngine import MovementEngine
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
-from backend.python.Visualizer import init_figure, plot_position
+from backend.python.Visualizer import init_figure, plot_position, plot_info
 from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape, TestSpawn, Containment
 from backend.python.functions import bs, count_graph_n, get_random_element, \
@@ -194,17 +194,18 @@ def main():
     # initial iterations to initialize positions of the people
     for t in range(5):
         print(f"initializing {t}")
-        MovementEngine.move_people(Person.all_people, 0)
+        MovementEngine.move_people(Person.all_people)
 
     # main iteration loop
-    for t in range(iterations):
+    for i in range(iterations):
+        t= Time.get_time()
         log.log(f"Iteration: {t} {Time.i_to_time(t)}", 'c')
         log.log(f"=========================Iteration: {t} {Time.i_to_time(t)}======================", 'd')
         log.log_people(points)
 
         # process movement
         MovementEngine.process_people_switching(root, t)
-        MovementEngine.move_people(Person.all_people, t)
+        MovementEngine.move_people(Person.all_people)
 
         # process transmission and recovery
         TransmissionEngine.disease_transmission(points, t, args.infect_r)
@@ -256,14 +257,14 @@ def main():
         df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % (DAY // 1) == 0:
+            if t % (DAY // 10) == 0:
                 fig, ax, sc, hm = init_figure(root, points, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, points, test_centers, args.H, args.W, t)
-                # plot_info(fig2, axs, points)
+                plot_info(fig2, axs, points)
                 plot_position(df, root)
                 plt.pause(0.1)
 
-        # move_points(test_centers)
+        Time.increment_time_unit()
 
 
 if __name__ == "__main__":

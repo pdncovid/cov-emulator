@@ -12,7 +12,7 @@ from backend.python.transport.Walk import Walk
 class UrbanBlock(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         _r, _d, _l = [], [], []
-        while t < Time.get_time(17, 0):
+        while t < Time.get_time_from_dattime(17, 0):
             _r1, _d1, _l1, t = get_random_element(self.locations).get_suggested_sub_route(point, t)
             _r, _d, _l = _r + _r1, _d + _d1, _l + _l1
         return _r, _d, _l, t

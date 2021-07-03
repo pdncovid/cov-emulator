@@ -14,7 +14,7 @@ class Home(Location):
         else:
             _r = [self]
             _d = [-1]
-            _l = [np.random.randint(Time.get_time(5, 0), Time.get_time(8, 30))]
+            _l = [np.random.randint(Time.get_time_from_dattime(5, 0), Time.get_time_from_dattime(8, 30))]
 
         t = Time.get_current_time(_d, _l, t)
         return _r, _d, _l, t

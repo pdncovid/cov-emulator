@@ -23,7 +23,7 @@ class Transporter(Person):
         super(Transporter, self).set_current_location(loc, t)
 
         for p in self.latched_people:
-            loc.enter_person(p, t, target_location=None)
+            loc.enter_person(p, target_location=None)
         i = 0
         do_check = False
         while i < (len(self.latched_people)):

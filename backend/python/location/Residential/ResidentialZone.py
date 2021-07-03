@@ -17,10 +17,10 @@ class ResidentialZone(Location):
         home: Location = get_random_element(homes)
         _r, _d, _l = [], [], []
         if isinstance(point, CommercialWorker):
-            if t < Time.get_time(5, 0):
+            if t < Time.get_time_from_dattime(5, 0):
                 _r1, _d1, _l1, t = home.get_suggested_sub_route(point, t, False)
                 _r, _d, _l = _r+_r1, _d+_d1, _l+_l1
-            elif t < Time.get_time(15, 0):
+            elif t < Time.get_time_from_dattime(15, 0):
                 _r1, _d1, _l1, t = get_random_element(parks).get_suggested_sub_route(point, t, True)
                 _r, _d, _l = _r + _r1, _d + _d1, _l + _l1
         elif isinstance(point, BusDriver):

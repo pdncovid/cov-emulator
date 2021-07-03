@@ -13,7 +13,7 @@ class CommercialWorkArea(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if isinstance(point, CommercialWorker):
 
-            lts = [Time.get_time(10, 0), Time.get_time(12, 0), Time.get_time(17, 0)]
+            lts = [Time.get_time_from_dattime(10, 0), Time.get_time_from_dattime(12, 0), Time.get_time_from_dattime(17, 0)]
             for lt in lts:
                 if t < lt:
                     if force_dt:

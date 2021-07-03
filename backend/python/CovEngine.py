@@ -31,7 +31,7 @@ class CovEngine:
                     p.set_dead()
                 if p.is_dead():
                     Logger.log(f"DEAD {p.ID}", 'e')
-                    cemetery[0].enter_person(p, t)
+                    cemetery[0].enter_person(p)
 
     @staticmethod
     def get_recovery_p(p, t):

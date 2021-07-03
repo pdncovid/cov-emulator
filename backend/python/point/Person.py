@@ -13,6 +13,7 @@ class Person:
     infect_temperature = (37.4, 1.2)
     _id = 0
     all_people = []
+    n_characteristics = 3
 
     def __init__(self):
         self.ID = Person._id
@@ -21,7 +22,7 @@ class Person:
         self.gender = 0 if np.random.rand() < 0.5 else 1  # gender of the person
         self.age = np.random.uniform(1, 80)  # age todo add to repr
         self.immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find and add to repr
-        self.character_vector = np.zeros((3,))  # wealth class of the point
+        self.character_vector = np.zeros((Person.n_characteristics,))  # characteristics of the point
         self.behaviour = 0  # behaviour of the point (healthy medical practices -> unhealthy)
 
         self.x = 0  # x location
@@ -77,7 +78,8 @@ class Person:
         d = {'class': self.__class__.__name__, 'id': self.ID, 'x': self.x, 'y': self.y, 'vx': self.vx, 'vy': self.vy,
              'state': self.state, 'gender': self.gender, 'is_day_finished': self.is_day_finished,
              'current_target_idx': self.current_target_idx, 'current_loc_enter': self.current_loc_enter,
-             'current_loc_leave': self.current_loc_leave, 'in_inter_trans': self.in_inter_trans, 'wealth': self.character_vector,
+             'current_loc_leave': self.current_loc_leave, 'in_inter_trans': self.in_inter_trans,
+             'wealth': self.character_vector,
              'behaviour': self.behaviour, 'infected_time': self.infected_time, 'temp': self.temp,
              "tested_positive_time": self.tested_positive_time}
 
@@ -112,6 +114,9 @@ class Person:
     def initialize_character_vector(self, vec):
         self.character_vector = vec
 
+    def get_character_transform_matrix(self):
+        return np.random.random((Person.n_characteristics, Person.n_characteristics))
+
     def backup_route(self):
         if self._backup_route is None:
             self._backup_route = [r for r in self.route]
@@ -131,6 +136,7 @@ class Person:
     def reset_day(self, t):
         self.is_day_finished = False
         self.adjust_leaving_time(t)
+        self.character_vector = np.dot(self.get_character_transform_matrix(), self.character_vector.T)
 
         if self.get_current_location() != self.home_loc and not self.get_current_location().quarantined:
             Logger.log(f"{self.ID} not at home when day resets. (Now at {self.get_current_location().name} "
@@ -161,13 +167,13 @@ class Person:
         Logger.log(msg, 'c')
         if self.current_target_idx == 0:
             self.is_day_finished = True
-            Logger.log(f"{self.ID} finished daily route!",'c')
+            Logger.log(f"{self.ID} finished daily route!", 'c')
 
     def initialize_main_suggested_route(self):
         if self.home_loc is None:
             raise Exception("Initialize home before initializing route")
         self.route, self.duration_time, self.leaving_time, time = self.home_loc.get_suggested_sub_route(self, 0, False)
-        self.route[0].enter_person(self, 0)
+        self.route[0].enter_person(self)
 
     def find_closest(self, target, cur=None):
         if target is None:
@@ -252,7 +258,7 @@ class Person:
         if self.current_target_idx >= len(self.route):
             self.current_target_idx = len(route) - 1
         if replace:
-            self.route[0].enter_person(self, t - _t, target_location=None)
+            self.route[0].enter_person(self, target_location=None)
 
     def set_route(self, route, duration, leaving, t):
         assert len(route) == len(duration) == len(leaving)
@@ -264,7 +270,7 @@ class Person:
         self.duration_time = duration
         self.leaving_time = leaving
         self.current_target_idx = 0
-        self.route[0].enter_person(self, t)
+        self.route[0].enter_person(self)
 
     def set_position(self, new_x, new_y, is_updated_by_transporter=False):
         if not self.latched_to or is_updated_by_transporter:
@@ -274,7 +280,7 @@ class Person:
             idx = self.current_trans.points.index(self)
             start = self.current_trans.points_enter_time[idx]
             raise Exception(f"Tried to move {self.ID} in {self.get_current_location()} (enter at:{start})."
-                  f"Going to {self.get_next_target()}")
+                            f"Going to {self.get_next_target()}")
 
     def set_current_location(self, loc, t):
         self.current_loc = loc

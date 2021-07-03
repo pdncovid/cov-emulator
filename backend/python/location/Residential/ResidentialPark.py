@@ -14,7 +14,7 @@ class ResidentialPark(Location):
         else:
             _r = [self]
             _d = [-1]
-            _l = [np.random.randint(Time.get_time(17, 0), Time.get_time(18, 30))]
+            _l = [np.random.randint(Time.get_time_from_dattime(17, 0), Time.get_time_from_dattime(18, 30))]
 
         t = Time.get_current_time(_d, _l, t)
         return _r, _d, _l, t

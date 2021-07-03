@@ -13,7 +13,7 @@ class Walk(Movement):
     def get_in_transport_transmission_p(self):
         return 1
 
-    def transport_point(self, idx, destination_xy, t):
+    def transport_point(self, idx, destination_xy):
         point = self.points[idx]
         point.x += np.sign(destination_xy[0] - point.x) * self.vcap if abs(destination_xy[0] - point.x) > self.vcap else \
         destination_xy[0] - point.x

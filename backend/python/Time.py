@@ -2,6 +2,15 @@
 class Time:
     _shift_hrs = 4
     _scale = 1
+    t = 0
+
+    @staticmethod
+    def increment_time_unit():
+        Time.t += 1
+
+    @staticmethod
+    def get_time():
+        return Time.t
 
     @staticmethod
     def get_current_time(duration, leaving, time):
@@ -19,7 +28,7 @@ class Time:
         return int(hours * (60 // Time._scale))
 
     @staticmethod
-    def get_time(hours, mins=0):
+    def get_time_from_dattime(hours, mins=0):
         return (hours - Time._shift_hrs) % 24 * (60 // Time._scale) + mins // Time._scale
 
     @staticmethod

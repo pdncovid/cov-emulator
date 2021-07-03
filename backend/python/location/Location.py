@@ -217,11 +217,11 @@ class Location:
                 assert next_location is not None
                 # leaving current location
                 if ContainmentEngine.can_go_there(p, self, next_location):
-                    transporting_location.enter_person(p, t, next_location)
+                    transporting_location.enter_person(p, next_location)
                     p.in_inter_trans = True
 
-    def enter_person(self, p, t, target_location=None):
-
+    def enter_person(self, p, target_location=None):
+        t = Time.get_time()
         current_loc_leave = self.get_leaving_time(p, t)
         is_visiting = True
         if p.get_current_location() is None:  # initialize
@@ -268,7 +268,7 @@ class Location:
                         Logger.log(f"Person {p.ID} will be removed from current location {self} "
                                    f"and it will be added to parent location {self.parent_location}"
                                    f"to reach {next_location}.", 'c')
-                        self.parent_location.enter_person(p, t, next_location)
+                        self.parent_location.enter_person(p, next_location)
 
                         # todo bug: if p is in home, when cap is full current_loc jump to self.parent
                         return  # don't add to this location because capacity reached
@@ -279,7 +279,7 @@ class Location:
                 trans = self.override_transport
             else:
                 trans = p.main_trans
-            trans.add_point_to_transport(p, target_location, t)
+            trans.add_point_to_transport(p, target_location)
             Logger.log(f"Entered {p.ID} to {self.name} using {trans}. Destination {target_location}", 'e')
         else:
             Logger.log(f"Entered {p.ID} to {self.name} latched with {p.latched_to.ID} Destination {target_location}", 'e')

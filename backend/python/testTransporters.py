@@ -205,7 +205,7 @@ def main():
 
         # overriding daily routes if necessary. (tested positives, etc)
         for p in points:
-            if ContainmentEngine.check_to_update_route(p, root, args.containment, t):
+            if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
                 break
 
         # reset day

@@ -77,9 +77,9 @@ class Transporter(Person):
 
     def latch(self, p, des):
         if not self.is_latchable:
-            return
+            return False
         if self.get_current_location() == self.home_loc:
-            return
+            return False
         if p == self:
             raise Exception("Can't latch to self")
         if len(self.latched_people) < self.max_latches:

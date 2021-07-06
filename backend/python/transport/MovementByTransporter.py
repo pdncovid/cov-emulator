@@ -73,9 +73,12 @@ class MovementByTransporter(Movement):
             return
         possible_transporters.sort(key=lambda x: x[0])
 
-        (cost, transporter, destination) = possible_transporters[0]
-        Logger.log(f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}", 'c')
-        transporter.latch(p, destination)
+        for i in range(len(possible_transporters)):
+            (cost, transporter, destination) = possible_transporters[i]
+            if transporter.latch(p, destination):
+                Logger.log(f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}",
+                           'c')
+                break
 
     def try_to_latch_people(self):
         # todo find people waiting for long time and make them walk

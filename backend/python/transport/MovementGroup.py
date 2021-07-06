@@ -16,7 +16,7 @@ class MovementGroup(Movement):
         self.route_label = {}
         self.vehicles_in_route = {}
         self.vehicles_in_route_leaving_t = {}
-        self.points_label= []
+        self.points_label = []
 
     def get_description_dict(self):
         d = super().get_description_dict()

@@ -2,7 +2,7 @@ from backend.python.enums import Mobility
 from backend.python.transport.MovementByTransporter import MovementByTransporter
 
 
-class Bus(MovementByTransporter):
+class Tuktuk(MovementByTransporter):
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
         super().__init__(velocity_cap, mobility_pattern)
 
@@ -11,5 +11,4 @@ class Bus(MovementByTransporter):
 
     def get_in_transport_transmission_p(self): # todo function of latch density
         return 0.9
-
 

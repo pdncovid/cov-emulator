@@ -5,7 +5,6 @@ from backend.python.MovementEngine import MovementEngine
 from backend.python.const import DAY
 from backend.python.enums import State
 from backend.python.functions import find_in_subtree
-from backend.python.location.Residential.Home import Home
 
 
 class Person:
@@ -143,6 +142,7 @@ class Person:
                        f"from {self.current_trans.points_enter_time[self.current_trans.points.index(self)]}) "
                        f"CTarget {self.current_target_idx}/{len(self.route)} "
                        f"Route {list(map(str, self.route))}. "
+                       f"{self.__repr__()}"
 
                        , 'c')
             return False
@@ -234,6 +234,7 @@ class Person:
             #     self.leaving_time += [-1]
             #     self.current_location += 1
         if keephome:  # todo update this
+            from backend.python.location.Residential.Home import Home
             if len(self.route) > 0 and isinstance(self.route[0], Home):
                 pass
             else:

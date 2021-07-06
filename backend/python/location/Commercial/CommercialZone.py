@@ -4,8 +4,6 @@ from backend.python.Time import Time
 from backend.python.location.Commercial.CommercialBuilding import CommercialBuilding
 from backend.python.location.Commercial.CommercialCanteen import CommercialCanteen
 from backend.python.location.Location import Location
-from backend.python.point.BusDriver import BusDriver
-from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.transport.Walk import Walk
 import numpy as np
 
@@ -13,6 +11,8 @@ import numpy as np
 class CommercialZone(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
 
+        from backend.python.point.BusDriver import BusDriver
+        from backend.python.point.CommercialWorker import CommercialWorker
         if isinstance(point, CommercialWorker):
             canteens = self.get_children_of_class(CommercialCanteen)
             buildings = self.get_children_of_class(CommercialBuilding)

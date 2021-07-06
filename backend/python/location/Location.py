@@ -184,7 +184,8 @@ class Location:
         for i, p in enumerate(self.points):
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
-            if t - p.current_loc_leave > Time.get_duration(5):
+            if t - p.current_loc_leave > Time.get_duration(1):
+                # todo change current transportation system to tuk tuk or taxi
                 Logger.log(
                     f"OT while check for leaving {p} Not leaving current place {p.get_current_location().name} "
                     f"after timeout! dt={t - p.current_loc_leave} "

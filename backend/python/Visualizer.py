@@ -13,6 +13,7 @@ from backend.python.location.Location import Location
 from backend.python.enums import Mobility, Shape, State
 from backend.python.point.Transporter import Transporter
 from backend.python.transport import Walk, Bus
+from backend.python.transport.CommercialZoneBus import CommercialZoneBus
 
 point_colors = {State.SUSCEPTIBLE.value: 'b',
                 State.INFECTED.value: 'r',
@@ -20,6 +21,7 @@ point_colors = {State.SUSCEPTIBLE.value: 'b',
                 State.DEAD.value: 'k'}
 
 point_edgecolors = {Bus.__name__.split('.')[-1]: [0, 1, 1, 0.1],
+                    CommercialZoneBus.__name__.split('.')[-1]: [0, 0.5, 1, 0.1],
                     Walk.__name__.split('.')[-1]: [1, 0, 1, 0.1]}
 
 point_names = {State.SUSCEPTIBLE.value: State.SUSCEPTIBLE.name,

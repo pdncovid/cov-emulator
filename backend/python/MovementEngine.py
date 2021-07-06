@@ -78,7 +78,7 @@ class MovementEngine:
                 path_1 = path_1 + [lc]
                 lc = lc.parent_location
         # path = path_1 + [lc] + path_2  # this will add root of subtree to path!
-        path = path_1 + path_2
+        path = path_1 + path_2[::-1]
         return path
 
     @staticmethod
@@ -123,3 +123,5 @@ class MovementEngine:
             if np.random.rand() < 0.90:
                 p.vx = 0
                 p.vy = 0
+
+

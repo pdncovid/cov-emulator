@@ -2,7 +2,7 @@ from backend.python.enums import Mobility
 from backend.python.transport.MovementByTransporter import MovementByTransporter
 
 
-class Bus(MovementByTransporter):
+class CommercialZoneBus(MovementByTransporter):
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
         super().__init__(velocity_cap, mobility_pattern)
 

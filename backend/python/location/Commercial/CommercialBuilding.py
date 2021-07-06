@@ -1,8 +1,10 @@
+from backend.python.Time import Time
 from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_random_element
 from backend.python.location.Commercial.CommercialWorkArea import CommercialWorkArea
 from backend.python.location.Location import Location
 from backend.python.point.CommercialWorker import CommercialWorker
+from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
 from backend.python.transport.Walk import Walk
 
 
@@ -14,18 +16,21 @@ class CommercialBuilding(Location):
 
             _r1, _d1, _l1, t = work_area.get_suggested_sub_route(point, t, force_dt=True)
             _r2, _d2, _l2, t = get_random_element(work_areas).get_suggested_sub_route(point, t, force_dt=True)
-            _r3, _d3, _l3, t = work_area.get_suggested_sub_route(point, t, force_dt=False)
 
             _r = _r1 + _r2
             _d = _d1 + _d2
             _l = _l1 + _l2
             if not force_dt:
+                _r3, _d3, _l3, t = work_area.get_suggested_sub_route(point, t, force_dt=False)
                 _r += _r3
                 _d += _d3
                 _l += _l3
-
+        elif isinstance(point, CommercialZoneBusDriver):
+            if t > Time.get_time_from_dattime(17, 15):
+                raise Exception("Commercial zone bus driver arriving at the work zone too late (around 5PM)!!!")
+            _r, _d, _l = [self], [-1], [Time.get_time_from_dattime(17, 15)]
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(point.__repr__())
 
         return _r, _d, _l, t
 

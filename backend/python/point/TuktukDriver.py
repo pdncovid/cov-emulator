@@ -6,13 +6,14 @@ from backend.python.enums import Mobility
 from backend.python.functions import get_random_element
 from backend.python.point.Transporter import Transporter
 from backend.python.transport.Bus import Bus
+from backend.python.transport.Tuktuk import Tuktuk
 
 
-class BusDriver(Transporter):
+class TuktukDriver(Transporter):
     def __init__(self):
         super().__init__()
-        self.max_latches = 60
-        self.main_trans = Bus(np.random.randint(60, 80), Mobility.RANDOM.value)
+        self.max_latches = 3
+        self.main_trans = Tuktuk(np.random.randint(60, 80), Mobility.RANDOM.value)
 
     def set_random_route(self, root, t, target_classes_or_objs=None):
         arr_locs = []
@@ -26,7 +27,7 @@ class BusDriver(Transporter):
         dfs(root)
 
         target_classes_or_objs = [self.home_loc]
-        for i in range(np.random.randint(5, 10)):  # todo find a good way to set up route of the transporters
+        for i in range(np.random.randint(5, 7)):  # todo find a good way to set up route of the transporters
             loc = get_random_element(get_random_element(arr_locs).locations)
             if loc == root:  # if we put root to bus route, people will drop at root. then he/she will get stuck
                 continue
@@ -36,5 +37,5 @@ class BusDriver(Transporter):
 
         route, duration, leaving = RoutePlanningEngine.add_stops_as_targets_in_route(route, duration, leaving, self)
 
-        print(f"Bus route for {self.ID} is {list(map(str, route))}")
+        print(f"Tuktuk route for {self.ID} is {list(map(str, route))}")
         self.set_route(route, duration, leaving, t)

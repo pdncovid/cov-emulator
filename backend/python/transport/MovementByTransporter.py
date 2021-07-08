@@ -6,13 +6,14 @@ from backend.python.transport.Movement import Movement
 
 
 class MovementByTransporter(Movement):
+    all_instances = []
 
     def get_in_transport_transmission_p(self):
         raise NotImplementedError()
 
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
         super().__init__(velocity_cap, mobility_pattern)
-
+        MovementByTransporter.all_instances.append(self)
     # override
     def get_description_dict(self):
         d = super().get_description_dict()
@@ -25,10 +26,9 @@ class MovementByTransporter(Movement):
             self.try_to_latch_people()
 
     # override
-    def transport_point(self, idx, destination_xy):
-        point = self.points[idx]
+    def transport_point(self, point, destination_xy):
         if not point.latched_to:
-            super().transport_point(idx, destination_xy)
+            super().transport_point(point, destination_xy)
 
     def find_feasibility(self, tr, path2next_tar):
         hops2reach = [-1. for _ in path2next_tar]

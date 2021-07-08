@@ -22,7 +22,7 @@ class MovementEngine:
     @staticmethod
     def find_lcp_location(point):
         lc = point.get_current_location()
-        ln = point.get_next_target()
+        ln = point.get_next_target().loc
 
         dc, dn = lc.depth, ln.depth
 
@@ -38,7 +38,7 @@ class MovementEngine:
     @staticmethod
     def find_next_location(point):
         lc = point.get_current_location()
-        ln = point.get_next_target()
+        ln = point.get_next_target().loc
         if lc == ln:
             return ln
 
@@ -54,7 +54,7 @@ class MovementEngine:
         if lc == ln:  # same line
             if point.get_current_location().depth > lc.depth:
                 return point.get_current_location().parent_location
-            ln = point.get_next_target()
+            ln = point.get_next_target().loc
             while ln.depth != point.get_current_location().depth + 1:
                 ln = ln.parent_location
             return ln
@@ -85,7 +85,7 @@ class MovementEngine:
     def get_next_target_path(point):
 
         lc = point.get_current_location()
-        ln = point.get_next_target()
+        ln = point.get_next_target().loc
         return MovementEngine.get_path(lc, ln)
 
     @staticmethod
@@ -109,7 +109,9 @@ class MovementEngine:
 
     @staticmethod
     def move_towards(p, x, y, vx_cap, vy_cap):
-        p.set_position(p.x + (x - p.x) / vx_cap, p.y + (y - p.y) / vy_cap)
+        x_new = x if abs(x-p.x) < vx_cap else p.x + np.sign(x - p.x)*vx_cap
+        y_new = y if abs(y-p.y) < vy_cap else p.y + np.sign(y - p.y)*vy_cap
+        p.set_position(x_new, y_new)
 
     @staticmethod
     def is_close(p, xy, eps):

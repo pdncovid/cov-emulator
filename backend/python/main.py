@@ -13,7 +13,7 @@ from backend.python.MovementEngine import MovementEngine
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
-from backend.python.Visualizer import init_figure, plot_position, plot_info
+from backend.python.Visualizer import Visualizer
 from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape, TestSpawn, Containment
 from backend.python.functions import bs, count_graph_n, get_random_element, \
@@ -30,6 +30,7 @@ from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.location.TestCenter import TestCenter
 from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
 from backend.python.point.Person import Person
+from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
 from backend.python.transport.Movement import Movement
@@ -68,7 +69,11 @@ parser.add_argument('--initialize',
                     type=int, default=0)
 
 args = parser.parse_args()
-work_map = {CommercialWorker: CommercialZone, BusDriver: None, CommercialZoneBusDriver: CommercialBuilding}
+
+work_map = {CommercialWorker: CommercialZone,
+            BusDriver: None,
+            TuktukDriver: None,
+            CommercialZoneBusDriver: CommercialBuilding}
 
 
 def initialize_graph():
@@ -130,6 +135,7 @@ def initialize():
 
     people = [CommercialWorker() for _ in range(args.n)]
     people += [BusDriver() for _ in range(5)]
+    people += [TuktukDriver() for _ in range(5)]
     people += [CommercialZoneBusDriver() for _ in range(5)]
 
     for _ in range(args.i):
@@ -148,10 +154,10 @@ def initialize():
     main_trans = [bus, combus]
 
     for person in people:
-        person.home_loc = get_random_element(loc_classes[Home])  # todo
+
+        person.set_home_loc(get_random_element(loc_classes[Home]))  # todo
         person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc)  # todo
 
-        person.initialize_main_suggested_route()
         target_classes_or_objs = [person.home_loc, person.work_loc]
         person.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
         if person.main_trans is None:
@@ -165,7 +171,7 @@ def update_point_parameters():
         p.update_temp(args.common_p)
 
 
-def main():
+def main(initializer):
     PLOT = True
     global log
     log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
@@ -173,7 +179,7 @@ def main():
     TestCenter.set_parameters(args.asymptotic_t, args.test_acc)
 
     # initialize graphs and people
-    people, root = initialize()
+    people, root = initializer()
     log.log(f"{len(people)} {count_graph_n(root)}", 'i')
     log.log(f"{len(people)} {count_graph_n(root)}", 'c')
     log.log_graph(root)
@@ -195,8 +201,7 @@ def main():
 
     # initialize plots
     if PLOT:
-        fig, ax, sc, hm = init_figure(root, people, test_centers, args.H, args.W, 0)
-        fig2, axs = plt.subplots(2, 4)
+        Visualizer.initialize(root, test_centers, people, args.H, args.W)
 
     # initial iterations to initialize positions of the people
     for t in range(5):
@@ -265,15 +270,16 @@ def main():
         # ==================================== plotting ==============================================================
         if PLOT:
             if t % (DAY // 3) == 0:
-                fig, ax, sc, hm = init_figure(root, people, test_centers, args.H, args.W, t)
+                plt.pause(0.001)
+                Visualizer.plot_map_and_points(root, people, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, people, test_centers, args.H, args.W, t)
-                plot_info(fig2, axs, people)
-                plot_position(df, root)
-                plt.pause(0.1)
+
+                Visualizer.plot_position_timeline(df, root)
+                Visualizer.plot_info(people)
 
         Time.increment_time_unit()
 
 
 if __name__ == "__main__":
     sys.setrecursionlimit(1000000)
-    main()
+    main(initializer=initialize)

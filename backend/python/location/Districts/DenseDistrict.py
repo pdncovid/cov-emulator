@@ -6,8 +6,8 @@ from backend.python.location.Location import Location
 
 class DenseDistrict(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
-        _r, _d, _l, t = get_random_element(self.locations).get_suggested_sub_route(point, t)
-        return _r, _d, _l, t
+        _r,  t = get_random_element(self.locations).get_suggested_sub_route(point, t)
+        return _r,  t
 
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):

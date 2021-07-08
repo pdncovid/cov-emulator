@@ -1,3 +1,4 @@
+from backend.python.Target import Target
 from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_random_element
 from backend.python.location.Location import Location
@@ -5,6 +6,7 @@ from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZ
 from backend.python.location.Medical.Hospital import Hospital
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
+from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Walk import Walk
 
 
@@ -14,13 +16,13 @@ class MedicalZone(Location):
         if isinstance(point, CommercialWorker):
             hospitals = self.get_children_of_class(Hospital)
 
-            _r, _d, _l, t = get_random_element(hospitals).get_suggested_sub_route(point, t, force_dt)
-        elif isinstance(point, BusDriver):
-            _r, _d, _l, t = [self], [1], [-1], t + 1
+            _r, t = get_random_element(hospitals).get_suggested_sub_route(point, t, force_dt)
+        elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
+            _r, t = [Target(self, -1, 1, None)], t + 1
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"Not implemented for {point.__class__.__name__}")
 
-        return _r, _d, _l, t
+        return _r, t
 
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  n_buildings=-1, building_r=-1, **kwargs):

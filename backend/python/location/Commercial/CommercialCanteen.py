@@ -1,3 +1,4 @@
+from backend.python.Target import Target
 from backend.python.const import DAY
 from backend.python.enums import Shape
 from backend.python.Time import Time
@@ -9,15 +10,20 @@ import numpy as np
 class CommercialCanteen(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if force_dt:
-            _r = [self]
-            _d = [np.random.randint(0, min(np.random.normal(Time.get_duration(0.5),Time.get_duration(0.1)), DAY - t))]
-            _l = [-1]
+            _r = [Target(
+                self,
+                -1,
+                np.random.randint(0, min(np.random.normal(Time.get_duration(0.5), Time.get_duration(0.1)), DAY - t)),
+                None)]
         else:
-            _r = [self]
-            _d = [-1]
-            _l = [np.random.randint(Time.get_time_from_dattime(11, 0), Time.get_time_from_dattime(17, 30))]
-        t = Time.get_current_time(_d, _l, t)
-        return _r, _d, _l, t
+            _r = [Target(
+                self,
+                np.random.randint(Time.get_time_from_dattime(11, 0), Time.get_time_from_dattime(17, 30)),
+                -1,
+                None)]
+
+        t = Time.get_current_time(_r, t)
+        return _r, t
 
     _id_canteen = 0
 

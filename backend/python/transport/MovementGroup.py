@@ -6,6 +6,7 @@ import itertools
 
 
 class MovementGroup(Movement):
+    all_instances = []
 
     def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
         super().__init__(velocity_cap, mobility_pattern)
@@ -17,6 +18,7 @@ class MovementGroup(Movement):
         self.vehicles_in_route = {}
         self.vehicles_in_route_leaving_t = {}
         self.points_label = []
+        MovementGroup.all_instances.append(self)
 
     def get_description_dict(self):
         d = super().get_description_dict()

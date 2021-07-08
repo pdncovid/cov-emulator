@@ -11,11 +11,11 @@ from backend.python.transport.Walk import Walk
 
 class UrbanBlock(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
-        _r, _d, _l = [], [], []
+        _r = []
         while t < Time.get_time_from_dattime(17, 0):
-            _r1, _d1, _l1, t = get_random_element(self.locations).get_suggested_sub_route(point, t)
-            _r, _d, _l = _r + _r1, _d + _d1, _l + _l1
-        return _r, _d, _l, t
+            _r1, t = get_random_element(self.locations).get_suggested_sub_route(point, t)
+            _r, = _r + _r1
+        return _r,  t
 
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):

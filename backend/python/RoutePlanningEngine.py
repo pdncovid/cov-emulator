@@ -2,6 +2,7 @@ import copy
 
 from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
+from backend.python.Target import Target
 from backend.python.const import DAY
 from backend.python.point.Person import Person
 import numpy as np
@@ -37,40 +38,29 @@ class RoutePlanningEngine:
                 p.update_route(root, t % DAY, RoutePlanningEngine.get_alternate_route(p))
 
     @staticmethod
-    def add_stops_as_targets_in_route(route, duration, leaving, p):
-        new_route, new_duration, new_leaving = [], [], []
+    def add_stops_as_targets_in_route(route, p):
+        new_route = []
         for i in range(len(route) - 1):
-            path = MovementEngine.get_path(route[i], route[i + 1])
-            new_route += path[:-1]
-            new_duration += [duration[i]] * int(len(path) - 1 > 0) + [1] * max(len(path) - 2, 0)
-            new_leaving += [leaving[i]] * int(len(path) - 1 > 0) + [-1] * max(len(path) - 2, 0)
+            path = MovementEngine.get_path(route[i].loc, route[i + 1].loc)
+            new_route += [Target(path[0], route[i].leaving_time, route[i].duration_time, route[i].likely_trans)]
+            new_route += [Target(loc, -1, 1, None) for loc in path[1:-1]]
         new_route += [route[-1]]
-        new_duration += [duration[-1]]
-        new_leaving += [leaving[-1]]
-        if new_route[0] != p.home_loc:
+        if new_route[0].loc != p.home_loc:
             new_route = [route[0]] + new_route
-            new_duration = [duration[0]] + new_duration
-            new_leaving = [leaving[0]] + new_leaving
-        return new_route, new_duration, new_leaving
+        return new_route
 
     @staticmethod
-    def mirror_route(route, duration, leaving, p, duplicate_last=False, duplicate_first=False):
-        route2, duration2, leaving2 = copy.copy(route), copy.copy(duration), copy.copy(leaving)
+    def mirror_route(route, p, duplicate_last=False, duplicate_first=False):
+        route2 = copy.copy(route)
         if not duplicate_first:
             route2 = route2[1:]
-            duration2 = duration2[1:]
-            leaving2 = leaving2[1:]
         if not duplicate_last:
             route2 = route2[:-1]
-            duration2 = duration2[:-1]
-            leaving2 = leaving2[:-1]
-        for i in range(len(leaving2)):
-            if leaving2[i] != -1:
-                leaving2[i] = -1
-                duration2[i] = 1
+        for i in range(len(route2)):
+            if route2[i].leaving_time != -1:
+                route2[i].leaving_time = -1
+                route2[i].duration_time = 1
                 Logger.log("Cannot mirror leaving time properly! Falling back to leave after duration of 1 unit time.",
-                           'w')
+                           'e')
         route = route + route2[::-1]
-        duration = duration + duration2[::-1]
-        leaving = leaving + leaving2[::-1]
-        return route, duration, leaving
+        return route

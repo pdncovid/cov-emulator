@@ -5,8 +5,7 @@ from backend.python.transport.Walk import Walk
 
 class Cemetery(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
-        _r, _d, _l = [], [], []
-        return _r, _d, _l, t
+        return [], t
 
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):

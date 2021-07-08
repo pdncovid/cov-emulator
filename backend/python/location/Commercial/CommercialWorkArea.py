@@ -1,3 +1,4 @@
+from backend.python.Target import Target
 from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape
 from backend.python.Time import Time
@@ -17,23 +18,17 @@ class CommercialWorkArea(Location):
             for lt in lts:
                 if t < lt:
                     if force_dt:
-                        _r = [self]
-                        _d = [np.random.randint(0, (lt - t))]
-                        _l = [-1]
+                        _r = [Target(self, -1, np.random.randint(0, (lt - t)), None)]
                     else:
-                        _r = [self]
-                        _d = [-1]
-                        _l = [lt]
+                        _r = [Target(self, lt, -1, None)]
                     break
             else:
-                _r = [self]
-                _d = [min(np.random.randint(0,Time.get_duration(1)), DAY - t)]
-                _l = [-1]
+                _r = [Target(self, -1, min(np.random.randint(0,Time.get_duration(1)), DAY - t),None)]
         else:
             raise NotImplementedError()
 
-        t = Time.get_current_time(_d, _l, t)
-        return _r, _d, _l, t
+        t = Time.get_current_time(_r, t)
+        return _r, t
 
     _id_area = 0
 

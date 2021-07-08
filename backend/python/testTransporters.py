@@ -1,39 +1,17 @@
 import sys
-import time
-
 import numpy as np
 import argparse
-import matplotlib.pyplot as plt
-import pandas as pd
-
-from backend.python.ContainmentEngine import ContainmentEngine
-from backend.python.Logger import Logger
-from backend.python.CovEngine import CovEngine
-from backend.python.MovementEngine import MovementEngine
-from backend.python.TestingEngine import TestingEngine
-from backend.python.TransmissionEngine import TransmissionEngine
-from backend.python.Visualizer import init_figure, plot_position
-from backend.python.const import DAY
 from backend.python.enums import Mobility, Shape, TestSpawn, Containment
-from backend.python.functions import bs, count_graph_n, get_random_element, \
+from backend.python.functions import   get_random_element, \
     separate_into_classes
-from backend.python.Time import Time
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
-from backend.python.location.Commercial.CommercialBuilding import CommercialBuilding
-from backend.python.location.Commercial.CommercialZone import CommercialZone
-from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.Home import Home
-from backend.python.main import main
-from backend.python.point.BusDriver import BusDriver
+from backend.python.main import main, work_map
 from backend.python.point.CommercialWorker import CommercialWorker
-from backend.python.location.TestCenter import TestCenter
-from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
-from backend.python.point.Transporter import Transporter
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
-from backend.python.transport.Movement import Movement
 from backend.python.transport.Tuktuk import Tuktuk
 from backend.python.transport.Walk import Walk
 
@@ -68,10 +46,6 @@ parser.add_argument('--initialize',
                     type=int, default=0)
 
 args = parser.parse_args()
-work_map = {CommercialWorker: CommercialZone,
-            BusDriver: None,
-            TuktukDriver:None,
-            CommercialZoneBusDriver: CommercialBuilding}
 
 
 def initialize_graph():
@@ -80,13 +54,13 @@ def initialize_graph():
     return root
 
 
-def initialize():
+def initialize2():
     # initialize people
 
     people = [TuktukDriver() for _ in range(10)]
-
+    # people += [CommercialWorker() for _ in range(100)]
     for _ in range(2):
-        idx = np.random.randint(0, args.n)
+        idx = np.random.randint(0,len(people))
         people[idx].set_infected(0, people[idx], args.common_p)
 
     # initialize location tree
@@ -102,10 +76,8 @@ def initialize():
     main_trans = [tuktuk]
 
     for person in people:
-        person.home_loc = get_random_element(loc_classes[Home])  # todo
         person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc)  # todo
-
-        person.initialize_main_suggested_route()
+        person.set_home_loc(get_random_element(loc_classes[Home]))
         target_classes_or_objs = [person.home_loc, person.work_loc]
         person.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
         if person.main_trans is None:
@@ -116,4 +88,4 @@ def initialize():
 
 if __name__ == "__main__":
     sys.setrecursionlimit(1000000)
-    main()
+    main(initializer=initialize2)

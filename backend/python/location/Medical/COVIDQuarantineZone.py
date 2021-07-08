@@ -1,3 +1,4 @@
+from backend.python.Target import Target
 from backend.python.enums import Shape
 from backend.python.Time import Time
 from backend.python.location.Location import Location
@@ -5,12 +6,11 @@ from backend.python.location.Location import Location
 
 class COVIDQuarantineZone(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
-        _r = [self]
-        _d = [1]  # doesn't matter because once entered, they will be quarantined
-        _l = [-1]
+        _r = [Target(self, -1, 1, None)]
+        # once entered, they will be quarantined
 
-        t = Time.get_current_time(_d, _l, t)
-        return _r, _d, _l, t
+        t = Time.get_current_time(_r, t)
+        return _r, t
 
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):
@@ -19,5 +19,3 @@ class COVIDQuarantineZone(Location):
 
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = True
-
-

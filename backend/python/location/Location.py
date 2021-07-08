@@ -3,7 +3,7 @@ from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.const import DAY
 from backend.python.enums import Shape
-from backend.python.functions import is_inside_polygon
+from backend.python.functions import is_inside_polygon, get_random_element
 from backend.python.Time import Time
 import numpy as np
 
@@ -184,7 +184,7 @@ class Location:
         for i, p in enumerate(self.points):
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
-            if t - p.current_loc_leave > Time.get_duration(1):
+            if t - p.current_loc_leave > Time.get_duration(1) and t - p.current_loc_enter > Time.get_duration(1):
                 # todo change current transportation system to tuk tuk or taxi
                 Logger.log(
                     f"OT while check for leaving {p} Not leaving current place {p.get_current_location().name} "
@@ -196,6 +196,11 @@ class Location:
                     f"Move  {p.current_trans}"
                     , 'w'
                 )
+
+                from backend.python.transport.Tuktuk import Tuktuk
+                get_random_element(Tuktuk.all_instances).add_point_to_transport(p,
+                                                                                p.current_trans.get_destination_of(p))
+
 
             # come to route[0] if not there even if day is finished
             if t >= p.current_loc_leave:
@@ -229,11 +234,11 @@ class Location:
             pass
         else:
             p.get_current_location().remove_point(p)
-            if p.get_next_target() == self:
+            if p.get_next_target().loc == self:
                 is_visiting = False
                 p.increment_target_location()
                 current_loc_leave = self.get_leaving_time(p, t)
-            elif p.get_current_target() == self:
+            elif p.get_current_target().loc == self:
                 pass
             else:
                 current_loc_leave = t - 1
@@ -248,7 +253,7 @@ class Location:
         p.on_enter_location(t)
 
         if self.capacity is not None:
-            if self.capacity < len(self.is_visiting)-sum(self.is_visiting):
+            if self.capacity < len(self.is_visiting) - sum(self.is_visiting):
                 # CURRENT LOCATION FULL.
                 if is_visiting:
                     # if the added person is only visiting the current location. nothing to worry
@@ -262,7 +267,7 @@ class Location:
                     Logger.log(f"CAPACITY reached on {self} when entering person {p.ID}! "
                                f"All:{len(self.is_visiting)} "
                                f"Visiting:{sum(self.is_visiting)} "
-                               f"Staying:{len(self.is_visiting)-sum(self.is_visiting)} "
+                               f"Staying:{len(self.is_visiting) - sum(self.is_visiting)} "
                                f"Capacity:{self.capacity}")
                     if self.parent_location is not None:
                         next_location = MovementEngine.find_next_location(p)
@@ -283,16 +288,17 @@ class Location:
             trans.add_point_to_transport(p, target_location)
             Logger.log(f"Entered {p.ID} to {self.name} using {trans}. Destination {target_location}", 'e')
         else:
-            Logger.log(f"Entered {p.ID} to {self.name} latched with {p.latched_to.ID} Destination {target_location}", 'e')
+            Logger.log(f"Entered {p.ID} to {self.name} latched with {p.latched_to.ID} Destination {target_location}",
+                       'e')
 
     def get_leaving_time(self, p, t):
-        if p.duration_time[p.current_target_idx] != -1:
-            current_loc_leave = min(t + p.duration_time[p.current_target_idx], t - t % DAY + DAY - 1)
+        if p.route[p.current_target_idx].duration_time != -1:
+            current_loc_leave = min(t + p.route[p.current_target_idx].duration_time, t - t % DAY + DAY - 1)
         else:
             # bias = (t // DAY) * DAY
             # if p.is_day_finished:
             #     bias += DAY
-            current_loc_leave = p.leaving_time[p.current_target_idx]%DAY + t - t % DAY
+            current_loc_leave = p.route[p.current_target_idx].leaving_time % DAY + t - t % DAY
         if p.is_day_finished and self == p.home_loc:
             if current_loc_leave < t - t % DAY + DAY:
                 current_loc_leave += DAY

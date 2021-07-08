@@ -13,13 +13,13 @@ class Time:
         return Time.t
 
     @staticmethod
-    def get_current_time(duration, leaving, time):
+    def get_current_time(route, time):
         # todo add the time to travel between two locations as well
-        for i in range(len(duration)):
-            if leaving[i] != -1:
-                time = leaving[i]
+        for i in range(len(route)):
+            if route[i].leaving_time != -1:
+                time = route[i].leaving_time
             else:
-                time += duration[i]
+                time += route[i].duration_time
         return time
 
 

@@ -25,7 +25,7 @@ class ContainmentEngine:
                 root.set_quarantined(True, t, recursive=True)
                 return True
             elif containment == Containment.QUARANTINE.value:
-                p.route[0].set_quarantined(True, t)
+                p.route[0].loc.set_quarantined(True, t)
                 # todo when moved to quarantined home, doesnt goto cov center
                 # p.update_route(root, 0, ContainmentEngine.get_containment_route_for_tested_positives(p), replace=True)
                 return False

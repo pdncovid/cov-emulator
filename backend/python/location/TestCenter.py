@@ -1,6 +1,6 @@
 import numpy as np
 
-from backend.python.Visualizer import get_heatmap
+from backend.python.Visualizer import Visualizer
 from backend.python.enums import State, TestSpawn
 
 
@@ -42,7 +42,7 @@ class TestCenter:
             if np.random.rand() < 0.001:
                 return TestCenter(np.random.randint(-w, w), np.random.randint(-h, h), np.random.normal(r, 2))
         if method == TestSpawn.HEATMAP.value:
-            xx, yy, zz = get_heatmap(points, h, w)
+            xx, yy, zz = Visualizer.get_heatmap(points, h, w)
             xx = xx.ravel()
             yy = yy.ravel()
             zz = zz.ravel()

@@ -1,3 +1,4 @@
+from backend.python.Target import Target
 from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_random_element
 from backend.python.Time import Time
@@ -6,6 +7,7 @@ from backend.python.location.Location import Location
 from backend.python.location.Residential.ResidentialPark import ResidentialPark
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
+from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Walk import Walk
 
 
@@ -15,17 +17,19 @@ class ResidentialZone(Location):
         homes = self.get_children_of_class(Home)
         parks = self.get_children_of_class(ResidentialPark)
         home: Location = get_random_element(homes)
-        _r, _d, _l = [], [], []
+        _r  = []
         if isinstance(point, CommercialWorker):
             if t < Time.get_time_from_dattime(5, 0):
-                _r1, _d1, _l1, t = home.get_suggested_sub_route(point, t, False)
-                _r, _d, _l = _r+_r1, _d+_d1, _l+_l1
+                _r1, t = home.get_suggested_sub_route(point, t, False)
+                _r, = _r+_r1
             elif t < Time.get_time_from_dattime(15, 0):
-                _r1, _d1, _l1, t = get_random_element(parks).get_suggested_sub_route(point, t, True)
-                _r, _d, _l = _r + _r1, _d + _d1, _l + _l1
-        elif isinstance(point, BusDriver):
-            _r, _d, _l, t = [self], [10], [-1], t+10
-        return _r, _d, _l, t
+                _r1, t = get_random_element(parks).get_suggested_sub_route(point, t, True)
+                _r, = _r + _r1
+        elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
+            _r, t = [Target(self, -1, 10, None)], t+10
+        else:
+            raise NotImplementedError(f"Not implemented for {point.__class__.__name__}")
+        return _r, t
 
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  n_houses=-1, house_r=-1, **kwargs):

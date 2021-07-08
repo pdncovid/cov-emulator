@@ -32,9 +32,9 @@ class BusDriver(Transporter):
                 continue
             target_classes_or_objs += [loc]
 
-        route, duration, leaving, final_time = self.get_suggested_route(t, target_classes_or_objs)
+        route, final_time = self.get_suggested_route(t, target_classes_or_objs)
 
-        route, duration, leaving = RoutePlanningEngine.add_stops_as_targets_in_route(route, duration, leaving, self)
+        route = RoutePlanningEngine.add_stops_as_targets_in_route(route, self)
 
         print(f"Bus route for {self.ID} is {list(map(str, route))}")
-        self.set_route(route, duration, leaving, t)
+        self.set_route(route, t)

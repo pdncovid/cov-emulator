@@ -24,14 +24,14 @@ class CommercialZoneBusDriver(Transporter):
             loc = get_random_element(get_random_element(locs[ResidentialZone]).locations)
             target_classes_or_objs += [loc]
         target_classes_or_objs += [self.work_loc]  # finally visit the working location
-        route, duration, leaving, final_time = self.get_suggested_route(t, target_classes_or_objs)
+
+        route, final_time = self.get_suggested_route(t, target_classes_or_objs)
 
         # add all the stop in between major route destinations
-        route, duration, leaving = RoutePlanningEngine.add_stops_as_targets_in_route(route, duration, leaving, self)
+        route = RoutePlanningEngine.add_stops_as_targets_in_route(route, self)
 
         # come back the same way that bus went in the morning
-        route, duration, leaving = RoutePlanningEngine.mirror_route(route, duration, leaving, self,
-                                                                    duplicate_last=False, duplicate_first=False)
+        route = RoutePlanningEngine.mirror_route(route, self, duplicate_last=False, duplicate_first=False)
 
         print(f"Bus route for {self.ID} is {list(map(str, route))}")
-        self.set_route(route, duration, leaving, t)
+        self.set_route(route, t)

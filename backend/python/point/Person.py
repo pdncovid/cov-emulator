@@ -32,12 +32,14 @@ class Person:
         self._backup_route = None
         self._backup_duration_time = None
         self._backup_leaving_time = None
+        self._backup_likely_trans = None
 
         self.is_day_finished = False
 
         self.route = []  # route that point is going to take. (list of location refs)
-        self.duration_time = []  # time spent on each location
-        self.leaving_time = []  # time which the person will not overstay on a given location
+        # self.duration_time = []  # time spent on each location
+        # self.leaving_time = []  # time which the person will not overstay on a given location
+        # self.likely_trans = []  # movement method  that the person likely to take when going to the target in route
         self.current_target_idx = -1  # current location in the route (index of the route list)
         self.current_loc_enter = -1
         self.current_loc_leave = -1
@@ -105,9 +107,9 @@ class Person:
         else:
             d['infected_location_id'] = self.infected_location.ID
 
-        d['route'] = [r.ID for r in self.route].__str__().replace(',', '|').replace(' ', '')
-        d['duration_time'] = self.duration_time.__str__().replace(',', '|').replace(' ', '')
-        d['leaving_time'] = self.leaving_time.__str__().replace(',', '|').replace(' ', '')
+        # d['route'] = [r.ID for r in self.route].__str__().replace(',', '|').replace(' ', '')
+        # d['duration_time'] = self.duration_time.__str__().replace(',', '|').replace(' ', '')
+        # d['leaving_time'] = self.leaving_time.__str__().replace(',', '|').replace(' ', '')
         return d
 
     def initialize_character_vector(self, vec):
@@ -119,17 +121,20 @@ class Person:
     def backup_route(self):
         if self._backup_route is None:
             self._backup_route = [r for r in self.route]
-            self._backup_duration_time = [r for r in self.duration_time]
-            self._backup_leaving_time = [r for r in self.leaving_time]
+            # self._backup_duration_time = [r for r in self.duration_time]
+            # self._backup_leaving_time = [r for r in self.leaving_time]
+            # self._backup_likely_trans = [r for r in self.likely_trans]
 
     def restore_route(self):
         if self._backup_route is not None:
             self.route = [r for r in self._backup_route]
-            self.duration_time = [r for r in self._backup_duration_time]
-            self.leaving_time = [r for r in self._backup_leaving_time]
+            # self.duration_time = [r for r in self._backup_duration_time]
+            # self.leaving_time = [r for r in self._backup_leaving_time]
+            # self.leaving_time = [r for r in self._backup_likely_trans]
             self._backup_route = None
-            self._backup_duration_time = None
-            self._backup_leaving_time = None
+            # self._backup_duration_time = None
+            # self._backup_leaving_time = None
+            # self._backup_likely_trans = None
             self.current_target_idx = len(self.route) - 1
 
     def reset_day(self, t):
@@ -154,10 +159,10 @@ class Person:
     def adjust_leaving_time(self, t):
         _t = t - t % DAY
         for i in range(len(self.route)):
-            if self.leaving_time[i] == -1:
+            if self.route[i].leaving_time == -1:
                 continue
-            if self.leaving_time[i] < _t or self.leaving_time[i] > _t + DAY:
-                self.leaving_time[i] = self.leaving_time[i] % DAY + _t
+            if self.route[i].leaving_time < _t or self.route[i].leaving_time > _t + DAY:
+                self.route[i].leaving_time = self.route[i].leaving_time % DAY + _t
 
     def increment_target_location(self):
         msg = f"{self.ID} incremented target from {self.get_current_target()} to "
@@ -169,10 +174,9 @@ class Person:
             self.is_day_finished = True
             Logger.log(f"{self.ID} finished daily route!", 'c')
 
-    def initialize_main_suggested_route(self):
-        if self.home_loc is None:
-            raise Exception("Initialize home before initializing route")
-        self.route, self.duration_time, self.leaving_time, time = self.home_loc.get_suggested_sub_route(self, 0, False)
+    def set_home_loc(self, home_loc):
+        self.home_loc = home_loc
+        self.route, time = self.home_loc.get_suggested_sub_route(self, 0, False)
         self.route[0].enter_person(self)
 
     def find_closest(self, target, cur=None):
@@ -180,7 +184,7 @@ class Person:
             return None
         # find closest (in tree) object to target
         if cur is None:
-            cur = self.get_current_target()  # todo current target or current location
+            cur = self.get_current_target().loc  # todo current target or current location
         selected = find_in_subtree(cur, target, None)
         while selected is None:
             selected = find_in_subtree(cur.parent_location, target, cur)
@@ -190,22 +194,20 @@ class Person:
     def get_suggested_route(self, t, target_classes_or_objs, force_dt=False):
         if self.current_target_idx >= len(self.route):
             self.current_target_idx = len(self.route) - 1
-        route, duration, leaving, time = [], [], [], t
+        route, time = [], t
         for target in target_classes_or_objs:
             selected = self.find_closest(target)
             if selected is None:
                 raise Exception(f"Couldn't find {target} where {self} is currently at {self.get_current_target()}")
-            _route, _duration, _leaving, time = selected.get_suggested_sub_route(self, time, force_dt)
+            _route, time = selected.get_suggested_sub_route(self, time, force_dt)
 
             route += _route
-            duration += _duration
-            leaving += _leaving
-        return route, duration, leaving, time
+        return route, time
 
     def set_random_route(self, root, t, target_classes_or_objs=None):
         raise NotImplementedError()
 
-    def update_route(self, root, t, new_route_classes=None, replace=False, keephome=True):
+    def update_route(self, root, t, new_route_classes=None, replace=False):
         """
         update the route of the person from current position onwards.
         if new_route_classes are given, new route will be randomly selected suggested routes from those classes
@@ -221,32 +223,14 @@ class Person:
         _t = t % DAY
         self.backup_route()
         if replace:
-            self.route = []
-            self.duration_time = []
-            self.leaving_time = []
+            self.route = self.route[:1]
         else:
             self.route = self.route[:self.current_target_idx + 1]
-            self.duration_time = self.duration_time[:self.current_target_idx + 1]
-            self.leaving_time = self.leaving_time[:self.current_target_idx + 1]
-            # if self.route[-1] != self.current_loc:
-            #     self.route += [self.current_loc]
-            #     self.duration_time += [1]
-            #     self.leaving_time += [-1]
-            #     self.current_location += 1
-        if keephome:  # todo update this
-            from backend.python.location.Residential.Home import Home
-            if len(self.route) > 0 and isinstance(self.route[0], Home):
-                pass
-            else:
-                self.route = [self._backup_route[0]] + self.route
-                self.duration_time = [self._backup_duration_time[0]] + self.duration_time
-                self.leaving_time = [self._backup_leaving_time[0]] + self.leaving_time
+
         # todo make sure current_target_idx is consistent with route
-        route, duration, leaving, time = self.get_suggested_route(_t, new_route_classes, force_dt=True)
+        route, time = self.get_suggested_route(_t, new_route_classes, force_dt=True)
 
         self.route += route
-        self.duration_time += duration
-        self.leaving_time += leaving
         self.adjust_leaving_time(t)
 
         Logger.log(f"Route updated for {self.ID} as {list(map(str, self.route))}", 'e')
@@ -261,15 +245,11 @@ class Person:
         if replace:
             self.route[0].enter_person(self, target_location=None)
 
-    def set_route(self, route, duration, leaving, t):
-        assert len(route) == len(duration) == len(leaving)
-
-        self.x = route[0].x + np.random.normal(0, 1)
-        self.y = route[0].y + np.random.normal(0, 1)
+    def set_route(self, route, t):
+        self.x = route[0].loc.x + np.random.normal(0, 1)
+        self.y = route[0].loc.y + np.random.normal(0, 1)
 
         self.route = route
-        self.duration_time = duration
-        self.leaving_time = leaving
         self.current_target_idx = 0
         self.route[0].enter_person(self)
 

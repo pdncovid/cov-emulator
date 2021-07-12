@@ -6,6 +6,8 @@ from backend.python.functions import bs
 from backend.python.Time import Time
 from numba import njit
 
+from backend.python.point.Person import Person
+
 
 class TransmissionEngine:
     base_transmission_p = 0.1
@@ -13,7 +15,7 @@ class TransmissionEngine:
 
     @staticmethod
     def disease_transmission(points, t, r):
-        x, y = np.array([p.x for p in points]), np.array([p.y for p in points])
+        x, y = Person.all_positions[:, 0], Person.all_positions[:, 1]
         state = np.array([p.state for p in points])
 
         contacts, distance, sourceid = TransmissionEngine.get_close_contacts_and_distance(x, y, state, r)
@@ -99,7 +101,8 @@ class TransmissionEngine:
 
         def duration_f(dt):
             return ((np.tanh((dt - Time.get_duration(24 * 5)) / Time.get_duration(24 * 5)) + 0.2) *
-                    (np.tanh((-dt + Time.get_duration(24 * 8)) / Time.get_duration(24 * 8)) + 0.5) + 1.19987) / 2.6683940
+                    (np.tanh(
+                        (-dt + Time.get_duration(24 * 8)) / Time.get_duration(24 * 8)) + 0.5) + 1.19987) / 2.6683940
 
         def count_f(c):
             c[c > 10] = 10
@@ -115,9 +118,7 @@ class TransmissionEngine:
     def get_transport_transmission_p(p1, p2):
         if p1.current_trans != p1.current_trans:
             return 0
-        p1_idx = p1.current_trans.points.index(p1)
-        p2_idx = p2.current_trans.points.index(p2)
-        if p1_idx == -1 or p2_idx == -1:
+        if p1.all_movement_ids[p1.ID] != p2.all_movement_ids[p2.ID]:  # not in same movement
             return 0
         # todo implement infection within latched people only! (in MovementByTransporter)
         if p1.latched_to != p2.latched_to:

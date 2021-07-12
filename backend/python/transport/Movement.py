@@ -2,6 +2,8 @@ from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.enums import Mobility
 from backend.python.Time import Time
+from backend.python.location.Location import Location
+from backend.python.point.Person import Person
 
 
 class Singleton(type):
@@ -29,10 +31,10 @@ class Movement(metaclass=Singleton):
 
         self.infectious = 1.0
 
-        self.points = []
-        self.points_enter_time = []
-        self.points_source = []
-        self.points_destination = []
+        # self.points = []
+        # self.points_enter_time = []
+        # self.points_source = []
+        # self.points_destination = []
         Movement.all_instances.append(self)
 
     def __repr__(self):
@@ -40,7 +42,7 @@ class Movement(metaclass=Singleton):
         return ','.join(map(str, d.values()))
 
     def __str__(self):
-        return self.__class__.__name__ + f"{self.ID}-P:{len(self.points)}"
+        return self.__class__.__name__ + f"{self.ID}"
 
     def get_description_dict(self):
         d = {'class': self.__class__.__name__, 'id': self.ID, 'vcap': self.vcap,
@@ -49,49 +51,69 @@ class Movement(metaclass=Singleton):
         return d
 
     def add_point_to_transport(self, point, target_location):
-        if point.current_trans is not None:
-            point.current_trans.remove_point_from_transport(point)
-        point.current_trans = self
-        self.points.append(point)
-        self.points_enter_time.append(Time.get_time())
-        self.points_source.append(point.get_current_location())
-        self.points_destination.append(target_location)
+        from backend.python.location.Cemetery import Cemetery
+
+        if isinstance(target_location, Cemetery):
+            raise Exception("Cannot put to cemetery like this!!!")
+        if point.current_trans != self:
+            if point.current_trans is not None:
+                point.current_trans.remove_point_from_transport(point)
+            point.current_trans = self
+            point.all_current_loc_vcap[point.ID] = self.vcap
+            point.all_movement_ids[point.ID] = self.ID
+            point.all_movement_enter_times[point.ID] = Time.get_time()
+            point.all_sources[point.ID] = point.get_current_location().ID
+            # self.points.append(point)
+            # self.points_enter_time.append(Time.get_time())
+            # self.points_source.append(point.get_current_location())
+            self.update_point_destination(point, target_location)
+        else:
+            self.update_point_destination(point, target_location)
 
     def update_point_destination(self, point, target_location):
-        idx = self.points.index(point)
-        self.points_enter_time[idx] = Time.get_time()
-        self.points_destination[idx] = target_location
+        if target_location is not None:
+            Person.all_destinations[point.ID] = target_location.ID
+            Person.all_destination_exits[point.ID] = target_location.exit
+        else:
+            Person.all_destinations[point.ID] = -1
+            Person.all_destination_exits[point.ID] = point.get_current_location().exit
 
     def remove_point_from_transport(self, point):
-        idx = self.points.index(point)  # todo point not in points bug
-        if self.points[idx].latched_to and self.points[idx].current_trans != self:
+        assert point.all_movement_ids[point.ID] == self.ID
+        if point.latched_to and point.current_trans != self:
             raise Exception("Can't remove latched people from this movement method to another movement method"
                             "Un-latch first, or the behaviour is unexpected!")
-        self.points.pop(idx)
-        self.points_enter_time.pop(idx)
-        self.points_source.pop(idx)
-        self.points_destination.pop(idx)
+        from backend.python.point.Transporter import Transporter
+        if isinstance(point, Transporter):
+            if len(point.latched_people) != 0:
+                raise Exception("Trying to remove transporter from movement without delatching!")
+        point.all_movement_ids[point.ID] = -1
+        point.all_movement_enter_times[point.ID] = -1
+        point.all_sources[point.ID] = -1
+        Person.all_destinations[point.ID] = -1
+        # Person.all_destination_exits[point.ID] = point.get_current_location().exit
 
     def get_in_transport_transmission_p(self):
         raise NotImplementedError()
 
     def get_destination_of(self, p):
-        idx = self.points.index(p)
-        return self.points_destination[idx]
+        id = Person.all_destinations[p.ID]
+        if id != -1:
+            return Location.all_locations[id]
 
-    def move_people(self):
-        t = Time.get_time()
-        for p in self.points:
-            self.move(p, t)
+    # def move_people(self):
+    #     t = Time.get_time()
+    #     for p in self.points:
+    #         self.move(p, t)
 
     def move(self, point, t):
         destination = self.get_destination_of(point)
         dt = t - point.current_loc_leave
         if dt > Time.get_duration(1):
             msg = f"OT move {t}-{point.current_loc_leave}={dt} P:{point.ID} in {point.get_current_location().name}(by {self}) "
-            msg += f"->{destination}->{point.get_next_target().name} "
+            msg += f"->{destination}->{point.get_next_target()} "
             msg += f"(inter_trans {point.in_inter_trans}) "
-            msg += " " if destination is None else f"(d={point.x - destination.exit[0]:.2f},{point.y - destination.exit[1]:.2f}) "
+            msg += " " if destination is None else f"(d={Person.all_positions[point.ID, 0] - destination.exit[0]:.2f},{Person.all_positions[point.ID, 1] - destination.exit[1]:.2f}) "
             Logger.log(msg, "w")
 
         if destination is None:
@@ -107,10 +129,10 @@ class Movement(metaclass=Singleton):
 
     def in_location_move(self, point):
         if self.mobility == Mobility.RANDOM.value:
-            MovementEngine.random_move(point.get_current_location(), point, self.vcap, self.vcap)
+            MovementEngine.random_move(point.get_current_location(), point, self.vcap)
             # MovementEngine.containment(p)
         elif self.mobility == Mobility.BROWNIAN.value:
             pass
 
     def transport_point(self, point, destination_xy):
-        MovementEngine.move_towards(point, destination_xy[0], destination_xy[1], self.vcap, self.vcap)
+        MovementEngine.move_towards(point, destination_xy, self.vcap)

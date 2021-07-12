@@ -1,10 +1,12 @@
 from backend.python.Target import Target
 from backend.python.const import DAY
-from backend.python.enums import Shape
+from backend.python.enums import Shape, Mobility
 from backend.python.Time import Time
 from backend.python.location.Location import Location
 from backend.python.transport.Movement import Movement
 import numpy as np
+
+from backend.python.transport.Walk import Walk
 
 
 class CommercialCanteen(Location):
@@ -30,4 +32,5 @@ class CommercialCanteen(Location):
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
+        self.override_transport = Walk(Mobility.RANDOM.value)
         CommercialCanteen._id_canteen += 1

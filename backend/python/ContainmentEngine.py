@@ -31,8 +31,8 @@ class ContainmentEngine:
                 return False
             elif containment == Containment.QUARANTINECENTER.value:
                 from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
-                for l in p.route:
-                    if isinstance(l, COVIDQuarantineZone):
+                for tar in p.route:
+                    if isinstance(tar.loc, COVIDQuarantineZone):
                         return False
                 p.update_route(root, t, ContainmentEngine.get_containment_route_for_tested_positives(p), replace=True)
                 return False

@@ -30,7 +30,7 @@ class CovEngine:
                 if t - p.infected_time > CovEngine.death_after and np.random.rand() < 0.5: # todo find this value
                     p.set_dead()
                 if p.is_dead():
-                    Logger.log(f"DEAD {p.ID}", 'e')
+                    Logger.log(f"DEAD {p.ID}", 'c')
                     cemetery[0].enter_person(p)
 
     @staticmethod

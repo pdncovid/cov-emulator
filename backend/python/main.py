@@ -1,5 +1,6 @@
 import sys
 import time
+import warnings
 
 import numpy as np
 import argparse
@@ -47,7 +48,7 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-parser.add_argument('-n', help='target population', default=100)
+parser.add_argument('-n', help='target population', default=10)
 parser.add_argument('-i', help='initial infected', type=int, default=2)
 parser.add_argument('-H', help='height', type=int, default=102)
 parser.add_argument('-W', help='width', type=int, default=102)
@@ -82,61 +83,13 @@ def initialize_graph():
     return root
 
 
-# def initialize():
-#     n = args.n
-#     i = args.i
-#
-#     # initialize people
-#     if args.initialize == 0:  # Random
-#         points = [CommercialWorker() for _ in range(n)]
-#         points += [BusDriver() for _ in range(max(n//100,10))]
-#     elif args.initialize == 1:
-#         raise NotImplemented()
-#     elif args.initialize == 2:
-#         raise NotImplemented()
-#     else:
-#         raise NotImplemented()
-#
-#     for _ in range(i):
-#         idx = np.random.randint(0, n)
-#         points[idx].set_infected(0, points[idx], args.common_p)
-#
-#     # initialize location tree
-#     root, leaves = initialize_graph()
-#
-#     # set random routes for each person and set their main transportation method
-#     walk = Walk(np.random.randint(1*1000/get_duration(1), 10*1000/get_duration(1)), Mobility.RANDOM.value)
-#     bus = Bus(np.random.randint(60*1000/get_duration(1), 80*1000/get_duration(1)), Mobility.RANDOM.value)
-#     main_trans = [bus]
-#     loc_classes = separate_into_classes(root)
-#     for point in points:
-#         point.home_loc = get_random_element(loc_classes[Home])  # todo
-#         point.work_loc = point.find_closest(work_map[point.__class__], point.home_loc)  # todo
-#
-#         point.initialize_main_suggested_route()
-#         target_classes_or_objs = [point.home_loc, point.work_loc]
-#         point.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
-#         point.main_trans = get_random_element(main_trans)
-#
-#     # setting up bus routes
-#     # def dfs(rr: Location):
-#     #     bus.initialize_locations(rr)  # set up bus routes
-#     #     if isinstance(rr.override_transport, MovementGroup):
-#     #         rr.override_transport.initialize_locations(rr)
-#     #     for child in rr.locations:
-#     #         dfs(child)
-#     #
-#     # dfs(root)
-#
-#     return points, root
-
 def initialize():
     # initialize people
 
     people = [CommercialWorker() for _ in range(args.n)]
     people += [BusDriver() for _ in range(5)]
-    people += [TuktukDriver() for _ in range(5)]
-    people += [CommercialZoneBusDriver() for _ in range(5)]
+    people += [TuktukDriver() for _ in range(10)]
+    # people += [CommercialZoneBusDriver() for _ in range(5)]
 
     for _ in range(args.i):
         idx = np.random.randint(0, args.n)
@@ -151,7 +104,7 @@ def initialize():
     walk = Walk(np.random.randint(1, 10), Mobility.RANDOM.value)
     bus = Bus(np.random.randint(60, 80), Mobility.RANDOM.value)
     combus = CommercialZoneBus(np.random.randint(60, 80), Mobility.RANDOM.value)
-    main_trans = [bus, combus]
+    main_trans = [bus]
 
     for person in people:
 
@@ -269,7 +222,7 @@ def main(initializer):
         df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % (DAY // 3) == 0:
+            if t % (DAY // 10) == 0:
                 plt.pause(0.001)
                 Visualizer.plot_map_and_points(root, people, test_centers, args.H, args.W, t)
                 # update_figure(fig, ax, sc, hm, root, people, test_centers, args.H, args.W, t)

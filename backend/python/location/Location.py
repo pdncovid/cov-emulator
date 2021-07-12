@@ -7,9 +7,12 @@ from backend.python.functions import is_inside_polygon, get_random_element
 from backend.python.Time import Time
 import numpy as np
 
+from backend.python.point.Transporter import Transporter
+
 
 class Location:
     DEBUG = False
+    all_locations = []
     _id = 0
 
     def __init__(self, shape, x, y, name, exittheta=0.0, exitdist=0.9, infectiousness=1.0, **kwargs):
@@ -51,6 +54,7 @@ class Location:
         self.locations = []
         self.override_transport = None
         self.name = name
+        Location.all_locations.append(self)
 
     def __repr__(self):
         d = self.get_description_dict()
@@ -154,6 +158,9 @@ class Location:
     def get_suggested_sub_route(self, point, t, force_dt=False) -> (list, list, list, int):
         raise NotImplementedError()
 
+    def get_distance_to(self, loc):
+        return ((self.x - loc.x) ** 2 + (self.y - loc.y) ** 2) ** 0.5
+
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = quarantined
         if recursive:
@@ -184,30 +191,48 @@ class Location:
         for i, p in enumerate(self.points):
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
-            if t - p.current_loc_leave > Time.get_duration(1) and t - p.current_loc_enter > Time.get_duration(1):
-                # todo change current transportation system to tuk tuk or taxi
-                Logger.log(
-                    f"OT while check for leaving {p} Not leaving current place {p.get_current_location().name} "
-                    f"after timeout! dt={t - p.current_loc_leave} "
-                    f"Day over? {p.is_day_finished} "
-                    f"In home? {p.get_current_location() == p.route[0]} "
-                    f"Going to another? {p.in_inter_trans} "
-                    f"Logic ({p.is_day_finished} and {p.get_current_location() == p.route[0]}) or {p.in_inter_trans} "
-                    f"Move  {p.current_trans}"
-                    , 'w'
-                )
 
-                from backend.python.transport.Tuktuk import Tuktuk
-                get_random_element(Tuktuk.all_instances).add_point_to_transport(p,
-                                                                                p.current_trans.get_destination_of(p))
-
-
-            # come to route[0] if not there even if day is finished
+            # come to route[0] if not there, even if day is finished
             if t >= p.current_loc_leave:
-                if p.is_day_finished and p.get_current_location() == p.route[0]:
+                if p.latched_to is not None:
+                    continue
+                if p.is_day_finished and p.get_current_location() == p.route[0].loc:
                     continue
                 if p.in_inter_trans:
+                    # waiting too long in this place!!!
+                    if t - p.current_loc_leave > Time.get_duration(2) and \
+                            t - p.current_loc_enter > Time.get_duration(2):
+                        Logger.log(
+                            f"OT {p} @ {p.get_current_location().name} -> ({p.get_next_target()}) "
+                            f"({p.current_target_idx}/{len(p.route)}) "
+                            f"dt={t - p.current_loc_leave} "
+                            f"Move {p.current_trans} "
+                            f"ADD TO TUKTUK"
+                            , 'c'
+                        )
+                        from backend.python.transport.Walk import Walk
+                        walk = get_random_element(Walk.all_instances)
+                        dest = walk.get_destination_of(p)
+                        walk.add_point_to_transport(p, dest)
+                        continue
+                    if t - p.current_loc_leave > Time.get_duration(1) and\
+                            t - p.current_loc_enter > Time.get_duration(1):
+                        # todo change current transportation system to tuk tuk or taxi
+                        Logger.log(
+                            f"OT {p} @ {p.get_current_location().name} -> ({p.get_next_target()}) "
+                            f"({p.current_target_idx}/{len(p.route)}) "
+                            f"dt={t - p.current_loc_leave} "
+                            f"Move {p.current_trans} "
+                            f"ADD TO WALK"
+                            , 'c'
+                        )
+
+                        from backend.python.transport.Tuktuk import Tuktuk
+                        tuktuk = get_random_element(Tuktuk.all_instances)
+                        dest = tuktuk.get_destination_of(p)
+                        tuktuk.add_point_to_transport(p, dest)
                     continue
+
                 # overstay. move point to the transport medium
                 next_location = MovementEngine.find_next_location(p)
 
@@ -219,12 +244,18 @@ class Location:
                     transporting_location = self
 
                 if transporting_location is None:
-                    transporting_location = self  # this is because when we update route we set current_loc to root sometimes
+                    # this is because when we update route we set current_loc to root sometimes
+                    transporting_location = self
+
                 assert next_location is not None
                 # leaving current location
                 if ContainmentEngine.can_go_there(p, self, next_location):
                     transporting_location.enter_person(p, next_location)
                     p.in_inter_trans = True
+                else:
+                    Logger.log(f"{p.ID} cannot leave {self}")
+
+
 
     def enter_person(self, p, target_location=None):
         t = Time.get_time()
@@ -281,7 +312,7 @@ class Location:
                     raise Exception("Capacity full at root node!!! Cannot handle this!")
         if not p.latched_to:
             # add the person to the default transportation system, if the person is not latched to someone else.
-            if self.override_transport is not None:
+            if self.override_transport is not None and not isinstance(p, Transporter):
                 trans = self.override_transport
             else:
                 trans = p.main_trans
@@ -313,10 +344,10 @@ class Location:
         self.is_visiting.pop(idx)
 
     def is_inside(self, x, y):
-        if self.shape == Shape.POLYGON.value:
-            return is_inside_polygon(self.boundary, (x, y))
-        if self.shape == Shape.CIRCLE.value:
-            return (x - self.x) ** 2 + (y - self.y) ** 2 <= self.radius ** 2
+        # if self.shape == Shape.POLYGON.value:
+        #     return is_inside_polygon(self.boundary, (x, y))
+        # if self.shape == Shape.CIRCLE.value:
+        return (x - self.x) ** 2 + (y - self.y) ** 2 <= self.radius ** 2
 
     def is_intersecting(self, x, y, r):
         _is = False

@@ -1,3 +1,4 @@
+from backend.python.Time import Time
 from backend.python.enums import Mobility
 from backend.python.transport.MovementByTransporter import MovementByTransporter
 
@@ -5,7 +6,8 @@ from backend.python.transport.MovementByTransporter import MovementByTransporter
 class CommercialZoneBus(MovementByTransporter):
     all_instances = []
 
-    def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
+    def __init__(self, mobility_pattern: Mobility):
+        velocity_cap = 35*1000/Time.get_duration(1)
         super().__init__(velocity_cap, mobility_pattern)
 
         self.destination_reach_eps = 10.0

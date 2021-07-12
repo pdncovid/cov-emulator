@@ -68,7 +68,8 @@ class Visualizer:
                                    xytext=(-w / Visualizer.scale, h / Visualizer.scale), fontsize=7)
 
         # drawing points
-        x, y = [p.x / Visualizer.scale for p in points], [p.y / Visualizer.scale for p in points]
+        p = points[0]
+        x, y = p.all_positions[:, 0] / Visualizer.scale, p.all_positions[:, 1] / Visualizer.scale
         if len(points) > 10000:
             x, y = [], []
         Visualizer.sc = Visualizer.map_ax.scatter(x, y, alpha=0.8, s=5)
@@ -225,7 +226,8 @@ class Visualizer:
     def plot_map_and_points(root, points, test_centers, h, w, t):
         Visualizer.map_ax.texts[0]._text = Time.i_to_time(t)
         if len(points) <= 10000:
-            x, y = [p.x/ Visualizer.scale for p in points], [p.y/ Visualizer.scale for p in points]
+            p = points[0]
+            x, y = p.all_positions[:, 0] / Visualizer.scale, p.all_positions[:, 1] / Visualizer.scale
 
             Visualizer.sc.set_facecolor([Visualizer.point_colors[p.state] for p in points])
             Visualizer.sc.set_edgecolor(
@@ -292,17 +294,17 @@ class Visualizer:
 
     @staticmethod
     def get_heatmap(points, h, w):
-        res = 20
+        res = 50
         yy, xx = np.meshgrid(np.linspace(-h, h, res), np.linspace(-w, w, res))
         zz = np.zeros_like(xx)
         dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
         for p in points:
             if p.state == State.INFECTED.value:
-                if p.x > w or p.y > h:
+                if p.all_positions[p.ID, 0] > w or p.all_positions[p.ID, 1] > h:
                     Logger.log("Person outside map", 'c')
                     continue
                 try:
-                    zz[int(p.x // dw) + res // 2, int(p.y // dh) + res // 2] += 1  # todo bugsy
+                    zz[int(p.all_positions[p.ID, 0] // dw) + res // 2, int(p.all_positions[p.ID, 1] // dh) + res // 2] += 1  # todo bugsy
                 except IndexError as e:
                     Logger.log(str(e), 'c')
         return xx, yy, zz

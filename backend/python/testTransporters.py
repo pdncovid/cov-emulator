@@ -58,7 +58,7 @@ def initialize2():
     # initialize people
 
     people = [TuktukDriver() for _ in range(10)]
-    # people += [CommercialWorker() for _ in range(100)]
+    people += [CommercialWorker() for _ in range(100)]
     for _ in range(2):
         idx = np.random.randint(0,len(people))
         people[idx].set_infected(0, people[idx], args.common_p)
@@ -69,15 +69,15 @@ def initialize2():
     loc_classes = separate_into_classes(root)
 
     # set random routes for each person and set their main transportation method
-    walk = Walk(np.random.randint(1, 10), Mobility.RANDOM.value)
-    bus = Bus(np.random.randint(60, 80), Mobility.RANDOM.value)
-    combus = CommercialZoneBus(np.random.randint(60, 80), Mobility.RANDOM.value)
-    tuktuk = Tuktuk(np.random.randint(30, 60), Mobility.RANDOM.value)
+    walk = Walk(Mobility.RANDOM.value)
+    bus = Bus(Mobility.RANDOM.value)
+    combus = CommercialZoneBus(Mobility.RANDOM.value)
+    tuktuk = Tuktuk(Mobility.RANDOM.value)
     main_trans = [tuktuk]
 
     for person in people:
-        person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc)  # todo
         person.set_home_loc(get_random_element(loc_classes[Home]))
+        person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc)  # todo
         target_classes_or_objs = [person.home_loc, person.work_loc]
         person.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
         if person.main_trans is None:

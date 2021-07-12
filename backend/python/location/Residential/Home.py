@@ -12,9 +12,14 @@ class Home(Location):
             _r = [Target(self, -1,np.random.randint(0, min(Time.get_duration(1), DAY - t)),None)]
 
         else:
-            _r = [Target(self,
-                         np.random.randint(Time.get_time_from_dattime(5, 0), Time.get_time_from_dattime(8, 30)),
-                         -1, None)]
+            # home leaving time in the morning
+
+            from backend.python.point.TuktukDriver import TuktukDriver
+            if isinstance(point, TuktukDriver):
+                leave_at = np.random.randint(Time.get_time_from_dattime(5, 0), Time.get_time_from_dattime(12, 30))
+            else:
+                leave_at = np.random.randint(Time.get_time_from_dattime(5, 0), Time.get_time_from_dattime(8, 30))
+            _r = [Target(self, leave_at, -1, None)]
         t = Time.get_current_time(_r, t)
         return _r, t
 

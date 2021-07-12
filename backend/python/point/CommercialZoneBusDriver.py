@@ -12,7 +12,7 @@ class CommercialZoneBusDriver(Transporter):
     def __init__(self):
         super().__init__()
         self.max_latches = 10
-        self.main_trans = CommercialZoneBus(np.random.randint(60, 80), Mobility.RANDOM.value)
+        self.main_trans = CommercialZoneBus(Mobility.RANDOM.value)
 
     def set_random_route(self, root, t, target_classes_or_objs=None):
         from backend.python.RoutePlanningEngine import RoutePlanningEngine

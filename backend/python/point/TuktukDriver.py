@@ -1,7 +1,9 @@
 import numpy as np
 
+from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
+from backend.python.Time import Time
 from backend.python.enums import Mobility
 from backend.python.functions import get_random_element
 from backend.python.point.Transporter import Transporter
@@ -13,7 +15,7 @@ class TuktukDriver(Transporter):
     def __init__(self):
         super().__init__()
         self.max_latches = 3
-        self.main_trans = Tuktuk(np.random.randint(60, 80), Mobility.RANDOM.value)
+        self.main_trans = Tuktuk(Mobility.RANDOM.value)
 
     def set_random_route(self, root, t, target_classes_or_objs=None):
         arr_locs = []
@@ -25,15 +27,31 @@ class TuktukDriver(Transporter):
                 dfs(child)
 
         dfs(root)
+        if target_classes_or_objs is not None:
+            Logger.log("Tuktuk driver will ignore target_classes_or_objs when generating routes", 'e')
 
-        target_classes_or_objs = [self.home_loc]
-        for i in range(np.random.randint(7, 9)):  # todo find a good way to set up route of the transporters
+        route,  final_time = [], t
+        old_loc = self.home_loc
+        _route,  final_time = self.get_suggested_route(final_time, [old_loc])
+        route += _route
+        while True:  # todo find a good way to set up route of the transporters
             loc = get_random_element(get_random_element(arr_locs).locations)
             if loc == root:  # if we put root to bus route, people will drop at root. then he/she will get stuck
                 continue
-            target_classes_or_objs += [loc]
 
-        route,  final_time = self.get_suggested_route(t, target_classes_or_objs)
+            _route,  final_time = self.get_suggested_route(final_time, [loc])
+            route += _route
+            dist = old_loc.get_distance_to(loc)
+            old_loc = loc
+            final_time += dist/self.main_trans.vcap
+
+            if final_time > np.random.randint(Time.get_time_from_dattime(18,0), Time.get_time_from_dattime(23,0)):
+                break
+
+
+
+
+
 
         route = RoutePlanningEngine.add_stops_as_targets_in_route(route, self)
 

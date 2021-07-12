@@ -35,5 +35,5 @@ class CommercialWorkArea(Location):
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.override_transport = Walk(1.5, Mobility.RANDOM.value)
+        self.override_transport = Walk(Mobility.RANDOM.value)
         CommercialWorkArea._id_area += 1

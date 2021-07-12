@@ -1,4 +1,5 @@
 from backend.python.Target import Target
+from backend.python.Time import Time
 from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_random_element
 from backend.python.location.Location import Location
@@ -18,7 +19,7 @@ class MedicalZone(Location):
 
             _r, t = get_random_element(hospitals).get_suggested_sub_route(point, t, force_dt)
         elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
-            _r, t = [Target(self, -1, 1, None)], t + 1
+            _r, t = [Target(self, -1, Time.get_duration(.5), None)], t + Time.get_duration(.5)
         else:
             raise NotImplementedError(f"Not implemented for {point.__class__.__name__}")
 
@@ -27,9 +28,9 @@ class MedicalZone(Location):
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  n_buildings=-1, building_r=-1, **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.override_transport = Walk(1.5, Mobility.RANDOM.value)
+        self.override_transport = Walk(Mobility.RANDOM.value)
         if n_buildings != -1:
-            self.spawn_sub_locations(Hospital, n_buildings, building_r, 0.8, Walk(1.5, Mobility.RANDOM.value),
+            self.spawn_sub_locations(Hospital, n_buildings, building_r, 0.8, Walk(Mobility.RANDOM.value),
                                      n_areas=10, area_r=building_r / 5)
-            self.spawn_sub_locations(COVIDQuarantineZone, 1, building_r, 1.0, Walk(1.5, Mobility.RANDOM.value),
+            self.spawn_sub_locations(COVIDQuarantineZone, 1, building_r, 1.0, Walk(Mobility.RANDOM.value),
                                      capacity=2, quarantined=True)

@@ -2,6 +2,7 @@ import numpy as np
 
 from backend.python.MovementEngine import MovementEngine
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
+from backend.python.Time import Time
 from backend.python.enums import Mobility
 from backend.python.functions import get_random_element
 from backend.python.point.Transporter import Transporter
@@ -12,7 +13,7 @@ class BusDriver(Transporter):
     def __init__(self):
         super().__init__()
         self.max_latches = 60
-        self.main_trans = Bus(np.random.randint(60, 80), Mobility.RANDOM.value)
+        self.main_trans = Bus(Mobility.RANDOM.value)
 
     def set_random_route(self, root, t, target_classes_or_objs=None):
         arr_locs = []

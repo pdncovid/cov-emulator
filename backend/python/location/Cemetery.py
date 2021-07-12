@@ -22,8 +22,7 @@ class Cemetery(Location):
     def enter_person(self, p, target_location=None):
         if p.is_dead():
             super().enter_person(p, target_location)
-            p.x = self.x
-            p.y = self.y
+            p.set_position(self.x, self.y, force=True)
             if p.current_trans is not None:
                 p.current_trans.remove_point_from_transport(p)
             if p.latched_to is not None:

@@ -38,10 +38,9 @@ class Transporter(Person):
             self.get_current_location().check_for_leaving(t)  # added this to re
 
     # override
-    def set_position(self, new_x, new_y, is_updated_by_transporter=False):
+    def set_position(self, new_x, new_y, force=False):
 
-        self.x = new_x
-        self.y = new_y
+        self.all_positions[self.ID] = [new_x, new_y]
 
         for latched_p in self.latched_people:
             latched_p.set_position(new_x, new_y, True)
@@ -108,5 +107,8 @@ class Transporter(Person):
         self.latched_dst.pop(idx)
 
     # override
-    def update_route(self, root, t, new_route_classes=None, replace=False, keephome=True):
-        Logger.log("Not IMPLEMENTED Transporter update route", 'c')
+    def update_route(self, root, t, new_route_classes=None, replace=False):
+        if self.is_tested_positive():
+            super(Transporter, self).update_route(root, t,  new_route_classes, replace)
+        else:
+            Logger.log("Not IMPLEMENTED Transporter update route", 'c')

@@ -12,6 +12,19 @@ class Person:
     infect_temperature = (37.4, 1.2)
     _id = 0
     all_people = []
+    all_positions = np.zeros((0, 2))
+    all_velocities = np.zeros((0, 2))
+
+    all_movement_ids = np.array([], dtype=int)
+    all_movement_enter_times = np.array([], dtype=int)
+    all_sources = np.array([], dtype=int)
+    all_destinations = np.array([], dtype=int)
+    all_destination_exits = np.array(np.zeros((0, 2)), dtype=int)
+
+    all_current_loc_positions = np.zeros((0, 2))
+    all_current_loc_radii = np.array([], dtype=int)
+    all_current_loc_vcap = np.array([], dtype=int)
+
     n_characteristics = 3
 
     def __init__(self):
@@ -24,10 +37,18 @@ class Person:
         self.character_vector = np.zeros((Person.n_characteristics,))  # characteristics of the point
         self.behaviour = 0  # behaviour of the point (healthy medical practices -> unhealthy)
 
-        self.x = 0  # x location
-        self.y = 0  # y location
-        self.vx = 0  # velocity x
-        self.vy = 0  # velocity y
+        Person.all_positions = np.concatenate([Person.all_positions, [[0, 0]]], 0)
+        Person.all_velocities = np.concatenate([Person.all_velocities, [[0, 0]]], 0)
+
+        Person.all_movement_ids = np.append(Person.all_destinations, -1)
+        Person.all_movement_enter_times = np.append(Person.all_destinations, -1)
+        Person.all_sources = np.append(Person.all_destinations, -1)
+        Person.all_destinations = np.append(Person.all_destinations, -1)
+        Person.all_destination_exits = np.concatenate([Person.all_destination_exits, [[0, 0]]], 0)
+
+        Person.all_current_loc_positions = np.concatenate([Person.all_current_loc_positions, [[0, 0]]], 0)
+        Person.all_current_loc_radii = np.append(Person.all_current_loc_radii, 0)
+        Person.all_current_loc_vcap = np.append(Person.all_current_loc_vcap, 0)
 
         self._backup_route = None
         self._backup_duration_time = None
@@ -37,9 +58,6 @@ class Person:
         self.is_day_finished = False
 
         self.route = []  # route that point is going to take. (list of location refs)
-        # self.duration_time = []  # time spent on each location
-        # self.leaving_time = []  # time which the person will not overstay on a given location
-        # self.likely_trans = []  # movement method  that the person likely to take when going to the target in route
         self.current_target_idx = -1  # current location in the route (index of the route list)
         self.current_loc_enter = -1
         self.current_loc_leave = -1
@@ -76,7 +94,9 @@ class Person:
         return str(self.ID)
 
     def get_description_dict(self):
-        d = {'class': self.__class__.__name__, 'id': self.ID, 'x': self.x, 'y': self.y, 'vx': self.vx, 'vy': self.vy,
+        d = {'class': self.__class__.__name__, 'id': self.ID,
+             'x': self.all_positions[self.ID][0], 'y': self.all_positions[self.ID][0],
+             'vx': self.all_velocities[self.ID][0], 'vy': self.all_velocities[self.ID][1],
              'state': self.state, 'gender': self.gender, 'is_day_finished': self.is_day_finished,
              'current_target_idx': self.current_target_idx, 'current_loc_enter': self.current_loc_enter,
              'current_loc_leave': self.current_loc_leave, 'in_inter_trans': self.in_inter_trans,
@@ -144,7 +164,7 @@ class Person:
 
         if self.get_current_location() != self.home_loc and not self.get_current_location().quarantined:
             Logger.log(f"{self.ID} not at home when day resets. (Now at {self.get_current_location().name} "
-                       f"from {self.current_trans.points_enter_time[self.current_trans.points.index(self)]}) "
+                       f"from {self.all_movement_enter_times[self.ID]}) "
                        f"CTarget {self.current_target_idx}/{len(self.route)} "
                        f"Route {list(map(str, self.route))}. "
                        f"{self.__repr__()}"
@@ -246,25 +266,24 @@ class Person:
             self.route[0].enter_person(self, target_location=None)
 
     def set_route(self, route, t):
-        self.x = route[0].loc.x + np.random.normal(0, 1)
-        self.y = route[0].loc.y + np.random.normal(0, 1)
-
+        self.set_position(route[0].loc.x + np.random.normal(0, 1),
+                          route[0].loc.y + np.random.normal(0, 1), True)
         self.route = route
         self.current_target_idx = 0
         self.route[0].enter_person(self)
 
-    def set_position(self, new_x, new_y, is_updated_by_transporter=False):
-        if not self.latched_to or is_updated_by_transporter:
-            self.x = new_x
-            self.y = new_y
+    def set_position(self, new_x, new_y, force=False):
+        if not self.latched_to or force:
+            self.all_positions[self.ID] = [new_x, new_y]
         else:
-            idx = self.current_trans.points.index(self)
-            start = self.current_trans.points_enter_time[idx]
+            start = self.all_movement_enter_times[self.ID]
             raise Exception(f"Tried to move {self.ID} in {self.get_current_location()} (enter at:{start})."
                             f"Going to {self.get_next_target()}")
 
     def set_current_location(self, loc, t):
         self.current_loc = loc
+        Person.all_current_loc_positions[self.ID] = loc.x, loc.y
+        Person.all_current_loc_radii[self.ID] = loc.radius
 
     def get_current_location(self):
         return self.current_loc
@@ -294,8 +313,7 @@ class Person:
     def set_dead(self):
         self.state = State.DEAD.value
         self.temp = 25
-        self.vx = 0
-        self.vy = 0
+        self.all_velocities[self.ID] = [0, 0]
 
     def is_infected(self):
         return self.state == State.INFECTED.value

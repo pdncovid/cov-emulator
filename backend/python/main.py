@@ -138,7 +138,7 @@ def update_point_parameters():
 
 
 def main(initializer):
-    PLOT = True
+    PLOT = False
     global log
     log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
 
@@ -219,30 +219,27 @@ def main(initializer):
         update_point_parameters()
 
         # change routes randomly for some people
-        RoutePlanningEngine.update_routes(root, t)
+        # RoutePlanningEngine.update_routes(root, t)
 
         # overriding daily routes if necessary. (tested positives, etc)
         for p in people:
             if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
                 break
 
-        # record in daily report
-        tmp_list = []
-        # _str_i = len("<class backend.python.location")
-        for p in people:
-            cur = p.get_current_location()
-            person = p.ID
-            tmp_list.append({'loc': cur.ID, 'person': person,
-                             'time': Time.i_to_datetime(t),
-                             'loc_class': cur.__class__.__name__})
-        df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:
-            if t % (DAY // 10) == 0:
+            # record in daily report
+            tmp_list = []
+            for p in people:
+                cur = p.get_current_location()
+                person = p.ID
+                tmp_list.append({'loc': cur.ID, 'person': person,
+                                 'time': Time.i_to_datetime(t),
+                                 'loc_class': cur.__class__.__name__})
+            df = df.append(pd.DataFrame(tmp_list))
+            if t % (DAY // 1) == 0:
                 plt.pause(0.001)
                 Visualizer.plot_map_and_points(root, people, test_centers, args.H, args.W, t)
-                # update_figure(fig, ax, sc, hm, root, people, test_centers, args.H, args.W, t)
-
                 Visualizer.plot_position_timeline(df, root)
                 Visualizer.plot_info(people)
 

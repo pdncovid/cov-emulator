@@ -245,6 +245,8 @@ class Person:
         Logger.log(f"Current route for {self.ID} is {list(map(str, self.route))}", 'e')
         _t = t % DAY
         self.backup_route()
+        route, time = self.get_suggested_route(_t, new_route_classes, force_dt=True)
+
         if replace:
             replace_from = 1
             # self.route = self.route[:1]
@@ -253,12 +255,10 @@ class Person:
             # self.route = self.route[:self.current_target_idx + 1]
 
         # todo make sure current_target_idx is consistent with route
-        route, time = self.get_suggested_route(_t, new_route_classes, force_dt=True)
         new_route = self.route[:replace_from]
-        while time > self.route[replace_from].leaving_time:
+        while len(self.route) > replace_from and time > self.route[replace_from].leaving_time:
             replace_from += 1
-            if len(self.route) == replace_from:
-                break
+
         new_route += route + self.route[replace_from:]
 
         self.route = new_route

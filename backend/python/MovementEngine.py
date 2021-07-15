@@ -8,7 +8,6 @@ class MovementEngine:
     @staticmethod
     def move_people(all_people):
         _p = all_people[0]
-        is_latched = [p.latched_to is not None for p in _p.all_people]
 
         is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
 
@@ -30,7 +29,7 @@ class MovementEngine:
                                        _p.all_current_loc_vcap, -1)))# todo unlatched people wont wait!!!!!
 
         for idx, p in enumerate(all_people):
-            if is_latched[idx]:
+            if p.latched_to:
                 continue
             p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1])
             if MovementEngine.is_close(p, p.all_destination_exits[p.ID], eps=p.current_trans.destination_reach_eps) and \

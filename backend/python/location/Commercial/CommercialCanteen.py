@@ -15,7 +15,7 @@ class CommercialCanteen(Building):
         if force_dt:
             _r = [Target(
                 self,
-                t+np.random.randint(1, min(np.random.normal(Time.get_duration(0.5), Time.get_duration(0.1)), DAY - t)),
+                t+np.random.randint(1, min(np.random.uniform(Time.get_duration(0.25), Time.get_duration(0.5)), DAY - t)),
                 None)]
         else:
             _r = [Target(

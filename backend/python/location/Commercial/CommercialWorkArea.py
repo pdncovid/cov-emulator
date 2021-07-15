@@ -21,12 +21,12 @@ class CommercialWorkArea(Room):
             for lt in lts:
                 if t < lt:
                     if force_dt:
-                        _r = [Target(self, t + np.random.randint(0, (lt - t)), None)]
+                        _r = [Target(self, t + 1 if lt - t == 1 else t + np.random.randint(1, (lt - t)), None)]
                     else:
                         _r = [Target(self, lt, None)]
                     break
             else:
-                _r = [Target(self, t + min(np.random.randint(0,Time.get_duration(1)), DAY - t),None)]
+                _r = [Target(self, t + min(np.random.randint(0, Time.get_duration(1)), DAY - t), None)]
         else:
             raise NotImplementedError()
 

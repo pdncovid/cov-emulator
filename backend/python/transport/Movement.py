@@ -63,9 +63,6 @@ class Movement(metaclass=Singleton):
             point.all_movement_ids[point.ID] = self.ID
             point.all_movement_enter_times[point.ID] = Time.get_time()
             point.all_sources[point.ID] = point.get_current_location().ID
-            # self.points.append(point)
-            # self.points_enter_time.append(Time.get_time())
-            # self.points_source.append(point.get_current_location())
             self.update_point_destination(point, target_location)
         else:
             self.update_point_destination(point, target_location)
@@ -101,38 +98,33 @@ class Movement(metaclass=Singleton):
         if id != -1:
             return Location.all_locations[id]
 
-    # def move_people(self):
-    #     t = Time.get_time()
-    #     for p in self.points:
-    #         self.move(p, t)
-
-    def move(self, point, t):
-        destination = self.get_destination_of(point)
-        dt = t - point.current_loc_leave
-        if dt > Time.get_duration(1):
-            msg = f"OT move {t}-{point.current_loc_leave}={dt} P:{point.ID} in {point.get_current_location().name}(by {self}) "
-            msg += f"->{destination}->{point.get_next_target()} "
-            msg += f"(inter_trans {point.in_inter_trans}) "
-            msg += " " if destination is None else f"(d={Person.all_positions[point.ID, 0] - destination.exit[0]:.2f},{Person.all_positions[point.ID, 1] - destination.exit[1]:.2f}) "
-            Logger.log(msg, "w")
-
-        if destination is None:
-            # move inside location mode
-            self.in_location_move(point)
-        else:
-            # inter location movement
-            self.transport_point(point, destination.exit)
-
-            if MovementEngine.is_close(point, destination.exit, eps=self.destination_reach_eps):
-                destination.enter_person(point)  # destination point reached
-                point.in_inter_trans = False
-
-    def in_location_move(self, point):
-        if self.mobility == Mobility.RANDOM.value:
-            MovementEngine.random_move(point.get_current_location(), point, self.vcap)
-            # MovementEngine.containment(p)
-        elif self.mobility == Mobility.BROWNIAN.value:
-            pass
-
-    def transport_point(self, point, destination_xy):
-        MovementEngine.move_towards(point, destination_xy, self.vcap)
+    # def move(self, point, t):
+    #     destination = self.get_destination_of(point)
+    #     dt = t - point.current_loc_leave
+    #     if dt > Time.get_duration(1):
+    #         msg = f"OT move {t}-{point.current_loc_leave}={dt} P:{point.ID} in {point.get_current_location().name}(by {self}) "
+    #         msg += f"->{destination}->{point.get_next_target()} "
+    #         msg += f"(inter_trans {point.in_inter_trans}) "
+    #         msg += " " if destination is None else f"(d={Person.all_positions[point.ID, 0] - destination.exit[0]:.2f},{Person.all_positions[point.ID, 1] - destination.exit[1]:.2f}) "
+    #         Logger.log(msg, "w")
+    #
+    #     if destination is None:
+    #         # move inside location mode
+    #         self.in_location_move(point)
+    #     else:
+    #         # inter location movement
+    #         self.transport_point(point, destination.exit)
+    #
+    #         if MovementEngine.is_close(point, destination.exit, eps=self.destination_reach_eps):
+    #             destination.enter_person(point)  # destination point reached
+    #             point.in_inter_trans = False
+    #
+    # def in_location_move(self, point):
+    #     if self.mobility == Mobility.RANDOM.value:
+    #         MovementEngine.random_move(point.get_current_location(), point, self.vcap)
+    #         # MovementEngine.containment(p)
+    #     elif self.mobility == Mobility.BROWNIAN.value:
+    #         pass
+    #
+    # def transport_point(self, point, destination_xy):
+    #     MovementEngine.move_towards(point, destination_xy, self.vcap)

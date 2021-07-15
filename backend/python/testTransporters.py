@@ -9,9 +9,13 @@ from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Residential.Home import Home
 from backend.python.main import main, work_map
 from backend.python.point.CommercialWorker import CommercialWorker
+from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
+from backend.python.point.SchoolBusDriver import SchoolBusDriver
+from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
+from backend.python.transport.SchoolBus import SchoolBus
 from backend.python.transport.Tuktuk import Tuktuk
 from backend.python.transport.Walk import Walk
 
@@ -56,11 +60,14 @@ def initialize_graph():
 
 def initialize2():
     # initialize people
-
-    people = [TuktukDriver() for _ in range(10)]
+    people = []
+    people += [TuktukDriver() for _ in range(10)]
     people += [CommercialWorker() for _ in range(100)]
+    people += [CommercialZoneBusDriver() for _ in range(10)]
+    people += [SchoolBusDriver() for _ in range(10)]
+    people += [Student() for _ in range(100)]
     for _ in range(2):
-        idx = np.random.randint(0,len(people))
+        idx = np.random.randint(0, len(people))
         people[idx].set_infected(0, people[idx], args.common_p)
 
     # initialize location tree
@@ -72,8 +79,9 @@ def initialize2():
     walk = Walk(Mobility.RANDOM.value)
     bus = Bus(Mobility.RANDOM.value)
     combus = CommercialZoneBus(Mobility.RANDOM.value)
+    schoolbus = SchoolBus(Mobility.RANDOM.value)
     tuktuk = Tuktuk(Mobility.RANDOM.value)
-    main_trans = [tuktuk]
+    main_trans = [combus]
 
     for person in people:
         person.set_home_loc(get_random_element(loc_classes[Home]))

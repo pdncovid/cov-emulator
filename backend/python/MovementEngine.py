@@ -7,44 +7,46 @@ class MovementEngine:
 
     @staticmethod
     def move_people(all_people):
-        # _p = all_people[0]
-        # is_latched = [p.latched_to is not None for p in _p.all_people]
-        #
-        # is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
-        #
-        # # inside location random movement
-        # new_xy = _p.all_positions + _p.all_velocities * is_in_loc_move
-        # is_outside = np.sum((new_xy - _p.all_current_loc_positions) ** 2, 1) > _p.all_current_loc_radii ** 2
-        # is_outside = is_outside * is_in_loc_move[:, 0]
-        # _p.all_velocities[is_outside] = -(_p.all_velocities[is_outside] + 1) / 2
-        # new_xy[is_outside] = _p.all_positions[is_outside]
-        #
-        # # movement to other location
-        # new_xy = np.where(is_in_loc_move,
-        #                   new_xy,  # if in location movement
-        #                   np.where(np.expand_dims(np.sum((_p.all_destination_exits - _p.all_positions) ** 2,
-        #                                                  1) < _p.all_current_loc_vcap ** 2, -1),
-        #                            _p.all_destination_exits,  # if between location move reaches destination
-        #                            _p.all_positions + np.sign(
-        #                                _p.all_destination_exits - _p.all_positions) * np.expand_dims(
-        #                                _p.all_current_loc_vcap, -1)))# todo unlatched people wont wait!!!!!
-        #
-        # for p in all_people:
-        #     p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1])
-        #     if MovementEngine.is_close(p, p.all_destination_exits[p.ID], eps=p.current_trans.destination_reach_eps) and \
-        #             is_in_loc_move[p.ID] == False:
-        #         p.get_current_location().all_locations[p.all_destinations[p.ID]].enter_person(
-        #             p)  # destination point reached
-        #         p.in_inter_trans = False
-        #
-        #
-        # new_v = _p.all_velocities + np.random.random((len(_p.all_velocities), 2))
-        # _p.all_velocities = np.clip(new_v, -np.expand_dims(_p.all_current_loc_vcap, -1),
-        #                             np.expand_dims(_p.all_current_loc_vcap, -1))
+        _p = all_people[0]
+        is_latched = [p.latched_to is not None for p in _p.all_people]
 
-        t = Time.get_time()
-        for p in all_people:
-            p.current_trans.move(p, t)
+        is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
+
+        # inside location random movement
+        new_xy = _p.all_positions + _p.all_velocities * is_in_loc_move
+        is_outside = np.sum((new_xy - _p.all_current_loc_positions) ** 2, 1) > _p.all_current_loc_radii ** 2
+        is_outside = is_outside * is_in_loc_move[:, 0]
+        _p.all_velocities[is_outside] = -(_p.all_velocities[is_outside] + 1) / 2
+        new_xy[is_outside] = _p.all_positions[is_outside]
+
+        # movement to other location
+        new_xy = np.where(is_in_loc_move,
+                          new_xy,  # if in location movement
+                          np.where(np.expand_dims(np.sum((_p.all_destination_exits - _p.all_positions) ** 2,
+                                                         1) < _p.all_current_loc_vcap ** 2, -1),
+                                   _p.all_destination_exits,  # if between location move reaches destination
+                                   _p.all_positions + np.sign(
+                                       _p.all_destination_exits - _p.all_positions) * np.expand_dims(
+                                       _p.all_current_loc_vcap, -1)))# todo unlatched people wont wait!!!!!
+
+        for idx, p in enumerate(all_people):
+            if is_latched[idx]:
+                continue
+            p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1])
+            if MovementEngine.is_close(p, p.all_destination_exits[p.ID], eps=p.current_trans.destination_reach_eps) and \
+                    is_in_loc_move[p.ID] == False:
+                p.get_current_location().all_locations[p.all_destinations[p.ID]].enter_person(
+                    p)  # destination point reached
+                p.in_inter_trans = False
+
+
+        new_v = _p.all_velocities + np.random.random((len(_p.all_velocities), 2))
+        _p.all_velocities = np.clip(new_v, -np.expand_dims(_p.all_current_loc_vcap, -1),
+                                    np.expand_dims(_p.all_current_loc_vcap, -1))
+
+        # t = Time.get_time()
+        # for p in all_people:
+        #     p.current_trans.move(p, t)
 
     @staticmethod
     def process_people_switching(loc, t):

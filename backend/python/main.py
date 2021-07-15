@@ -1,3 +1,4 @@
+import datetime
 import sys
 import time
 import warnings
@@ -24,6 +25,8 @@ from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Commercial.CommercialBuilding import CommercialBuilding
 from backend.python.location.Commercial.CommercialZone import CommercialZone
+from backend.python.location.Education.EducationZone import EducationZone
+from backend.python.location.Education.School import School
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.Home import Home
 from backend.python.point.BusDriver import BusDriver
@@ -31,10 +34,14 @@ from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.location.TestCenter import TestCenter
 from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
 from backend.python.point.Person import Person
+from backend.python.point.SchoolBusDriver import SchoolBusDriver
+from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
 from backend.python.transport.Movement import Movement
+from backend.python.transport.SchoolBus import SchoolBus
+from backend.python.transport.Tuktuk import Tuktuk
 from backend.python.transport.Walk import Walk
 
 """
@@ -48,7 +55,7 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-parser.add_argument('-n', help='target population', default=10)
+parser.add_argument('-n', help='target population', default=100)
 parser.add_argument('-i', help='initial infected', type=int, default=2)
 parser.add_argument('-H', help='height', type=int, default=102)
 parser.add_argument('-W', help='width', type=int, default=102)
@@ -72,9 +79,11 @@ parser.add_argument('--initialize',
 args = parser.parse_args()
 
 work_map = {CommercialWorker: CommercialZone,
+            Student: EducationZone,
             BusDriver: None,
             TuktukDriver: None,
-            CommercialZoneBusDriver: CommercialBuilding}
+            CommercialZoneBusDriver: CommercialBuilding,
+            SchoolBusDriver: School}
 
 
 def initialize_graph():
@@ -89,7 +98,9 @@ def initialize():
     people = [CommercialWorker() for _ in range(args.n)]
     people += [BusDriver() for _ in range(5)]
     people += [TuktukDriver() for _ in range(10)]
-    # people += [CommercialZoneBusDriver() for _ in range(5)]
+    people += [CommercialZoneBusDriver() for _ in range(5)]
+    people += [SchoolBusDriver() for _ in range(10)]
+    people += [Student() for _ in range(100)]
 
     for _ in range(args.i):
         idx = np.random.randint(0, args.n)
@@ -101,10 +112,12 @@ def initialize():
     loc_classes = separate_into_classes(root)
 
     # set random routes for each person and set their main transportation method
-    walk = Walk(np.random.randint(1, 10), Mobility.RANDOM.value)
-    bus = Bus(np.random.randint(60, 80), Mobility.RANDOM.value)
-    combus = CommercialZoneBus(np.random.randint(60, 80), Mobility.RANDOM.value)
-    main_trans = [bus]
+    walk = Walk(Mobility.RANDOM.value)
+    bus = Bus(Mobility.RANDOM.value)
+    combus = CommercialZoneBus(Mobility.RANDOM.value)
+    schoolbus = SchoolBus(Mobility.RANDOM.value)
+    tuktuk = Tuktuk(Mobility.RANDOM.value)
+    main_trans = [bus,tuktuk,walk]
 
     for person in people:
 
@@ -164,9 +177,20 @@ def main(initializer):
     # main iteration loop
     for i in range(iterations):
         t = Time.get_time()
+
         log.log(f"Iteration: {t} {Time.i_to_time(t)}", 'c')
         log.log(f"=========================Iteration: {t} {Time.i_to_time(t)}======================", 'd')
         log.log_people(people)
+
+        # reset day
+        if t % DAY == 0:
+            good = True
+            for p in people:
+                if not p.reset_day(t):
+                    good = False
+            if not good:
+                a = input("RESET FAILED")
+                raise Exception("Day reset failed")
 
         # process movement
         MovementEngine.process_people_switching(root, t)
@@ -195,22 +219,12 @@ def main(initializer):
         update_point_parameters()
 
         # change routes randomly for some people
-        # RoutePlanningEngine.update_routes(root, t)
+        RoutePlanningEngine.update_routes(root, t)
 
         # overriding daily routes if necessary. (tested positives, etc)
         for p in people:
             if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
                 break
-
-        # reset day
-
-        if t % DAY == 0:
-            good = True
-            for p in people:
-                if not p.reset_day(t):
-                    good = False
-            if not good:
-                raise Exception("Day reset failed")
 
         # record in daily report
         tmp_list = []
@@ -218,7 +232,9 @@ def main(initializer):
         for p in people:
             cur = p.get_current_location()
             person = p.ID
-            tmp_list.append({'loc': cur.ID, 'person': person, 'time': t, 'loc_class': cur.__class__.__name__})
+            tmp_list.append({'loc': cur.ID, 'person': person,
+                             'time': Time.i_to_datetime(t),
+                             'loc_class': cur.__class__.__name__})
         df = df.append(pd.DataFrame(tmp_list))
         # ==================================== plotting ==============================================================
         if PLOT:

@@ -12,9 +12,10 @@ from backend.python.transport.Tuktuk import Tuktuk
 
 
 class TuktukDriver(Transporter):
+    max_latches = 3
+
     def __init__(self):
         super().__init__()
-        self.max_latches = 3
         self.main_trans = Tuktuk(Mobility.RANDOM.value)
 
     def set_random_route(self, root, t, target_classes_or_objs=None):
@@ -36,7 +37,7 @@ class TuktukDriver(Transporter):
         route += _route
         while True:  # todo find a good way to set up route of the transporters
             loc = get_random_element(get_random_element(arr_locs).locations)
-            if loc == root:  # if we put root to bus route, people will drop at root. then he/she will get stuck
+            if loc == root:  # if we put root to route, people will drop at root. then he/she will get stuck
                 continue
 
             _route,  final_time = self.get_suggested_route(final_time, [loc])
@@ -47,11 +48,6 @@ class TuktukDriver(Transporter):
 
             if final_time > np.random.randint(Time.get_time_from_dattime(18,0), Time.get_time_from_dattime(23,0)):
                 break
-
-
-
-
-
 
         route = RoutePlanningEngine.add_stops_as_targets_in_route(route, self)
 

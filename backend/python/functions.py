@@ -33,22 +33,26 @@ def separate_into_classes(root):
 
     return classes
 
+
 def find_in_subtree(c, tar, skip):
+    _all = []
+
     def dfs(r):
-        if r == tar or r is None:
-            return r
+        if r is None:
+            return
+        if r == tar:
+            _all.append(r)
         if type(tar) == type:
             if isinstance(r, tar):
-                return r
+                _all.append(r)
 
         for child in r.locations:
             if child == skip:
                 continue
-            ret = dfs(child)
-            if ret is not None:
-                return ret
+            dfs(child)
 
-    return dfs(c)
+    dfs(c)
+    return _all
 
 
 def get_random_element(arr):

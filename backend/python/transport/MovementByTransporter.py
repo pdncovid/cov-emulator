@@ -11,9 +11,6 @@ class MovementByTransporter(Movement):
     def get_in_transport_transmission_p(self):
         raise NotImplementedError()
 
-    def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
-        super().__init__(velocity_cap, mobility_pattern)
-        MovementByTransporter.all_instances.append(self)
     # override
     def get_description_dict(self):
         d = super().get_description_dict()
@@ -25,12 +22,16 @@ class MovementByTransporter(Movement):
         if isinstance(point, Transporter):
             self.try_to_latch_people(point)
 
-    # override
-    def transport_point(self, point, destination_xy):
-        if not isinstance(point, Transporter):
-            return
+    # # override
+    # def transport_point(self, point, destination_xy):
+    #     if not isinstance(point, Transporter):
+    #         return
+    #
+    #     super().transport_point(point, destination_xy)
 
-        super().transport_point(point, destination_xy)
+    def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
+        super().__init__(velocity_cap, mobility_pattern)
+        MovementByTransporter.all_instances.append(self)
 
     def find_feasibility(self, tr, path2next_tar):
         hops2reach = [-1. for _ in path2next_tar]

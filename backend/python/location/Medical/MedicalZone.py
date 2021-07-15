@@ -7,6 +7,7 @@ from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZ
 from backend.python.location.Medical.Hospital import Hospital
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
+from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Walk import Walk
 
@@ -14,12 +15,12 @@ from backend.python.transport.Walk import Walk
 class MedicalZone(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
 
-        if isinstance(point, CommercialWorker):
+        if isinstance(point, CommercialWorker) or isinstance(point, Student):
             hospitals = self.get_children_of_class(Hospital)
 
             _r, t = get_random_element(hospitals).get_suggested_sub_route(point, t, force_dt)
         elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
-            _r, t = [Target(self, -1, Time.get_duration(.5), None)], t + Time.get_duration(.5)
+            _r, t = [Target(self, t + Time.get_duration(.5), None)], t + Time.get_duration(.5)
         else:
             raise NotImplementedError(f"Not implemented for {point.__class__.__name__}")
 

@@ -26,7 +26,7 @@ class ResidentialZone(Location):
                 _r1, t = get_random_element(parks).get_suggested_sub_route(point, t, True)
                 _r, = _r + _r1
         elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
-            _r, t = [Target(self, -1, Time.get_duration(.5), None)], t+Time.get_duration(.5)
+            _r, t = [Target(self, t+ Time.get_duration(.5), None)], t+Time.get_duration(.5)
         else:
             raise NotImplementedError(f"Not implemented for {point.__class__.__name__}")
         return _r, t

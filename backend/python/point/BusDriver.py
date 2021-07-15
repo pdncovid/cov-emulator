@@ -10,30 +10,31 @@ from backend.python.transport.Bus import Bus
 
 
 class BusDriver(Transporter):
+    max_latches = 60
+
     def __init__(self):
         super().__init__()
-        self.max_latches = 60
         self.main_trans = Bus(Mobility.RANDOM.value)
 
     def set_random_route(self, root, t, target_classes_or_objs=None):
-        arr_locs = []
+        locs = []
 
         def dfs(rr):
             if rr.override_transport == Bus or rr.override_transport is None:
-                arr_locs.append(rr)
+                locs.append(rr)
             for child in rr.locations:
                 dfs(child)
 
         dfs(root)
+        route, final_time = self.get_suggested_route(t, [self.home_loc], force_dt=False)
+        while True:  # first visit around residential zones to collect students
 
-        target_classes_or_objs = [self.home_loc]
-        for i in range(np.random.randint(5, 10)):  # todo find a good way to set up route of the transporters
-            loc = get_random_element(get_random_element(arr_locs).locations)
-            if loc == root:  # if we put root to bus route, people will drop at root. then he/she will get stuck
-                continue
-            target_classes_or_objs += [loc]
-
-        route, final_time = self.get_suggested_route(t, target_classes_or_objs)
+            loc = get_random_element(get_random_element(locs).locations)
+            _route, final_time = self.get_suggested_route(final_time, [loc], force_dt=True)
+            route += _route
+            if final_time > np.random.uniform(Time.get_time_from_dattime(18, 15),
+                                              Time.get_time_from_dattime(22, 15)):
+                break
 
         route = RoutePlanningEngine.add_stops_as_targets_in_route(route, self)
 

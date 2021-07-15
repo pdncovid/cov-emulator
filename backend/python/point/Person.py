@@ -1,10 +1,9 @@
 import numpy as np
 
 from backend.python.Logger import Logger
-from backend.python.MovementEngine import MovementEngine
 from backend.python.const import DAY
 from backend.python.enums import State
-from backend.python.functions import find_in_subtree
+from backend.python.functions import find_in_subtree, get_random_element
 
 
 class Person:
@@ -35,7 +34,7 @@ class Person:
         self.age = np.random.uniform(1, 80)  # age todo add to repr
         self.immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find and add to repr
         self.character_vector = np.zeros((Person.n_characteristics,))  # characteristics of the point
-        self.behaviour = 0  # behaviour of the point (healthy medical practices -> unhealthy)
+        self.behaviour = 0.5  # behaviour of the point (healthy medical practices -> unhealthy)
 
         Person.all_positions = np.concatenate([Person.all_positions, [[0, 0]]], 0)
         Person.all_velocities = np.concatenate([Person.all_velocities, [[0, 0]]], 0)
@@ -187,6 +186,7 @@ class Person:
     def increment_target_location(self):
         msg = f"{self.ID} incremented target from {self.get_current_target()} to "
         self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
+        from backend.python.MovementEngine import MovementEngine
         next_loc = MovementEngine.find_next_location(self)
         msg += f"{self.get_current_target()} ({self.current_target_idx} th target). Next location is {next_loc}."
         Logger.log(msg, 'c')
@@ -205,11 +205,14 @@ class Person:
         # find closest (in tree) object to target
         if cur is None:
             cur = self.get_current_target().loc  # todo current target or current location
-        selected = find_in_subtree(cur, target, None)
-        while selected is None:
-            selected = find_in_subtree(cur.parent_location, target, cur)
+        all_selected = find_in_subtree(cur, target, None)
+        while len(all_selected) == 0:
+            if cur.parent_location is None:
+                raise Exception(f"Couldn't find {target} in whole location tree!!!")
+            all_selected = find_in_subtree(cur.parent_location, target, cur)
             cur = cur.parent_location
-        return selected
+
+        return get_random_element(all_selected)
 
     def get_suggested_route(self, t, target_classes_or_objs, force_dt=False):
         if self.current_target_idx >= len(self.route):
@@ -243,14 +246,22 @@ class Person:
         _t = t % DAY
         self.backup_route()
         if replace:
-            self.route = self.route[:1]
+            replace_from = 1
+            # self.route = self.route[:1]
         else:
-            self.route = self.route[:self.current_target_idx + 1]
+            replace_from = self.current_target_idx + 1
+            # self.route = self.route[:self.current_target_idx + 1]
 
         # todo make sure current_target_idx is consistent with route
         route, time = self.get_suggested_route(_t, new_route_classes, force_dt=True)
+        new_route = self.route[:replace_from]
+        while time > self.route[replace_from].leaving_time:
+            replace_from += 1
+            if len(self.route) == replace_from:
+                break
+        new_route += route + self.route[replace_from:]
 
-        self.route += route
+        self.route = new_route
         self.adjust_leaving_time(t)
 
         Logger.log(f"Route updated for {self.ID} as {list(map(str, self.route))}", 'e')

@@ -1,20 +1,18 @@
 import numpy as np
 
-from backend.python.MovementEngine import MovementEngine
 from backend.python.Time import Time
 from backend.python.enums import Mobility
 from backend.python.functions import get_random_element, separate_into_classes
 from backend.python.point.Transporter import Transporter
-from backend.python.transport.Bus import Bus
-from backend.python.transport.CommercialZoneBus import CommercialZoneBus
+from backend.python.transport.SchoolBus import SchoolBus
 
 
-class CommercialZoneBusDriver(Transporter):
-    max_latches = 30
+class SchoolBusDriver(Transporter):
+    max_latches = 20
 
     def __init__(self):
         super().__init__()
-        self.main_trans = CommercialZoneBus(Mobility.RANDOM.value)
+        self.main_trans = SchoolBus(Mobility.RANDOM.value)
 
     def set_random_route(self, root, t, target_classes_or_objs=None):
         from backend.python.RoutePlanningEngine import RoutePlanningEngine
@@ -26,7 +24,7 @@ class CommercialZoneBusDriver(Transporter):
             loc = get_random_element(get_random_element(locs[ResidentialZone]).locations)
             _route, final_time = self.get_suggested_route(final_time, [loc], force_dt=True)
             route += _route
-            if final_time > Time.get_time_from_dattime(9, 15):
+            if final_time > Time.get_time_from_dattime(8, 15):
                 # raise Exception("Commercial zone bus driver arriving at the work zone too late (around 5PM)!!!")
                 break
         # finally visit the working location
@@ -39,5 +37,5 @@ class CommercialZoneBusDriver(Transporter):
         # come back the same way that bus went in the morning
         route = RoutePlanningEngine.mirror_route(route, self, duplicate_last=False, duplicate_first=False)
 
-        print(f"Bus route for {self.ID} is {list(map(str, route))}")
+        print(f"School Bus route for {self.ID} is {list(map(str, route))}")
         self.set_route(route, t)

@@ -10,17 +10,17 @@ import numpy as np
 from backend.python.transport.Walk import Walk
 
 
-class CommercialCanteen(Building):
+class SchoolCanteen(Building):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if force_dt:
             _r = [Target(
                 self,
-                t+np.random.randint(1, min(np.random.normal(Time.get_duration(0.5), Time.get_duration(0.1)), DAY - t)),
+                t + np.random.randint(0, min(np.random.normal(Time.get_duration(0.5), Time.get_duration(0.1)), DAY - t)),
                 None)]
         else:
             _r = [Target(
                 self,
-                np.random.randint(Time.get_time_from_dattime(11, 0), Time.get_time_from_dattime(17, 30)),
+                np.random.randint(Time.get_time_from_dattime(11, 0), Time.get_time_from_dattime(14, 0)),
                 None)]
 
         t = Time.get_current_time(_r, t)

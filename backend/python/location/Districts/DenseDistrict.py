@@ -6,7 +6,11 @@ from backend.python.location.Location import Location
 
 class DenseDistrict(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
-        _r,  t = get_random_element(self.locations).get_suggested_sub_route(point, t)
+        # find the block where point is at
+        cur = point.home_loc
+        while isinstance(cur, UrbanBlock) or isinstance(cur, RuralBlock):
+            cur = cur.parent_location
+        _r,  t = cur.get_suggested_sub_route(point, t)
         return _r,  t
 
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,

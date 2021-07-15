@@ -92,7 +92,8 @@ class Location:
         for x, y in zip(xs, ys):
             building = cls(Shape.CIRCLE.value, x, y, self.name + '-' + cls.__name__[:3] + str(i),
                            infectiousness=infectiousness, r=r, **kwargs)
-            building.override_transport = trans
+            if building.override_transport is None:
+                building.override_transport = trans
             self.add_sub_location(building)
             i += 1
 
@@ -155,7 +156,7 @@ class Location:
     def get_children_of_class(self, cls):
         return [b for b in self.locations if isinstance(b, cls)]
 
-    def get_suggested_sub_route(self, point, t, force_dt=False) -> (list, list, list, int):
+    def get_suggested_sub_route(self, point, t, force_dt=False) -> (list, int):
         raise NotImplementedError()
 
     def get_distance_to(self, loc):
@@ -207,7 +208,7 @@ class Location:
                             f"({p.current_target_idx}/{len(p.route)}) "
                             f"dt={t - p.current_loc_leave} "
                             f"Move {p.current_trans} "
-                            f"ADD TO TUKTUK"
+                            f"ADD TO Walk"
                             , 'c'
                         )
                         from backend.python.transport.Walk import Walk
@@ -223,7 +224,7 @@ class Location:
                             f"({p.current_target_idx}/{len(p.route)}) "
                             f"dt={t - p.current_loc_leave} "
                             f"Move {p.current_trans} "
-                            f"ADD TO WALK"
+                            f"ADD TO Tuktuk"
                             , 'c'
                         )
 
@@ -323,13 +324,11 @@ class Location:
                        'e')
 
     def get_leaving_time(self, p, t):
-        if p.route[p.current_target_idx].duration_time != -1:
-            current_loc_leave = min(t + p.route[p.current_target_idx].duration_time, t - t % DAY + DAY - 1)
-        else:
-            # bias = (t // DAY) * DAY
-            # if p.is_day_finished:
-            #     bias += DAY
-            current_loc_leave = p.route[p.current_target_idx].leaving_time % DAY + t - t % DAY
+        # if p.route[p.current_target_idx].duration_time != -1:
+        #     current_loc_leave = min(t + p.route[p.current_target_idx].duration_time, t - t % DAY + DAY - 1)
+        # else:
+
+        current_loc_leave = p.route[p.current_target_idx].leaving_time % DAY + t - t % DAY
         if p.is_day_finished and self == p.home_loc:
             if current_loc_leave < t - t % DAY + DAY:
                 current_loc_leave += DAY

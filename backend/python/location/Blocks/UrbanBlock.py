@@ -2,6 +2,7 @@ from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_random_element
 from backend.python.Time import Time
 from backend.python.location.Commercial.CommercialZone import CommercialZone
+from backend.python.location.Education.EducationZone import EducationZone
 from backend.python.location.Location import Location
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
@@ -25,4 +26,6 @@ class UrbanBlock(Location):
         self.spawn_sub_locations(CommercialZone, 1,  r=30, infectiousness=1.0, trans=Walk(Mobility.RANDOM.value),
                                  n_buildings=6, building_r=5)
         self.spawn_sub_locations(MedicalZone, 1, r=30, infectiousness=1.0, trans=Walk(Mobility.RANDOM.value),
+                                 n_buildings=2, building_r=10)
+        self.spawn_sub_locations(EducationZone, 1, r=30, infectiousness=1.0, trans=Walk(Mobility.RANDOM.value),
                                  n_buildings=2, building_r=10)

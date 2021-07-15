@@ -2,6 +2,7 @@ from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_random_element
+from backend.python.location.Building import Building
 from backend.python.location.Commercial.CommercialWorkArea import CommercialWorkArea
 from backend.python.location.Location import Location
 from backend.python.point.CommercialWorker import CommercialWorker
@@ -9,7 +10,7 @@ from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
 from backend.python.transport.Walk import Walk
 
 
-class CommercialBuilding(Location):
+class CommercialBuilding(Building):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if isinstance(point, CommercialWorker):
             work_areas = self.get_children_of_class(CommercialWorkArea)
@@ -23,22 +24,15 @@ class CommercialBuilding(Location):
                 _r3,  t = work_area.get_suggested_sub_route(point, t, force_dt=False)
                 _r += _r3
         elif isinstance(point, CommercialZoneBusDriver):
-            if t > Time.get_time_from_dattime(17, 15):
-                raise Exception("Commercial zone bus driver arriving at the work zone too late (around 5PM)!!!")
-            _r, t = [Target(self, Time.get_time_from_dattime(17, 15), -1, None)], t+1
+            _r, t = [Target(self, Time.get_time_from_dattime(17, 15), None)], Time.get_time_from_dattime(17, 15)
         else:
             raise NotImplementedError(point.__repr__())
 
         return _r, t
 
-    _id_building = 0
-
     def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
                  **kwargs):
         super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.override_transport = Walk(Mobility.RANDOM.value)
-
-        CommercialBuilding._id_building += 1
 
         n_areas = kwargs.get('n_areas')
         area_r = kwargs.get('area_r')

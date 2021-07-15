@@ -14,7 +14,10 @@ from backend.python.enums import Mobility, Shape, State
 from backend.python.point.Transporter import Transporter
 from backend.python.transport import Walk, Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
+from backend.python.transport.SchoolBus import SchoolBus
 from backend.python.transport.Tuktuk import Tuktuk
+
+import matplotlib.dates as mdates
 
 
 class Visualizer:
@@ -26,7 +29,8 @@ class Visualizer:
     point_edgecolors = {Bus.__name__.split('.')[-1]: [0, 1, 1, 0.1],
                         CommercialZoneBus.__name__.split('.')[-1]: [0, 0.5, 1, 0.1],
                         Tuktuk.__name__.split('.')[-1]: [0.5, 0, 1, 0.1],
-                        Walk.__name__.split('.')[-1]: [1, 0, 1, 0.1]}
+                        Walk.__name__.split('.')[-1]: [1, 0, 1, 0.1],
+                        SchoolBus.__name__.split('.')[-1]: [0.5, 0.5, 0, 0.1]}
 
     point_names = {State.SUSCEPTIBLE.value: State.SUSCEPTIBLE.name,
                    State.INFECTED.value: State.INFECTED.name,
@@ -50,12 +54,12 @@ class Visualizer:
     @staticmethod
     def initialize(root, test_centers, points, h, w):
         Visualizer.init_location_colors(root)
-        Visualizer.init_map_figure(root, test_centers,points, h, w)
+        Visualizer.init_map_figure(root, test_centers, points, h, w)
         Visualizer.init_info_figure()
         Visualizer.init_timeline_figure()
 
     @staticmethod
-    def init_map_figure(root, test_centers,points, h, w):
+    def init_map_figure(root, test_centers, points, h, w):
         Visualizer.map_fig, Visualizer.map_ax = plt.subplots()
 
         # drawing heat-map
@@ -267,7 +271,7 @@ class Visualizer:
             if rr.shape == Shape.CIRCLE.value:
                 circle = plt.Circle((rr.x / Visualizer.scale, rr.y / Visualizer.scale),
                                     rr.radius / Visualizer.scale, facecolor=[1, 0, 0, 0.5],
-                                    fill=rr.quarantined, edgecolor='g')
+                                    fill=rr.quarantined, edgecolor=Visualizer.location_palette[rr.__class__.__name__])
                 Visualizer.map_ax.add_patch(circle)
             elif rr.shape == Shape.POLYGON.value:
                 coord = rr.boundary
@@ -304,15 +308,23 @@ class Visualizer:
                     Logger.log("Person outside map", 'c')
                     continue
                 try:
-                    zz[int(p.all_positions[p.ID, 0] // dw) + res // 2, int(p.all_positions[p.ID, 1] // dh) + res // 2] += 1  # todo bugsy
+                    zz[int(p.all_positions[p.ID, 0] // dw) + res // 2, int(
+                        p.all_positions[p.ID, 1] // dh) + res // 2] += 1  # todo bugsy
                 except IndexError as e:
                     Logger.log(str(e), 'c')
         return xx, yy, zz
 
     @staticmethod
     def plot_position_timeline(df, root):
-        Visualizer.timeline_axs[0].cla()
+        ax = Visualizer.timeline_axs[0]
+        ax.cla()
         sns.lineplot(data=df, x='time', hue='person', y='loc', ax=Visualizer.timeline_axs[0])
+        ax.tick_params(axis='x', which='major', rotation=90, labelsize=8, colors='r', pad=2)
+        ax.tick_params(axis='x', which='minor', rotation=90, labelsize=6, colors='b')
+        ax.xaxis.set_major_locator(mdates.DayLocator())
+        ax.xaxis.set_minor_locator(mdates.HourLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%D'))
+        ax.xaxis.set_minor_formatter(mdates.DateFormatter('%H:%M'))
 
         # ======================================================================= sets background color in line plot
         def f(r):
@@ -324,7 +336,11 @@ class Visualizer:
 
         f(root)
 
-        Visualizer.timeline_axs[1].cla()
-        df['day_time'] = df['time'] % DAY
+        ax = Visualizer.timeline_axs[1]
+        ax.cla()
+        df['day_time'] = pd.to_datetime((df['time'].apply(lambda x: x.value) % (DAY * 60 * 1e9)).astype('int64'))
         sns.histplot(data=df, x='day_time', hue='loc_class', palette=Visualizer.location_palette,
                      ax=Visualizer.timeline_axs[1])
+        ax.xaxis.set_tick_params(rotation=90)
+        ax.xaxis.set_major_locator(mdates.HourLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))

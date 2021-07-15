@@ -1,7 +1,9 @@
+import datetime
+import pandas as pd
 
 class Time:
     _shift_hrs = 4
-    _scale = 1
+    _scale = 10
     t = 0
 
     @staticmethod
@@ -22,10 +24,9 @@ class Time:
                 time += route[i].duration_time
         return time
 
-
     @staticmethod
     def get_duration(hours: float):
-        return int(hours * (60 // Time._scale))
+        return int(hours * (60 // Time._scale)) + 1
 
     @staticmethod
     def get_time_from_dattime(hours, mins=0):
@@ -35,4 +36,10 @@ class Time:
     def i_to_time(i):
         hrs = Time._shift_hrs + (i // (60 // Time._scale))
         days = hrs // 24
-        return f"Day {days} {(hrs % 24):02d}{(i % (60 // Time._scale) * Time._scale):02d}h"
+        return f"Day {days} {(hrs % 24):02d}:{(i % (60 // Time._scale) * Time._scale):02d}"
+
+    @staticmethod
+    def i_to_datetime(i):
+        string = Time.i_to_time(i)
+        _, day, hours = string.split(" ")
+        return pd.to_datetime(pd.to_datetime(hours).value + datetime.timedelta(days=int(day)-1).total_seconds()*1e9)

@@ -49,6 +49,7 @@ test_center_spawn_threshold = 100
 def set_parameters(args):
     TestCenter.set_parameters(args.asymptotic_t, args.test_acc)
 
+
 # ==================================== END PARAMETERS ====================================================
 
 
@@ -70,7 +71,6 @@ def initialize():
     people += [TuktukDriver() for _ in range(10)]
     people += [CommercialZoneBusDriver() for _ in range(5)]
     people += [SchoolBusDriver() for _ in range(10)]
-
 
     for _ in range(args.i):
         idx = np.random.randint(0, args.n)
@@ -194,22 +194,32 @@ def main(initializer, args):
         # RoutePlanningEngine.update_routes(root, t)
 
         # overriding daily routes if necessary. (tested positives, etc)
-        for p in people:
-            if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
-                break
+        # for p in people:
+        #     if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
+        #         break
 
         # ==================================== plotting ==============================================================
         if plot:
             # record in daily report
             tmp_list = []
+            t_str = Time.i_to_datetime(t)
             for p in people:
                 cur = p.get_current_location()
-                person = p.ID
-                tmp_list.append({'loc': cur.ID, 'person': person,
-                                 'time': Time.i_to_datetime(t),
-                                 'loc_class': cur.__class__.__name__})
+                tmp_list.append(
+                    {
+
+                        'person': p.ID,
+                        'loc': cur.name,
+                        'person_class': p.__class__.__name__,
+                        'loc_class': cur.__class__.__name__,
+                        'cur_tar_idx': len(p.route)-1 if p.is_day_finished else p.current_target_idx,
+                        'route_len': len(p.route),
+
+                        'time': t_str,
+                    }
+                )
             df = df.append(pd.DataFrame(tmp_list))
-            if t % (Time.DAY // 2) == 0:
+            if t % (Time.DAY // 10) == 0:
                 plt.pause(0.001)
                 Visualizer.plot_map_and_points(root, people, test_centers, args.H, args.W, t)
                 Visualizer.plot_position_timeline(df, root)

@@ -40,7 +40,7 @@ def initialize2():
     # initialize people
     people = []
     people += [GarmentWorker() for _ in range(100)]
-    people += [GarmentAdmin() for _ in range(100)]
+    people += [GarmentAdmin() for _ in range(10)]
     # people += [CommercialWorker() for _ in range(10)]
     # people += [Student() for _ in range(100)]
 

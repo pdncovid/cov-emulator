@@ -316,14 +316,35 @@ class Visualizer:
     @staticmethod
     def plot_position_timeline(df, root):
         ax = Visualizer.timeline_axs[0]
-        ax.cla()
-        sns.lineplot(data=df, x='time', hue='person', y='loc', ax=Visualizer.timeline_axs[0])
+        hm = ax.collections[-1] if len(ax.collections) > 0 else None
+        g = df[['time', 'loc']].groupby(['time', 'loc'])
+        g = g.size().reset_index(name='count')
+        g = g.pivot(index='loc', columns='time', values='count')
+        g.fillna(0, inplace=True)
+
+        if hm is not None:
+            hm.colorbar.remove()
+            plt.draw()
+            ax.cla()
+        hm = sns.heatmap(g, ax=ax, cbar=True, xticklabels=g.values.shape[1]//10)
+        xlabels = hm.get_xticklabels()
+        for i in range(len(xlabels)):
+            xlabels[i].set_text(xlabels[i].get_text()[:16])
+        hm.set_xticklabels(xlabels)
+        # ax.cla()
+        # sns.lineplot(data=df, x='time', hue='person', y='loc', ax=ax)
+
         ax.tick_params(axis='x', which='major', rotation=90, labelsize=8, colors='r', pad=2)
         ax.tick_params(axis='x', which='minor', rotation=90, labelsize=6, colors='b')
-        ax.xaxis.set_major_locator(mdates.DayLocator())
-        ax.xaxis.set_minor_locator(mdates.HourLocator())
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%D'))
-        ax.xaxis.set_minor_formatter(mdates.DateFormatter('%H:%M'))
+        # ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        # ax.xaxis.set_minor_locator(mdates.AutoDateLocator())
+        # ax.xaxis.set_major_formatter(mdates.AutoDateFormatter(ax.xaxis.get_major_locator()))
+        # ax.xaxis.set_minor_formatter(mdates.AutoDateFormatter(ax.xaxis.get_minor_locator()))
+
+        # ax.xaxis.set_major_locator(mdates.DayLocator())
+        # ax.xaxis.set_minor_locator(mdates.HourLocator())
+        # ax.xaxis.set_major_formatter(mdates.DateFormatter('%D'))
+        # ax.xaxis.set_minor_formatter(mdates.DateFormatter('%H:%M'))
 
         # ======================================================================= sets background color in line plot
         def f(r):
@@ -333,13 +354,21 @@ class Visualizer:
             for ch in r.locations:
                 f(ch)
 
-        f(root)
+        # f(root)
 
         ax = Visualizer.timeline_axs[1]
         ax.cla()
         df['day_time'] = pd.to_datetime((df['time'].apply(lambda x: x.value) % (1440 * 60 * 1e9)).astype('int64'))
-        sns.histplot(data=df, x='day_time', hue='loc_class', palette=Visualizer.location_palette,
-                     ax=Visualizer.timeline_axs[1])
+        sns.histplot(data=df, x='day_time', hue='loc_class', palette=Visualizer.location_palette, ax=ax)
+        ax.xaxis.set_tick_params(rotation=90)
+        ax.xaxis.set_major_locator(mdates.HourLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+
+        ax = Visualizer.timeline_axs[2]
+        ax.cla()
+        df['per_complete'] = df['cur_tar_idx'] / df['route_len']
+
+        sns.lineplot(data=df, x='day_time', y='per_complete', hue='person_class', ax=ax)
         ax.xaxis.set_tick_params(rotation=90)
         ax.xaxis.set_major_locator(mdates.HourLocator())
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))

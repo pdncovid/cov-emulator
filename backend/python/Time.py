@@ -4,7 +4,7 @@ import pandas as pd
 
 class Time:
     _shift_hrs = 4
-    _scale = 10
+    _scale = 5
     t = 0
     DAY = -1
 

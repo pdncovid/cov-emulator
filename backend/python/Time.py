@@ -1,10 +1,17 @@
 import datetime
 import pandas as pd
 
+
 class Time:
     _shift_hrs = 4
     _scale = 10
     t = 0
+    DAY = -1
+
+    @staticmethod
+    def init():
+        Time.t = 0
+        Time.DAY = Time.get_duration(24)
 
     @staticmethod
     def increment_time_unit():
@@ -26,17 +33,17 @@ class Time:
 
     @staticmethod
     def get_duration(hours: float):
-        return int(hours * (60 // Time._scale)) + 1
+        return hours * (60 / Time._scale)
 
     @staticmethod
     def get_time_from_dattime(hours, mins=0):
-        return (hours - Time._shift_hrs) % 24 * (60 // Time._scale) + mins // Time._scale
+        return (hours - Time._shift_hrs) % 24 * (60 / Time._scale) + mins / Time._scale
 
     @staticmethod
     def i_to_time(i):
-        hrs = Time._shift_hrs + (i // (60 // Time._scale))
+        hrs = Time._shift_hrs + (i // (60 / Time._scale))
         days = hrs // 24
-        return f"Day {days} {(hrs % 24):02d}:{(i % (60 // Time._scale) * Time._scale):02d}"
+        return f"Day {int(days)} {(int(hrs) % 24):02d}:{int(i % (60 / Time._scale) * Time._scale):02d}"
 
     @staticmethod
     def i_to_datetime(i):

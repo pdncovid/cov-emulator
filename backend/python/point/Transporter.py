@@ -79,6 +79,9 @@ class Transporter(Person):
             return False
         if self.get_current_location() == self.home_loc:
             return False
+        if isinstance(p, Transporter):
+            Logger.log(f"Cant latch transporter to a transporter", 'e')
+            return False
         if p == self:
             raise Exception("Can't latch to self")
         if len(self.latched_people) < self.max_latches:

@@ -1,9 +1,9 @@
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
-from backend.python.const import DAY
+
 from backend.python.enums import Shape
-from backend.python.functions import is_inside_polygon, get_random_element
+from backend.python.functions import get_random_element
 from backend.python.Time import Time
 import numpy as np
 
@@ -15,7 +15,8 @@ class Location:
     all_locations = []
     _id = 0
 
-    def __init__(self, shape, x, y, name, exittheta=0.0, exitdist=0.9, infectiousness=1.0, **kwargs):
+    def __init__(self, shape, x, y, name, **kwargs):
+        from backend.python.const import default_infectiousness
         self.ID = Location._id
         Location._id += 1
         self.x = x
@@ -25,12 +26,18 @@ class Location:
         self.capacity = kwargs.get('capacity')
         self.recovery_p = 0.1  # todo find this, add to repr
 
+        self.infectious = default_infectiousness[self.__class__] if kwargs.get(
+            'infectiousness') is None else kwargs.get('infectiousness')
+
         self.quarantined = kwargs.get('quarantined', False)
         self.quarantined_time = -1
 
         self.boundary = []  # list of polygon points of the boundary [(x1,y1),(x2,y2), ...]
         self.radius = 0  # radius if shape is circle
+
+        exitdist = kwargs.get('exitdist', 0.9)
         if shape == Shape.CIRCLE.value:
+            exittheta = kwargs.get('exittheta', 0.0)
             self.radius = kwargs.get('r')
             if self.radius is None:
                 raise Exception("Please provide radius")
@@ -44,8 +51,6 @@ class Location:
             self.y = np.average(self.boundary[:, 1])
             self.exit = (self.x * (1 - exitdist) + self.boundary[0, 0] * exitdist,
                          self.y * (1 - exitdist) + self.boundary[0, 1] * exitdist)
-
-        self.infectious = infectiousness
 
         self.points = []
         self.is_visiting = []
@@ -85,15 +90,16 @@ class Location:
             d["override_transport"] = self.override_transport.ID
         return d
 
-    def spawn_sub_locations(self, cls, n, r, infectiousness, trans, **kwargs):
-        xs, ys = self.get_suggested_positions(n, r)
-        print(f"Automatically creating {len(xs)}/{n} {cls.__name__} for {self.__class__.__name__} {self.name}")
+    def spawn_sub_locations(self, cls, n_sub_loc, r_sub_loc, **kwargs):
+        if n_sub_loc <= 0:
+            return
+        assert r_sub_loc > 0
+        xs, ys = self.get_suggested_positions(n_sub_loc, r_sub_loc)
+        print(f"Automatically creating {len(xs)}/{n_sub_loc} {cls.__name__} for {self.__class__.__name__} {self.name}")
+        kwargs['r'] = r_sub_loc
         i = 0
         for x, y in zip(xs, ys):
-            building = cls(Shape.CIRCLE.value, x, y, self.name + '-' + cls.__name__[:3] + str(i),
-                           infectiousness=infectiousness, r=r, **kwargs)
-            if building.override_transport is None:
-                building.override_transport = trans
+            building = cls(Shape.CIRCLE.value, x, y, self.name + '-' + cls.__name__[:3] + str(i), **kwargs)
             self.add_sub_location(building)
             i += 1
 
@@ -216,7 +222,7 @@ class Location:
                         dest = walk.get_destination_of(p)
                         walk.add_point_to_transport(p, dest)
                         continue
-                    if t - p.current_loc_leave > Time.get_duration(1) and\
+                    if t - p.current_loc_leave > Time.get_duration(1) and \
                             t - p.current_loc_enter > Time.get_duration(1):
                         # todo change current transportation system to tuk tuk or taxi
                         Logger.log(
@@ -255,8 +261,6 @@ class Location:
                     p.in_inter_trans = True
                 else:
                     Logger.log(f"{p.ID} cannot leave {self}")
-
-
 
     def enter_person(self, p, target_location=None):
         t = Time.get_time()
@@ -325,13 +329,13 @@ class Location:
 
     def get_leaving_time(self, p, t):
         # if p.route[p.current_target_idx].duration_time != -1:
-        #     current_loc_leave = min(t + p.route[p.current_target_idx].duration_time, t - t % DAY + DAY - 1)
+        #     current_loc_leave = min(t + p.route[p.current_target_idx].duration_time, t - t % Time.DAY + Time.DAY - 1)
         # else:
 
-        current_loc_leave = p.route[p.current_target_idx].leaving_time % DAY + t - t % DAY
+        current_loc_leave = p.route[p.current_target_idx].leaving_time % Time.DAY + t - t % Time.DAY
         if p.is_day_finished and self == p.home_loc:
-            if current_loc_leave < t - t % DAY + DAY:
-                current_loc_leave += DAY
+            if current_loc_leave < t - t % Time.DAY + Time.DAY:
+                current_loc_leave += Time.DAY
         return current_loc_leave
 
     def remove_point(self, point):

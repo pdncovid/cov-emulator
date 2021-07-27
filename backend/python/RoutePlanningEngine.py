@@ -3,7 +3,7 @@ import copy
 from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.Target import Target
-from backend.python.const import DAY
+from backend.python.Time import Time
 from backend.python.point.Person import Person
 import numpy as np
 
@@ -19,7 +19,6 @@ class RoutePlanningEngine:
 
     @staticmethod
     def get_alternate_route(point):
-        from backend.python.location.Commercial.CommercialZone import CommercialZone
         from backend.python.location.Medical.MedicalZone import MedicalZone
         if point.temp > point.infect_temperature[0]:
             return [MedicalZone]
@@ -32,10 +31,10 @@ class RoutePlanningEngine:
                 # these people cant change route randomly!!!
                 continue
             change_change = 0.001
-            if t % DAY > 1000:
+            if t % Time.DAY > 1000:
                 change_change *= 0.0001
             if np.random.rand() < change_change:
-                p.update_route(root, t % DAY, RoutePlanningEngine.get_alternate_route(p))
+                p.update_route(root, t % Time.DAY, RoutePlanningEngine.get_alternate_route(p))
 
     @staticmethod
     def add_stops_as_targets_in_route(route, p):

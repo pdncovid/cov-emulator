@@ -3,13 +3,13 @@ import numpy as np
 from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.location.Room import Room
-from backend.python.point.CommercialWorker import CommercialWorker
+from backend.python.point.GarmentAdmin import GarmentAdmin
+from backend.python.point.GarmentWorker import GarmentWorker
 
 
-class CommercialWorkArea(Room):
+class GarmentWorkArea(Room):
     def get_suggested_sub_route(self, point, t, force_dt=False):
-        if isinstance(point, CommercialWorker):
-
+        if isinstance(point, GarmentWorker):
             lts = [Time.get_time_from_dattime(10, 0),
                    Time.get_time_from_dattime(12, 0),
                    Time.get_time_from_dattime(17, 0)]
@@ -22,6 +22,8 @@ class CommercialWorkArea(Room):
                     break
             else:
                 _r = [Target(self, t + min(np.random.randint(0, Time.get_duration(1)), Time.DAY - t), None)]
+        elif isinstance(point, GarmentAdmin):
+            _r = [Target(self, t + min(np.random.randint(0, Time.get_duration(1)), Time.DAY - t), None)]
         else:
             raise NotImplementedError()
 

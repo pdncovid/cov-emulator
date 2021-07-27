@@ -3,6 +3,7 @@ from backend.python.functions import get_random_element
 from backend.python.Time import Time
 from backend.python.location.Commercial.CommercialZone import CommercialZone
 from backend.python.location.Education.EducationZone import EducationZone
+from backend.python.location.Industrial.IndustrialZone import IndustrialZone
 from backend.python.location.Location import Location
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
@@ -16,16 +17,24 @@ class UrbanBlock(Location):
         while t < Time.get_time_from_dattime(17, 0):
             _r1, t = get_random_element(self.locations).get_suggested_sub_route(point, t)
             _r, = _r + _r1
-        return _r,  t
+        return _r, t
 
-    def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
+    def __init__(self, shape, x, y, name,
                  **kwargs):
-        super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.spawn_sub_locations(ResidentialZone, 2, r=20, infectiousness=0.8, trans=Walk(Mobility.RANDOM.value),
-                                 n_houses=10, house_r=4)
-        self.spawn_sub_locations(CommercialZone, 1,  r=30, infectiousness=1.0, trans=Walk(Mobility.RANDOM.value),
-                                 n_buildings=6, building_r=5)
-        self.spawn_sub_locations(MedicalZone, 1, r=30, infectiousness=1.0, trans=Walk(Mobility.RANDOM.value),
-                                 n_buildings=2, building_r=10)
-        self.spawn_sub_locations(EducationZone, 1, r=30, infectiousness=1.0, trans=Walk(Mobility.RANDOM.value),
-                                 n_buildings=2, building_r=10)
+        super().__init__(shape, x, y, name, **kwargs)
+        self.spawn_sub_locations(ResidentialZone, 2, 20,
+                                 n_houses=10, r_houses=4, n_parks=1, r_parks=8)
+        self.spawn_sub_locations(CommercialZone, 1, 30,
+                                 n_buildings=6, r_buildings=5, n_canteens=2, r_canteens=3,
+                                 n_areas=10, r_areas=1, area_capacity=5)
+        self.spawn_sub_locations(MedicalZone, 1, 30,
+                                 n_buildings=2, r_buildings=10,
+                                 n_quarantine=1, r_quarantine=2, quarantine_capacity=10)
+        self.spawn_sub_locations(EducationZone, 1, 30,
+                                 n_buildings=2, r_buildings=10,
+                                 n_classrooms=10, r_classrooms=2, classroom_capacity=10,
+                                 n_canteens=2, r_canteens=2)
+        self.spawn_sub_locations(IndustrialZone, 1, 30,
+                                 n_buildings=6, r_buildings=5, n_canteens=2, r_canteens=3,
+                                 n_offices=1, r_offices=3,
+                                 n_areas=10, r_areas=1, area_capacity=5)

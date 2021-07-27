@@ -32,10 +32,7 @@ class EducationZone(Location):
             raise NotImplementedError(f"Not implemented for {point.__class__.__name__}")
         return _r, t
 
-    def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
-                 n_buildings=-1, building_r=-1, **kwargs):
-        super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
+    def __init__(self, shape, x, y, name, **kwargs):
+        super().__init__(shape, x, y, name, **kwargs)
 
-        if n_buildings != -1:
-            self.spawn_sub_locations(School, n_buildings, building_r, 0.8, Walk(Mobility.RANDOM.value),
-                                     n_areas=10, area_r=building_r / 5)
+        self.spawn_sub_locations(School, kwargs.get('n_buildings', 0), kwargs.get('r_buildings', 0),**kwargs)

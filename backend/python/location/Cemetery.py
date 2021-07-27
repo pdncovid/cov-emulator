@@ -7,11 +7,11 @@ class Cemetery(Location):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         return [], t
 
-    def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
+    def __init__(self, shape, x, y, name,
                  **kwargs):
-        super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
+        super().__init__(shape, x, y, name, **kwargs)
         self.set_quarantined(True, 0)
-        self.override_transport = Walk(1.1, Mobility.RANDOM.value)
+        self.override_transport = Walk(0.1)
 
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = True

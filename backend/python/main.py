@@ -1,7 +1,5 @@
-import datetime
 import sys
 import time
-import warnings
 
 import numpy as np
 import argparse
@@ -12,78 +10,46 @@ from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
 from backend.python.CovEngine import CovEngine
 from backend.python.MovementEngine import MovementEngine
-from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import Visualizer
-from backend.python.const import DAY
+from backend.python.const import work_map
 from backend.python.enums import Mobility, Shape, TestSpawn, Containment
-from backend.python.functions import bs, count_graph_n, get_random_element, \
-    separate_into_classes
+from backend.python.functions import count_graph_n, get_random_element, separate_into_classes
 from backend.python.Time import Time
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
-from backend.python.location.Commercial.CommercialBuilding import CommercialBuilding
-from backend.python.location.Commercial.CommercialZone import CommercialZone
-from backend.python.location.Education.EducationZone import EducationZone
-from backend.python.location.Education.School import School
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.Home import Home
 from backend.python.point.BusDriver import BusDriver
-from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.location.TestCenter import TestCenter
+from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
+from backend.python.point.GarmentAdmin import GarmentAdmin
+from backend.python.point.GarmentWorker import GarmentWorker
 from backend.python.point.Person import Person
 from backend.python.point.SchoolBusDriver import SchoolBusDriver
 from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
-from backend.python.transport.Movement import Movement
 from backend.python.transport.SchoolBus import SchoolBus
 from backend.python.transport.Tuktuk import Tuktuk
 from backend.python.transport.Walk import Walk
 
-"""
-TODO: 
-Infection using contagious areas
-"""
+# ====================================== PARAMETERS =====================================================
+
 iterations = 10000
 testing_freq = 10
 test_center_spawn_check_freq = 10
 test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
-parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-parser.add_argument('-n', help='target population', default=100)
-parser.add_argument('-i', help='initial infected', type=int, default=2)
-parser.add_argument('-H', help='height', type=int, default=102)
-parser.add_argument('-W', help='width', type=int, default=102)
 
-parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
-parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
+def set_parameters(args):
+    TestCenter.set_parameters(args.asymptotic_t, args.test_acc)
 
-parser.add_argument('--containment', help='containment strategy used ', type=int,
-                    default=Containment.QUARANTINECENTER.value)
-parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
-parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
-parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)
-parser.add_argument('--test_center_r', help='Mean radius of coverage from the test center', type=int, default=20)
-parser.add_argument('--asymptotic_t', help='Mean asymptotic period. (Test acc gradually increases with disease age)',
-                    type=int, default=14)
-
-parser.add_argument('--initialize',
-                    help='How to initialize the positions (0-Random, 1-From file 2-From probability map)',
-                    type=int, default=0)
-
-args = parser.parse_args()
-
-work_map = {CommercialWorker: CommercialZone,
-            Student: EducationZone,
-            BusDriver: None,
-            TuktukDriver: None,
-            CommercialZoneBusDriver: CommercialBuilding,
-            SchoolBusDriver: School}
+# ==================================== END PARAMETERS ====================================================
 
 
 def initialize_graph():
@@ -94,13 +60,17 @@ def initialize_graph():
 
 def initialize():
     # initialize people
+    people = []
+    people += [CommercialWorker() for _ in range(args.n)]
+    people += [GarmentWorker() for _ in range(100)]
+    people += [GarmentAdmin() for _ in range(10)]
+    people += [Student() for _ in range(100)]
 
-    people = [CommercialWorker() for _ in range(args.n)]
     people += [BusDriver() for _ in range(5)]
     people += [TuktukDriver() for _ in range(10)]
     people += [CommercialZoneBusDriver() for _ in range(5)]
     people += [SchoolBusDriver() for _ in range(10)]
-    people += [Student() for _ in range(100)]
+
 
     for _ in range(args.i):
         idx = np.random.randint(0, args.n)
@@ -117,7 +87,7 @@ def initialize():
     combus = CommercialZoneBus(Mobility.RANDOM.value)
     schoolbus = SchoolBus(Mobility.RANDOM.value)
     tuktuk = Tuktuk(Mobility.RANDOM.value)
-    main_trans = [bus,tuktuk,walk]
+    main_trans = [bus, tuktuk, walk]
 
     for person in people:
 
@@ -132,17 +102,19 @@ def initialize():
     return people, root
 
 
-def update_point_parameters():
+def update_point_parameters(args):
     for p in Person.all_people:
         p.update_temp(args.common_p)
 
 
-def main(initializer):
-    PLOT = False
+def main(initializer, args):
+    plot = True
     global log
     log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
+    set_parameters(args)
 
-    TestCenter.set_parameters(args.asymptotic_t, args.test_acc)
+    # initialize simulator timer
+    Time.init()
 
     # initialize graphs and people
     people, root = initializer()
@@ -166,7 +138,7 @@ def main(initializer):
     cemetery = classes[Cemetery]
 
     # initialize plots
-    if PLOT:
+    if plot:
         Visualizer.initialize(root, test_centers, people, args.H, args.W)
 
     # initial iterations to initialize positions of the people
@@ -183,14 +155,14 @@ def main(initializer):
         log.log_people(people)
 
         # reset day
-        if t % DAY == 0:
+        if t % Time.DAY == 0:
             good = True
             for p in people:
                 if not p.reset_day(t):
                     good = False
             if not good:
                 a = input("RESET FAILED")
-                raise Exception("Day reset failed")
+            #     raise Exception("Day reset failed")
 
         # process movement
         MovementEngine.process_people_switching(root, t)
@@ -216,7 +188,7 @@ def main(initializer):
         # check locations for any changes to quarantine state
         ContainmentEngine.check_location_state_updates(root, t)
 
-        update_point_parameters()
+        update_point_parameters(args)
 
         # change routes randomly for some people
         # RoutePlanningEngine.update_routes(root, t)
@@ -227,7 +199,7 @@ def main(initializer):
                 break
 
         # ==================================== plotting ==============================================================
-        if PLOT:
+        if plot:
             # record in daily report
             tmp_list = []
             for p in people:
@@ -237,15 +209,41 @@ def main(initializer):
                                  'time': Time.i_to_datetime(t),
                                  'loc_class': cur.__class__.__name__})
             df = df.append(pd.DataFrame(tmp_list))
-            if t % (DAY // 1) == 0:
+            if t % (Time.DAY // 2) == 0:
                 plt.pause(0.001)
                 Visualizer.plot_map_and_points(root, people, test_centers, args.H, args.W, t)
                 Visualizer.plot_position_timeline(df, root)
-                Visualizer.plot_info(people)
+                # Visualizer.plot_info(people)
 
         Time.increment_time_unit()
 
 
 if __name__ == "__main__":
+    global args
+    parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
+    parser.add_argument('-n', help='target population', default=100)
+    parser.add_argument('-i', help='initial infected', type=int, default=2)
+    parser.add_argument('-H', help='height', type=int, default=102)
+    parser.add_argument('-W', help='width', type=int, default=102)
+
+    parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
+    parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
+
+    parser.add_argument('--containment', help='containment strategy used ', type=int,
+                        default=Containment.QUARANTINECENTER.value)
+    parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
+    parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
+    parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)
+    parser.add_argument('--test_center_r', help='Mean radius of coverage from the test center', type=int, default=20)
+    parser.add_argument('--asymptotic_t',
+                        help='Mean asymptotic period. (Test acc gradually increases with disease age)',
+                        type=int, default=14)
+
+    parser.add_argument('--initialize',
+                        help='How to initialize the positions (0-Random, 1-From file 2-From probability map)',
+                        type=int, default=0)
+
+    args = parser.parse_args()
+
     sys.setrecursionlimit(1000000)
-    main(initializer=initialize)
+    main(initialize, args)

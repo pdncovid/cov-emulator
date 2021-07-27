@@ -13,10 +13,9 @@ class COVIDQuarantineZone(Building):
         t = Time.get_current_time(_r, t)
         return _r, t
 
-    def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
+    def __init__(self, shape, x, y, name,
                  **kwargs):
-        super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.recovery_p = 0.8
+        super().__init__(shape, x, y, name, **kwargs)
 
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = True

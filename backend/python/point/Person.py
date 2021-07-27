@@ -1,7 +1,7 @@
 import numpy as np
 
 from backend.python.Logger import Logger
-from backend.python.const import DAY
+from backend.python.Time import Time
 from backend.python.enums import State
 from backend.python.functions import find_in_subtree, get_random_element
 
@@ -157,38 +157,38 @@ class Person:
             self.current_target_idx = len(self.route) - 1
 
     def reset_day(self, t):
-        self.is_day_finished = False
-        self.adjust_leaving_time(t)
-        self.character_vector = np.dot(self.get_character_transform_matrix(), self.character_vector.T)
-
         if self.get_current_location() != self.home_loc and not self.get_current_location().quarantined:
-            Logger.log(f"{self.ID} not at home when day resets. (Now at {self.get_current_location().name} "
-                       f"from {self.all_movement_enter_times[self.ID]}) "
+            Logger.log(f"{self.ID} {self.__class__.__name__} not at home when day resets. (Now at {self.get_current_location().name} "
+                       f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])}) "
                        f"CTarget {self.current_target_idx}/{len(self.route)} "
                        f"Route {list(map(str, self.route))}. "
                        f"{self.__repr__()}"
 
                        , 'c')
             return False
+
+        self.is_day_finished = False
+        self.adjust_leaving_time(t)
+        self.character_vector = np.dot(self.get_character_transform_matrix(), self.character_vector.T)
         return True
 
     def on_enter_location(self, t):
         pass
 
     def adjust_leaving_time(self, t):
-        _t = t - t % DAY
+        _t = t - t % Time.DAY
         for i in range(len(self.route)):
             if self.route[i].leaving_time == -1:
                 continue
-            if self.route[i].leaving_time < _t or self.route[i].leaving_time > _t + DAY:
-                self.route[i].leaving_time = self.route[i].leaving_time % DAY + _t
+            if self.route[i].leaving_time < _t or self.route[i].leaving_time > _t + Time.DAY:
+                self.route[i].leaving_time = self.route[i].leaving_time % Time.DAY + _t
 
     def increment_target_location(self):
         msg = f"{self.ID} incremented target from {self.get_current_target()} to "
         self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
         from backend.python.MovementEngine import MovementEngine
         next_loc = MovementEngine.find_next_location(self)
-        msg += f"{self.get_current_target()} ({self.current_target_idx} th target). Next location is {next_loc}."
+        msg += f"{self.get_current_target()} ({self.current_target_idx}/{len(self.route)} target). Next location is {next_loc}."
         Logger.log(msg, 'c')
         if self.current_target_idx == 0:
             self.is_day_finished = True
@@ -243,7 +243,7 @@ class Person:
             return
 
         Logger.log(f"Current route for {self.ID} is {list(map(str, self.route))}", 'e')
-        _t = t % DAY
+        _t = t % Time.DAY
         self.backup_route()
         route, time = self.get_suggested_route(_t, new_route_classes, force_dt=True)
 

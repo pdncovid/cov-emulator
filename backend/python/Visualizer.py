@@ -2,11 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
 from backend.python.Logger import Logger
-from backend.python.const import DAY
+
 from backend.python.Time import Time
 from backend.python.location.Location import Location
 
@@ -98,7 +97,7 @@ class Visualizer:
     @staticmethod
     def init_timeline_figure():
         # ======================================================================= plot line plot
-        fig, axs = plt.subplots(1, 2)
+        fig, axs = plt.subplots(1, 3)
         Visualizer.timeline_fig = fig
         Visualizer.timeline_axs = axs
 
@@ -338,7 +337,7 @@ class Visualizer:
 
         ax = Visualizer.timeline_axs[1]
         ax.cla()
-        df['day_time'] = pd.to_datetime((df['time'].apply(lambda x: x.value) % (DAY * 60 * 1e9)).astype('int64'))
+        df['day_time'] = pd.to_datetime((df['time'].apply(lambda x: x.value) % (1440 * 60 * 1e9)).astype('int64'))
         sns.histplot(data=df, x='day_time', hue='loc_class', palette=Visualizer.location_palette,
                      ax=Visualizer.timeline_axs[1])
         ax.xaxis.set_tick_params(rotation=90)

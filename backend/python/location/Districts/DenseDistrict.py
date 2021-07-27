@@ -13,8 +13,7 @@ class DenseDistrict(Location):
         _r,  t = cur.get_suggested_sub_route(point, t)
         return _r,  t
 
-    def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
-                 **kwargs):
-        super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
-        self.spawn_sub_locations(UrbanBlock, 15, r=100, infectiousness=0.8, trans=None)
-        self.spawn_sub_locations(RuralBlock, 5, r=250, infectiousness=0.4, trans=None)
+    def __init__(self, shape, x, y, name, **kwargs):
+        super().__init__(shape, x, y, name, **kwargs)
+        self.spawn_sub_locations(UrbanBlock, 15, 100)
+        self.spawn_sub_locations(RuralBlock, 5, 250)

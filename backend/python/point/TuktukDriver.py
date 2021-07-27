@@ -40,7 +40,7 @@ class TuktukDriver(Transporter):
             if loc == root:  # if we put root to route, people will drop at root. then he/she will get stuck
                 continue
 
-            _route,  final_time = self.get_suggested_route(final_time, [loc])
+            _route,  final_time = self.get_suggested_route(final_time, [loc], force_dt=True)
             route += _route
             dist = old_loc.get_distance_to(loc)
             old_loc = loc

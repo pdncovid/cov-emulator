@@ -5,9 +5,10 @@ from backend.python.functions import get_random_element
 from backend.python.location.Building import Building
 from backend.python.location.Commercial.CommercialWorkArea import CommercialWorkArea
 from backend.python.location.Location import Location
+from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
-from backend.python.transport.Walk import Walk
+from backend.python.point.TuktukDriver import TuktukDriver
 
 
 class CommercialBuilding(Building):
@@ -21,21 +22,21 @@ class CommercialBuilding(Building):
 
             _r = _r1 + _r2
             if not force_dt:
-                _r3,  t = work_area.get_suggested_sub_route(point, t, force_dt=False)
+                _r3, t = work_area.get_suggested_sub_route(point, t, force_dt=False)
                 _r += _r3
         elif isinstance(point, CommercialZoneBusDriver):
             _r, t = [Target(self, Time.get_time_from_dattime(17, 15), None)], Time.get_time_from_dattime(17, 15)
+        elif isinstance(point, BusDriver):
+            _r, t = [Target(self, t + Time.get_duration(0.5), None)], t + Time.get_duration(0.5)
+        elif isinstance(point, TuktukDriver):
+            _r, t = [Target(self, t + Time.get_duration(0.5), None)], t + Time.get_duration(0.5)
         else:
             raise NotImplementedError(point.__repr__())
 
         return _r, t
 
-    def __init__(self, shape: Shape, x: float, y: float, name: str, exittheta=0.0, exitdist=0.9, infectiousness=1.0,
-                 **kwargs):
-        super().__init__(shape, x, y, name, exittheta, exitdist, infectiousness, **kwargs)
+    def __init__(self, shape, x, y, name, **kwargs):
+        super().__init__(shape, x, y, name, **kwargs)
 
-        n_areas = kwargs.get('n_areas')
-        area_r = kwargs.get('area_r')
-        if n_areas != -1:
-            self.spawn_sub_locations(CommercialWorkArea, n_areas, area_r, 0.99, Walk(Mobility.RANDOM.value),
-                                     capacity=5)
+        self.spawn_sub_locations(CommercialWorkArea, kwargs.get('n_areas', 0), kwargs.get('r_areas', 0),
+                                 capacity=kwargs.get('area_capacity', 10), **kwargs)

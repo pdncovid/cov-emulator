@@ -5,13 +5,12 @@ from backend.python.Time import Time
 from backend.python.location.Building import Building
 
 
-class CommercialCanteen(Building):
+class GarmentCanteen(Building):
     def get_suggested_sub_route(self, point, t, force_dt=False):
         if force_dt:
             _r = [Target(
                 self,
-                t + np.random.rand()*min(np.random.uniform(Time.get_duration(0.25), Time.get_duration(0.5)),
-                                             Time.DAY - t),
+                t + np.random.rand()*min(np.random.uniform(Time.get_duration(0.25), Time.get_duration(0.5)), Time.DAY - t),
                 None)]
         else:
             _r = [Target(

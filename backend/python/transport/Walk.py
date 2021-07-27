@@ -7,7 +7,7 @@ import numpy as np
 class Walk(Movement):
     all_instances = []
 
-    def __init__(self, mobility_pattern: Mobility):
+    def __init__(self, mobility_pattern=Mobility.RANDOM.value):
         velocity_cap = 2*1000/Time.get_duration(1)
         super().__init__(velocity_cap, mobility_pattern)
         self.destination_reach_eps = 1.0

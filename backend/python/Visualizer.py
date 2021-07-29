@@ -366,7 +366,7 @@ class Visualizer:
 
         ax = Visualizer.timeline_axs[2]
         ax.cla()
-        df['per_complete'] = df['cur_tar_idx'] / df['route_len']
+        df['per_complete'] = df['cur_tar_idx'] / (df['route_len']-1)
 
         sns.lineplot(data=df, x='day_time', y='per_complete', hue='person_class', ax=ax)
         ax.xaxis.set_tick_params(rotation=90)

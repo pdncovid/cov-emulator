@@ -19,6 +19,7 @@ from backend.python.functions import count_graph_n, get_random_element, separate
 from backend.python.Time import Time
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
+from backend.python.location.Districts.DenseDistrict import DenseDistrict
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.Home import Home
 from backend.python.point.BusDriver import BusDriver
@@ -52,32 +53,25 @@ def set_parameters(args):
 
 # ==================================== END PARAMETERS ====================================================
 
-
-def initialize_graph():
-    root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
-    root.add_sub_location(Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3))
-    return root
-
-
 def initialize():
     # initialize people
     people = []
-    people += [CommercialWorker() for _ in range(args.n)]
-    people += [GarmentWorker() for _ in range(100)]
-    people += [GarmentAdmin() for _ in range(10)]
-    people += [Student() for _ in range(100)]
+    people += [CommercialWorker() for _ in range(int(0.3 * args.n))]
+    people += [GarmentWorker() for _ in range(int(0.3 * args.n))]
+    people += [GarmentAdmin() for _ in range(int(0.03 * args.n))]
+    people += [Student() for _ in range(int(0.3 * args.n))]
 
-    people += [BusDriver() for _ in range(5)]
-    people += [TuktukDriver() for _ in range(10)]
-    people += [CommercialZoneBusDriver() for _ in range(5)]
-    people += [SchoolBusDriver() for _ in range(10)]
+    people += [BusDriver() for _ in range(int(0.05 * args.n))]
+    people += [TuktukDriver() for _ in range(int(0.05 * args.n))]
+    people += [CommercialZoneBusDriver() for _ in range(int(0.03 * args.n))]
+    people += [SchoolBusDriver() for _ in range(int(0.02 * args.n))]
 
     for _ in range(args.i):
         idx = np.random.randint(0, args.n)
         people[idx].set_infected(0, people[idx], args.common_p)
 
     # initialize location tree
-    root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
+    root = DenseDistrict(Shape.CIRCLE.value, 0, 0, "D1", r=500)
     root.add_sub_location(Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3))
     loc_classes = separate_into_classes(root)
 
@@ -139,12 +133,14 @@ def main(initializer, args):
 
     # initialize plots
     if plot:
-        Visualizer.initialize(root, test_centers, people, args.H, args.W)
+        Visualizer.initialize(root, test_centers, people, root.radius, root.radius)
 
     # initial iterations to initialize positions of the people
     for t in range(5):
         print(f"initializing {t}")
         MovementEngine.move_people(Person.all_people)
+    process_disease_freq = Time.get_duration(2)
+    process_disease_at = process_disease_freq
 
     # main iteration loop
     for i in range(iterations):
@@ -169,9 +165,11 @@ def main(initializer, args):
         MovementEngine.move_people(Person.all_people)
 
         # process transmission and recovery
-        TransmissionEngine.disease_transmission(people, t, args.infect_r)
-        CovEngine.process_recovery(people, t)
-        CovEngine.process_death(people, t, cemetery)
+        if t > process_disease_at:
+            TransmissionEngine.disease_transmission(people, t, args.infect_r)
+            CovEngine.process_recovery(people, t)
+            CovEngine.process_death(people, t, cemetery)
+            process_disease_at += process_disease_freq
 
         # process testing
         if t % testing_freq == 0:
@@ -179,8 +177,8 @@ def main(initializer, args):
 
         # spawn new test centers
         if t % test_center_spawn_check_freq == 0:
-            test_center = TestCenter.spawn_test_center(test_center_spawn_method, people, test_centers, args.H,
-                                                       args.W, args.test_center_r, test_center_spawn_threshold)
+            test_center = TestCenter.spawn_test_center(test_center_spawn_method, people, test_centers, root.radius,
+                                                       root.radius, args.test_center_r, test_center_spawn_threshold)
             if test_center is not None:
                 print(f"Added new TEST CENTER at {test_center.x} {test_center.y}")
                 test_centers.append(test_center)
@@ -212,7 +210,7 @@ def main(initializer, args):
                         'loc': cur.name,
                         'person_class': p.__class__.__name__,
                         'loc_class': cur.__class__.__name__,
-                        'cur_tar_idx': len(p.route)-1 if p.is_day_finished else p.current_target_idx,
+                        'cur_tar_idx': len(p.route) - 1 if p.is_day_finished else p.current_target_idx,
                         'route_len': len(p.route),
 
                         'time': t_str,
@@ -221,9 +219,9 @@ def main(initializer, args):
             df = df.append(pd.DataFrame(tmp_list))
             if t % (Time.DAY // 10) == 0:
                 plt.pause(0.001)
-                Visualizer.plot_map_and_points(root, people, test_centers, args.H, args.W, t)
+                Visualizer.plot_map_and_points(root, people, test_centers, root.radius, root.radius, t)
                 Visualizer.plot_position_timeline(df, root)
-                # Visualizer.plot_info(people)
+                Visualizer.plot_info(people)
 
         Time.increment_time_unit()
 
@@ -231,10 +229,8 @@ def main(initializer, args):
 if __name__ == "__main__":
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-    parser.add_argument('-n', help='target population', default=100)
+    parser.add_argument('-n', help='target population', default=1000)
     parser.add_argument('-i', help='initial infected', type=int, default=2)
-    parser.add_argument('-H', help='height', type=int, default=102)
-    parser.add_argument('-W', help='width', type=int, default=102)
 
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
     parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)

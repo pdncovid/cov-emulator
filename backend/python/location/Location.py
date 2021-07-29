@@ -106,13 +106,14 @@ class Location:
     def get_suggested_positions(self, n, radius):
 
         if self.shape == Shape.CIRCLE.value:
-            all = []
+            possible_positions = []
+            failed_positions = []
             x = self.x
             y = self.y
             r1 = self.radius
             r2 = radius
             _r = 0
-            for _r in range(int((r1 - r2) // (2 * r2))):
+            for _r in range(int((r1) // (2 * r2))):
                 _r = r1 - r2 - 2 * r2 * _r
 
                 theta = np.arcsin(r2 / _r)
@@ -121,22 +122,25 @@ class Location:
                     _x = _r * np.cos(_theta)
                     _y = _r * np.sin(_theta)
                     # check if the current circle intersect another location
-                    if not self.is_intersecting(_x + x, _y + y, r2):
-                        all.append((_x + x, _y + y))
-
-            if _r > r2 and not self.is_intersecting(x, y, r2):
-                all.append((x, y))
+                    if not self.is_intersecting(_x + x, _y + y, r2, eps=r2 // 2):
+                        possible_positions.append((_x + x, _y + y))
+                    else:
+                        failed_positions.append((_x + x, _y + y))
+            if _r > r2 and not self.is_intersecting(x, y, r2, eps=r2 // 2):
+                possible_positions.append((x, y))
 
             # pick the n (x, y) points
 
-            idx = np.arange(len(all))
-            np.random.shuffle(idx)
-            if len(idx) < n:
-                print(f"Cannot make {n} locations with {radius}. Making only {len(idx)} locations")
+            if len(possible_positions) < n:
+                print(f"Cannot make {n} locations with {radius}. Making only {len(possible_positions)} locations")
+                while len(possible_positions) != n:
+                    possible_positions.append(failed_positions.pop())
             else:
-                idx = idx[:n]
-            x = [all[c][0] for c in idx]
-            y = [all[c][1] for c in idx]
+                possible_positions = possible_positions[:n]
+            idx = np.arange(len(possible_positions))
+            np.random.shuffle(idx)
+            x = [possible_positions[c][0] for c in idx]
+            y = [possible_positions[c][1] for c in idx]
 
         elif self.shape == Shape.POLYGON.value:
             # TODO
@@ -322,10 +326,10 @@ class Location:
             else:
                 trans = p.main_trans
             trans.add_point_to_transport(p, target_location)
-            Logger.log(f"Entered {p.ID} to {self.name} using {trans}. Destination {target_location}", 'e')
+            Logger.log(f"Entered {p.ID} to {self.name} using {trans}. Destination {target_location}", 'i')
         else:
             Logger.log(f"Entered {p.ID} to {self.name} latched with {p.latched_to.ID} Destination {target_location}",
-                       'e')
+                       'i')
 
     def get_leaving_time(self, p, t):
         # if p.route[p.current_target_idx].duration_time != -1:
@@ -352,11 +356,11 @@ class Location:
         # if self.shape == Shape.CIRCLE.value:
         return (x - self.x) ** 2 + (y - self.y) ** 2 <= self.radius ** 2
 
-    def is_intersecting(self, x, y, r):
+    def is_intersecting(self, x, y, r, eps=0):
         _is = False
         for l in self.locations:
             if l.shape == Shape.CIRCLE.value:
-                if (l.x - x) ** 2 + (l.y - y) ** 2 < r ** 2 + l.radius ** 2:
+                if (l.x - x) ** 2 + (l.y - y) ** 2 < r ** 2 + l.radius ** 2 - eps ** 2:
                     _is = True
                     break
             # todo other shapes

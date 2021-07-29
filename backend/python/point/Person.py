@@ -126,9 +126,6 @@ class Person:
         else:
             d['infected_location_id'] = self.infected_location.ID
 
-        # d['route'] = [r.ID for r in self.route].__str__().replace(',', '|').replace(' ', '')
-        # d['duration_time'] = self.duration_time.__str__().replace(',', '|').replace(' ', '')
-        # d['leaving_time'] = self.leaving_time.__str__().replace(',', '|').replace(' ', '')
         return d
 
     def initialize_character_vector(self, vec):
@@ -140,31 +137,23 @@ class Person:
     def backup_route(self):
         if self._backup_route is None:
             self._backup_route = [r for r in self.route]
-            # self._backup_duration_time = [r for r in self.duration_time]
-            # self._backup_leaving_time = [r for r in self.leaving_time]
-            # self._backup_likely_trans = [r for r in self.likely_trans]
 
     def restore_route(self):
         if self._backup_route is not None:
             self.route = [r for r in self._backup_route]
-            # self.duration_time = [r for r in self._backup_duration_time]
-            # self.leaving_time = [r for r in self._backup_leaving_time]
-            # self.leaving_time = [r for r in self._backup_likely_trans]
             self._backup_route = None
-            # self._backup_duration_time = None
-            # self._backup_leaving_time = None
-            # self._backup_likely_trans = None
             self.current_target_idx = len(self.route) - 1
 
     def reset_day(self, t):
         if self.get_current_location() != self.home_loc and not self.get_current_location().quarantined:
-            Logger.log(f"{self.ID} {self.__class__.__name__} not at home when day resets. (Now at {self.get_current_location().name} "
-                       f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])}) "
-                       f"CTarget {self.current_target_idx}/{len(self.route)} "
-                       f"Route {list(map(str, self.route))}. "
-                       f"{self.__repr__()}"
+            Logger.log(
+                f"{self.ID} {self.__class__.__name__} not at home when day resets. (Now at {self.get_current_location().name} "
+                f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])}) "
+                f"CTarget {self.current_target_idx}/{len(self.route)} "
+                f"Route {list(map(str, self.route))}. "
+                f"{self.__repr__()}"
 
-                       , 'c')
+                , 'c')
             return False
 
         self.is_day_finished = False
@@ -189,7 +178,7 @@ class Person:
         from backend.python.MovementEngine import MovementEngine
         next_loc = MovementEngine.find_next_location(self)
         msg += f"{self.get_current_target()} ({self.current_target_idx}/{len(self.route)} target). Next location is {next_loc}."
-        Logger.log(msg, 'c')
+        Logger.log(msg, 'i')
         if self.current_target_idx == 0:
             self.is_day_finished = True
             Logger.log(f"{self.ID} finished daily route!", 'c')
@@ -205,14 +194,24 @@ class Person:
         # find closest (in tree) object to target
         if cur is None:
             cur = self.get_current_target().loc  # todo current target or current location
-        all_selected = find_in_subtree(cur, target, None)
-        while len(all_selected) == 0:
-            if cur.parent_location is None:
-                raise Exception(f"Couldn't find {target} in whole location tree!!!")
-            all_selected = find_in_subtree(cur.parent_location, target, cur)
+        possible_targets = []
+        _possible = find_in_subtree(cur, target, None)
+        if len(_possible) > 0:
+            possible_targets.append(_possible)
+        while cur.parent_location is not None:
+            _possible = find_in_subtree(cur.parent_location, target, cur)
+            if len(_possible) > 0:
+                possible_targets.append(_possible)
             cur = cur.parent_location
+        if len(possible_targets) == 0:
+            raise Exception(f"Could not find {target} in the tree!!!")
 
-        return get_random_element(all_selected)
+        level = int(np.floor(np.random.exponential()))
+        level = min(level, len(possible_targets) - 1)
+
+        if level > 0:
+            Logger.log(f"{self} is going to {target} that is at level {level}", 'e')
+        return get_random_element(possible_targets[level])
 
     def get_suggested_route(self, t, target_classes_or_objs, force_dt=False):
         if self.current_target_idx >= len(self.route):

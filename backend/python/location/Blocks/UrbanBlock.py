@@ -16,14 +16,14 @@ class UrbanBlock(Location):
         _r = []
         while t < Time.get_time_from_dattime(17, 0):
             _r1, t = get_random_element(self.locations).get_suggested_sub_route(point, t)
-            _r, = _r + _r1
+            _r = _r + _r1
         return _r, t
 
     def __init__(self, shape, x, y, name,
                  **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
         self.spawn_sub_locations(ResidentialZone, 2, 20,
-                                 n_houses=10, r_houses=4, n_parks=1, r_parks=8)
+                                 n_houses=10, r_houses=4, n_parks=1, r_parks=5)
         self.spawn_sub_locations(CommercialZone, 1, 30,
                                  n_buildings=6, r_buildings=5, n_canteens=2, r_canteens=3,
                                  n_areas=10, r_areas=1, area_capacity=5)

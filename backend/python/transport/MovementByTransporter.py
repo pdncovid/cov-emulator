@@ -46,7 +46,7 @@ class MovementByTransporter(Movement):
             else:
                 hops = -1
             hops2reach[i] = hops
-        Logger.log(f"Path to target {list(map(str, path2next_tar))} {hops2reach}", 'e')
+        Logger.log(f"Path to target {list(map(str, path2next_tar))} {hops2reach}", 'i')
         des = None
         best = 1e10
 
@@ -68,13 +68,13 @@ class MovementByTransporter(Movement):
         #     if isinstance(pl, Transporter):
         pl = transporter
         Logger.log(f"Trying to latch {p.ID} ({path2next_tar[-1].name}) in {self} to transporter "
-                   f"{pl.ID} ({list(map(str, pl.route))}) {pl.get_current_location()}", 'e')
+                   f"{pl.ID} ({list(map(str, pl.route))}) {pl.get_current_location()}", 'i')
         cost, des = self.find_feasibility(pl, path2next_tar)
         if des is not None:
             possible_transporters.append((cost, pl, des))
 
         if len(possible_transporters) == 0:
-            Logger.log("No one to latch", 'e')
+            Logger.log("No one to latch", 'i')
             return
         possible_transporters.sort(key=lambda x: x[0])
 
@@ -82,7 +82,7 @@ class MovementByTransporter(Movement):
             (cost, transporter, destination) = possible_transporters[i]
             if transporter.latch(p, destination):
                 Logger.log(f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}",
-                           'c')
+                           'e')
                 break
 
     def try_to_latch_people(self, transporter):

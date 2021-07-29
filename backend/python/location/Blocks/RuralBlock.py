@@ -15,7 +15,7 @@ class RuralBlock(Location):
         _r = []
         while t < Time.get_time_from_dattime(20, 0):
             _r1, t = get_random_element(self.locations).get_suggested_sub_route(point, t)
-            _r,  = _r + _r1
+            _r = _r + _r1
         return _r, t
 
     def __init__(self, shape, x, y, name, **kwargs):

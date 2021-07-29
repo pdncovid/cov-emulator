@@ -15,5 +15,5 @@ class DenseDistrict(Location):
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
-        self.spawn_sub_locations(UrbanBlock, 15, 100)
-        self.spawn_sub_locations(RuralBlock, 5, 250)
+        self.spawn_sub_locations(UrbanBlock, 3, 100)
+        self.spawn_sub_locations(RuralBlock, 1, 200)

@@ -38,7 +38,7 @@ class Logger:
 
             if print:
                 ch = MyStreamHandler(Logger.write_level_)
-                ch.setLevel(logging.CRITICAL)
+                ch.setLevel(logging.ERROR)
                 Logger._logger.addHandler(ch)
 
             if write:

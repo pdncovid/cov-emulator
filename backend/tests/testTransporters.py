@@ -69,7 +69,7 @@ def initialize2():
         person.set_home_loc(get_random_element(loc_classes[Home]))
         person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc)  # todo
         target_classes_or_objs = [person.home_loc, person.work_loc]
-        person.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
+        person.get_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
         if person.main_trans is None:
             person.main_trans = get_random_element(main_trans)
 

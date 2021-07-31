@@ -59,7 +59,7 @@ class Visualizer:
 
     @staticmethod
     def init_map_figure(root, test_centers, points, h, w):
-        Visualizer.map_fig, Visualizer.map_ax = plt.subplots()
+        Visualizer.map_fig, Visualizer.map_ax = plt.subplots(figsize=(8,8))
 
         # drawing heat-map
         xx, yy, zz = Visualizer.get_heatmap(points, h, w)
@@ -97,7 +97,7 @@ class Visualizer:
     @staticmethod
     def init_timeline_figure():
         # ======================================================================= plot line plot
-        fig, axs = plt.subplots(1, 3)
+        fig, axs = plt.subplots(1, 3, figsize=(15,6))
         Visualizer.timeline_fig = fig
         Visualizer.timeline_axs = axs
 

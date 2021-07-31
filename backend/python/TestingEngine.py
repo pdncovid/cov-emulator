@@ -1,13 +1,13 @@
 import numpy as np
 
 from backend.python.functions import bs
-from backend.python.point.Person import Person
 
 
 class TestingEngine:
 
     @staticmethod
     def testing_procedure(points, test_centers, t):
+        from backend.python.point.Person import Person
         x, y = Person.all_positions[:, 0], Person.all_positions[:, 1]
         xs_idx = np.argsort(x)
         ys_idx = np.argsort(y)

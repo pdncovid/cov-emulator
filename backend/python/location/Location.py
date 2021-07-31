@@ -1,6 +1,8 @@
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
+from backend.python.Target import Target
 
 from backend.python.enums import Shape
 from backend.python.functions import get_random_element
@@ -166,8 +168,13 @@ class Location:
     def get_children_of_class(self, cls):
         return [b for b in self.locations if isinstance(b, cls)]
 
-    def get_suggested_sub_route(self, point, t, force_dt=False) -> (list, int):
-        raise NotImplementedError()
+    def get_suggested_sub_route(self, point, route_so_far) -> list:
+        from backend.python.const import get_dur_for_p_in_loc_at_t
+        t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else 0
+        dur = get_dur_for_p_in_loc_at_t(point, self, t)
+        _r = [Target(self, t + dur, None)]
+        route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
+        return route_so_far
 
     def get_distance_to(self, loc):
         return ((self.x - loc.x) ** 2 + (self.y - loc.y) ** 2) ** 0.5

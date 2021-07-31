@@ -1,3 +1,4 @@
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.enums import Mobility, Shape
@@ -8,23 +9,21 @@ from backend.python.location.Medical.Hospital import Hospital
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.point.Student import Student
+from backend.python.point.Transporter import Transporter
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Walk import Walk
 
 
 class MedicalZone(Location):
-    def get_suggested_sub_route(self, point, t, force_dt=False):
-
-        if isinstance(point, CommercialWorker) or isinstance(point, Student):
+    def get_suggested_sub_route(self, point, route_so_far):
+        if isinstance(point, Transporter):
+            route_so_far = super(MedicalZone, self).get_suggested_sub_route(point, route_so_far)
+        else:
             hospitals = self.get_children_of_class(Hospital)
 
-            _r, t = get_random_element(hospitals).get_suggested_sub_route(point, t, force_dt)
-        elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
-            _r, t = [Target(self, t + Time.get_duration(.5), None)], t + Time.get_duration(.5)
-        else:
-            raise NotImplementedError(f"Not implemented for {point.__class__.__name__}")
+            route_so_far = get_random_element(hospitals).get_suggested_sub_route(point, route_so_far)
 
-        return _r, t
+        return route_so_far
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)

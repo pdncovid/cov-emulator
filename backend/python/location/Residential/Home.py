@@ -1,3 +1,4 @@
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.enums import Shape
 from backend.python.Time import Time
@@ -7,11 +8,8 @@ import numpy as np
 
 
 class Home(Building):
-    def get_suggested_sub_route(self, point, t, force_dt=False):
-        if force_dt:
-            _r = [Target(self, t + np.random.randint(0, min(Time.get_duration(1), Time.DAY - t)), None)]
-
-        else:
+    def get_suggested_sub_route(self, point, route_so_far):
+        if len(route_so_far) == 0:
             # home leaving time in the morning
             from backend.python.point.TuktukDriver import TuktukDriver
             if isinstance(point, TuktukDriver):
@@ -19,8 +17,10 @@ class Home(Building):
             else:
                 leave_at = np.random.randint(Time.get_time_from_dattime(5, 0), Time.get_time_from_dattime(8, 30))
             _r = [Target(self, leave_at, None)]
-        t = Time.get_current_time(_r, t)
-        return _r, t
+            route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
+        else:
+            route_so_far = super(Home, self).get_suggested_sub_route(point, route_so_far)
+        return route_so_far
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)

@@ -4,8 +4,8 @@ from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
-from backend.python.point.Person import Person
 import numpy as np
+
 
 
 class RoutePlanningEngine:
@@ -26,6 +26,8 @@ class RoutePlanningEngine:
 
     @staticmethod
     def update_routes(root, t):
+
+        from backend.python.point.Person import Person
         for p in Person.all_people:
             if (p.is_infected() and p.is_tested_positive()) or p.is_dead():
                 # these people cant change route randomly!!!
@@ -37,11 +39,36 @@ class RoutePlanningEngine:
                 p.update_route(root, t % Time.DAY, RoutePlanningEngine.get_alternate_route(p))
 
     @staticmethod
+    def set_route(p, root, day, t):
+
+        from backend.python.point.Transporter import Transporter
+
+        move2first = True
+        ending_time = np.random.randint(Time.get_time_from_dattime(18, 0),
+                                        Time.get_time_from_dattime(23, 0))
+        if day % 2 == 0:
+            if isinstance(p, Transporter):
+                route = p.get_random_route(end_at=ending_time)
+            else:
+                route = p.get_random_route(end_at=ending_time)
+
+        else:
+            if p.home_weekend_loc is not None:
+                # TODO FIX
+                route = p.get_random_route(end_at=ending_time)
+                move2first = False
+            else:
+
+                route = p.get_random_route(end_at=ending_time)
+
+        p.set_route(route, t, move2first)
+
+    @staticmethod
     def add_stops_as_targets_in_route(route, p):
         new_route = []
         for i in range(len(route) - 1):
             path = MovementEngine.get_path(route[i].loc, route[i + 1].loc)
-            new_route += [Target(path[0], route[i].leaving_time,route[i].likely_trans)]
+            new_route += [Target(path[0], route[i].leaving_time, route[i].likely_trans)]
             new_route += [Target(loc, route[i].leaving_time, None) for loc in path[1:-1]]
         new_route += [route[-1]]
         if new_route[0].loc != p.home_loc:
@@ -57,8 +84,16 @@ class RoutePlanningEngine:
             route2 = route2[:-1]
         for i in range(len(route2)):
             if route2[i].leaving_time != -1:
-                route2[i].leaving_time = route2[i].leaving_time # todo fix mirror leaving time
+                route2[i].leaving_time = route2[i].leaving_time  # todo fix mirror leaving time
                 Logger.log("Cannot mirror leaving time properly! Falling back to leave after duration of 1 unit time.",
                            'e')
         route = route + route2[::-1]
         return route
+
+    @staticmethod
+    def join_routes(r1, r2):
+        for i in range(len(r1)):
+            for j in range(len(r2)):
+                if r1[i].leaving_time > r2[j].leaving_time:
+                    raise Exception("time conflict when joining routes")
+        return r1 + r2

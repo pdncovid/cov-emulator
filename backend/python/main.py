@@ -5,11 +5,13 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
+from tqdm import tqdm
 
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
 from backend.python.CovEngine import CovEngine
 from backend.python.MovementEngine import MovementEngine
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import Visualizer
@@ -86,10 +88,9 @@ def initialize():
     for person in people:
 
         person.set_home_loc(get_random_element(loc_classes[Home]))  # todo
-        person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc)  # todo
+        person.home_weekend_loc = person.find_closest(Home, person.home_loc.parent_location, find_from_level=2)
+        person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc, find_from_level=-1)  # todo
 
-        target_classes_or_objs = [person.home_loc, person.work_loc]
-        person.set_random_route(root, 0, target_classes_or_objs=target_classes_or_objs)
         if person.main_trans is None:
             person.main_trans = get_random_element(main_trans)
 
@@ -153,7 +154,9 @@ def main(initializer, args):
         # reset day
         if t % Time.DAY == 0:
             good = True
-            for p in people:
+
+            for p in tqdm(people, desc='Resetting day'):
+                RoutePlanningEngine.set_route(p, root, 0, 0)
                 if not p.reset_day(t):
                     good = False
             if not good:
@@ -217,7 +220,7 @@ def main(initializer, args):
                     }
                 )
             df = df.append(pd.DataFrame(tmp_list))
-            if t % (Time.DAY // 10) == 0:
+            if t % (Time.DAY // 1) == 0:
                 plt.pause(0.001)
                 Visualizer.plot_map_and_points(root, people, test_centers, root.radius, root.radius, t)
                 Visualizer.plot_position_timeline(df, root)
@@ -229,7 +232,7 @@ def main(initializer, args):
 if __name__ == "__main__":
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-    parser.add_argument('-n', help='target population', default=1000)
+    parser.add_argument('-n', help='target population', default=100)
     parser.add_argument('-i', help='initial infected', type=int, default=2)
 
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)

@@ -4,8 +4,8 @@ from backend.python.transport.Walk import Walk
 
 
 class Cemetery(Location):
-    def get_suggested_sub_route(self, point, t, force_dt=False):
-        return [], t
+    def get_suggested_sub_route(self, point, route_so_far):
+        return route_so_far
 
     def __init__(self, shape, x, y, name,
                  **kwargs):

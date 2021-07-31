@@ -1,3 +1,4 @@
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.functions import get_random_element
@@ -11,30 +12,29 @@ from backend.python.point.TuktukDriver import TuktukDriver
 
 
 class GarmentBuilding(Building):
-    def get_suggested_sub_route(self, point, t, force_dt=False):
-        if isinstance(point, GarmentWorker):
-            work_areas = self.get_children_of_class(GarmentWorkArea)
-            _r, t = get_random_element(work_areas).get_suggested_sub_route(point, t, force_dt=True)
-            if not force_dt:
-                _r2, t = get_random_element(work_areas).get_suggested_sub_route(point, t, force_dt=False)
-                _r += _r2
-        elif isinstance(point, GarmentAdmin):
-            work_areas = self.get_children_of_class(GarmentWorkArea)
-            _r, t = get_random_element(work_areas).get_suggested_sub_route(point, t, force_dt=True)
-            if not force_dt:
-                _r2, t = get_random_element(work_areas).get_suggested_sub_route(point, t, force_dt=False)
-                _r += _r2
-
-        # elif isinstance(point, CommercialZoneBusDriver):
-        #     _r, t = [Target(self, Time.get_time_from_dattime(17, 15), None)], Time.get_time_from_dattime(17, 15)
-        elif isinstance(point, BusDriver):
-            _r, t = [Target(self, t + Time.get_duration(0.5), None)], t + Time.get_duration(0.5)
-        elif isinstance(point, TuktukDriver):
-            _r, t = [Target(self, t + Time.get_duration(0.5), None)], t + Time.get_duration(0.5)
-        else:
-            raise NotImplementedError(point.__repr__())
-
-        return _r, t
+    # def get_suggested_sub_route(self, point, route_so_far):
+    #     if isinstance(point, GarmentWorker):
+    #         work_areas = self.get_children_of_class(GarmentWorkArea)
+    #         route_so_far = get_random_element(work_areas).get_suggested_sub_route(point, route_so_far)
+    #         if not force_dt:
+    #             route_so_far = get_random_element(work_areas).get_suggested_sub_route(point, route_so_far)
+    #
+    #     elif isinstance(point, GarmentAdmin):
+    #         work_areas = self.get_children_of_class(GarmentWorkArea)
+    #         route_so_far = get_random_element(work_areas).get_suggested_sub_route(point, route_so_far)
+    #         if not force_dt:
+    #             route_so_far = get_random_element(work_areas).get_suggested_sub_route(point, route_so_far)
+    #
+    #     elif isinstance(point, BusDriver):
+    #         _r = [Target(self, route_so_far[-1].leaving_timeTime.get_duration(0.5), None)]
+    #         route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
+    #     elif isinstance(point, TuktukDriver):
+    #         _r = [Target(self, route_so_far[-1].leaving_timeTime.get_duration(0.5), None)]
+    #         route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
+    #     else:
+    #         raise NotImplementedError(point.__repr__())
+    #
+    #     return route_so_far
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)

@@ -1,3 +1,5 @@
+from backend.python.Time import Time
+from backend.python.functions import bs
 from backend.python.location.Blocks.RuralBlock import RuralBlock
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
@@ -33,7 +35,7 @@ from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
 
 default_infectiousness = {
-    DenseDistrict:0.8,
+    DenseDistrict: 0.8,
 
     UrbanBlock: 0.8,
     RuralBlock: 0.6,
@@ -49,21 +51,21 @@ default_infectiousness = {
     GarmentOffice: 0.9,
     IndustrialZone: 0.7,
 
-    Classroom:0.9,
-    School:0.8,
-    SchoolCanteen:0.99,
-    EducationZone:0.7,
+    Classroom: 0.9,
+    School: 0.8,
+    SchoolCanteen: 0.99,
+    EducationZone: 0.7,
 
-    Hospital:0.8,
-    COVIDQuarantineZone:1.0,
-    MedicalZone:0.85,
+    Hospital: 0.8,
+    COVIDQuarantineZone: 1.0,
+    MedicalZone: 0.85,
 
-    Home:0.8,
-    ResidentialPark:0.7,
-    ResidentialZone:0.7,
+    Home: 0.8,
+    ResidentialPark: 0.7,
+    ResidentialZone: 0.7,
 
-    Cemetery:0.0,
-    TestCenter:0.9,
+    Cemetery: 0.0,
+    TestCenter: 0.9,
 }
 work_map = {
     CommercialWorker: CommercialZone,
@@ -75,3 +77,101 @@ work_map = {
     CommercialZoneBusDriver: CommercialBuilding,
     SchoolBusDriver: School
 }
+
+loc_at_t = {
+    CommercialWorker: {
+        Time.get_time_from_dattime(7, 0): 'home',
+        Time.get_time_from_dattime(17, 0): 'work',
+
+    },
+    GarmentWorker: {
+        Time.get_time_from_dattime(7, 0): 'home',
+        Time.get_time_from_dattime(17, 0): 'work',
+
+    },
+    GarmentAdmin: {
+        Time.get_time_from_dattime(9, 0): 'home',
+        Time.get_time_from_dattime(17, 0): 'work',
+
+    },
+    Student: {
+        Time.get_time_from_dattime(7, 0): 'home',
+        Time.get_time_from_dattime(14, 0): 'work',
+
+    },
+    BusDriver: {
+        Time.get_time_from_dattime(5, 0): 'home',
+        Time.get_time_from_dattime(6, 0): ResidentialZone,
+        Time.get_time_from_dattime(7, 0): CommercialZone,
+        Time.get_time_from_dattime(8, 0): EducationZone,
+        Time.get_time_from_dattime(9, 0): IndustrialZone,
+        Time.get_time_from_dattime(10, 0): CommercialZone,
+
+        Time.get_time_from_dattime(13, 0): IndustrialZone,
+        Time.get_time_from_dattime(14, 0): EducationZone,
+        Time.get_time_from_dattime(15, 0): IndustrialZone,
+        Time.get_time_from_dattime(16, 0): CommercialZone,
+    },
+    TuktukDriver: {
+        Time.get_time_from_dattime(5, 0): 'home',
+        Time.get_time_from_dattime(6, 0): ResidentialZone,
+        Time.get_time_from_dattime(7, 0): CommercialZone,
+        Time.get_time_from_dattime(8, 0): EducationZone,
+        Time.get_time_from_dattime(9, 0): IndustrialZone,
+        Time.get_time_from_dattime(10, 0): CommercialZone,
+
+        Time.get_time_from_dattime(13, 0): IndustrialZone,
+        Time.get_time_from_dattime(14, 0): EducationZone,
+        Time.get_time_from_dattime(15, 0): IndustrialZone,
+        Time.get_time_from_dattime(16, 0): CommercialZone,
+    },
+    CommercialZoneBusDriver: {
+        Time.get_time_from_dattime(5, 0): 'home',
+        Time.get_time_from_dattime(6, 0): ResidentialZone,
+        Time.get_time_from_dattime(6, 30): ResidentialZone,
+        Time.get_time_from_dattime(7, 0): CommercialZone,
+
+        Time.get_time_from_dattime(17, 0): CommercialZone,
+        Time.get_time_from_dattime(17, 15): ResidentialZone,
+        Time.get_time_from_dattime(17, 30): ResidentialZone,
+
+    },
+    SchoolBusDriver: {
+        Time.get_time_from_dattime(5, 0): 'home',
+        Time.get_time_from_dattime(6, 0): ResidentialZone,
+        Time.get_time_from_dattime(6, 30): ResidentialZone,
+        Time.get_time_from_dattime(7, 0): EducationZone,
+
+        Time.get_time_from_dattime(14, 0): EducationZone,
+        Time.get_time_from_dattime(14, 15): ResidentialZone,
+        Time.get_time_from_dattime(14, 30): ResidentialZone,
+    },
+
+}
+
+
+def get_loc_for_p_at_t(p, t):
+    timeline = loc_at_t[p.__class__]
+    keys = list(timeline.keys())
+    idx = bs(keys, t)
+    if idx == len(timeline.keys()):
+        return []
+    suggestion = timeline[keys[idx]]
+    if suggestion == 'home':
+        return [p.home_loc]
+    if suggestion == 'work':
+        return [p.work_loc]
+    if type(suggestion) == str:
+        raise Exception()
+    return [suggestion]
+
+
+def get_dur_for_p_in_loc_at_t(p, loc, t):
+    return Time.get_duration(0.5)
+
+
+if __name__ == "__main__":
+    p = CommercialWorker()
+    print(get_loc_for_p_at_t(p, Time.get_time_from_dattime(6, 59)))
+    print(get_loc_for_p_at_t(p, Time.get_time_from_dattime(7, 0)))
+    print(get_loc_for_p_at_t(p, Time.get_time_from_dattime(7, 1)))

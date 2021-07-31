@@ -1,11 +1,12 @@
 from backend.python.Logger import Logger
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
+from backend.python.Time import Time
+from backend.python.functions import get_random_element
 from backend.python.point.Person import Person
+import numpy as np
 
 
 class Transporter(Person):
-
-    def set_random_route(self, root, t, target_classes_or_objs=None):
-        raise NotImplementedError()
 
     def __init__(self):
         super().__init__()
@@ -13,6 +14,57 @@ class Transporter(Person):
         self.latched_dst = []
         self.max_latches = 10
         self.is_latchable = True
+
+
+    # def get_random_route(self, root, t,
+    #                      target_classes_or_objs=None,
+    #                      possible_override_trans=None,
+    #                      ending_time=np.random.randint(Time.get_time_from_dattime(18, 0),
+    #                                                    Time.get_time_from_dattime(23, 0))):
+    #     if target_classes_or_objs is None:
+    #         target_classes_or_objs = []
+    #     if possible_override_trans is None:
+    #         possible_override_trans = []
+    #     arr_locs = []
+    #
+    #     def dfs(rr):
+    #         if rr.override_transport is None:
+    #             arr_locs.append(rr)
+    #         for tra in possible_override_trans:
+    #             if isinstance(rr.override_transport, tra):
+    #                 arr_locs.append(rr)
+    #                 break
+    #         for tar in target_classes_or_objs:
+    #             if rr == tar:
+    #                 arr_locs.append(rr)
+    #             if type(tar) == type:
+    #                 if isinstance(rr, tar):
+    #                     arr_locs.append(rr)
+    #         for child in rr.locations:
+    #             dfs(child)
+    #
+    #     dfs(root)
+    #
+    #     route, final_time = [], t
+    #     old_loc = self.home_loc
+    #     _route, final_time = self.get_random_route_through(final_time, [old_loc], False)
+    #     route += _route
+    #     while True:
+    #         loc = get_random_element(get_random_element(arr_locs).locations)  # TODO get from closest to furthest.
+    #         if loc == root:  # if we put root to route, people will drop at root. then he/she will get stuck
+    #             continue
+    #
+    #         _route, final_time = self.get_random_route_through(final_time, [loc], force_dt=True)
+    #         route += _route
+    #         dist = old_loc.get_distance_to(loc)
+    #         old_loc = loc
+    #         final_time += dist / self.main_trans.vcap
+    #
+    #         if final_time > ending_time:
+    #             break
+    #
+    #     route = RoutePlanningEngine.add_stops_as_targets_in_route(route, self)
+    #     return route
 
     # override
     def on_enter_location(self, t):
@@ -112,6 +164,6 @@ class Transporter(Person):
     # override
     def update_route(self, root, t, new_route_classes=None, replace=False):
         if self.is_tested_positive():
-            super(Transporter, self).update_route(root, t,  new_route_classes, replace)
+            super(Transporter, self).update_route(root, t, new_route_classes, replace)
         else:
             Logger.log("Not IMPLEMENTED Transporter update route", 'c')

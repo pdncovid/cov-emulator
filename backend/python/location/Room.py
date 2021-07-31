@@ -4,8 +4,8 @@ from backend.python.transport.Walk import Walk
 
 
 class Room(Location):
-    def get_suggested_sub_route(self, point, t, force_dt=False) -> (list, int):
-        raise NotImplementedError()
+    # def get_suggested_sub_route(self, point, route_so_far) -> (list, int):
+    #     raise NotImplementedError()
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)

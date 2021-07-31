@@ -1,3 +1,4 @@
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_random_element
@@ -13,7 +14,7 @@ import numpy as np
 class CommercialZone(Location):
     pb_map = {}
 
-    def get_suggested_sub_route(self, point, t, force_dt=False):
+    def get_suggested_sub_route(self, point, route_so_far):
 
         from backend.python.point.BusDriver import BusDriver
         from backend.python.point.CommercialWorker import CommercialWorker
@@ -26,23 +27,25 @@ class CommercialZone(Location):
             else:
                 working_building = get_random_element(buildings)
                 CommercialZone.pb_map[point.ID] = working_building
-            _r = []
+
             t_end = min(
                 np.random.normal(Time.get_time_from_dattime(17, 0), abs(np.random.normal(0, Time.get_duration(1)))),
                 Time.get_time_from_dattime(18, 0))
-            while t < t_end:
-                _r1, t = working_building.get_suggested_sub_route(point, t, force_dt)
-                _r += _r1
+            while route_so_far[-1].leaving_time < t_end:
+                route_so_far = working_building.get_suggested_sub_route(point, route_so_far)
+
                 if np.random.rand() < 0.2:
-                    _r2, t = get_random_element(canteens).get_suggested_sub_route(point, t, True)
-                    _r += _r2
-        elif isinstance(point, Student):
-            _r, t = [Target(self, t + Time.get_duration(.25), None)], t + Time.get_duration(.25)
-        elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
-            _r, t = [Target(self, t + Time.get_duration(.5), None)], t + Time.get_duration(.5)
+                    route_so_far = get_random_element(canteens).get_suggested_sub_route(point, route_so_far)
+
+        # elif isinstance(point, Student):
+        #     _r = [Target(self, route_so_far[-1].leaving_time + Time.get_duration(.25), None)]
+        #     route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
+        # elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
+        #     _r = [Target(self, route_so_far[-1].leaving_time + Time.get_duration(.5), None)]
+        #     route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
         else:
-            raise NotImplementedError(f"Not implemented for {point.__class__.__name__}")
-        return _r, t
+            route_so_far = super(CommercialZone, self).get_suggested_sub_route(point, route_so_far)
+        return route_so_far
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)

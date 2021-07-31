@@ -12,12 +12,12 @@ from backend.python.transport.Walk import Walk
 
 
 class UrbanBlock(Location):
-    def get_suggested_sub_route(self, point, t, force_dt=False):
-        _r = []
-        while t < Time.get_time_from_dattime(17, 0):
-            _r1, t = get_random_element(self.locations).get_suggested_sub_route(point, t)
-            _r = _r + _r1
-        return _r, t
+    # def get_suggested_sub_route(self, point, route_so_far):
+    #     raise NotImplementedError()
+    #     # while route_so_far[-1].leaving_time < Time.get_time_from_dattime(17, 0):
+    #     #     route_so_far = get_random_element(self.locations).get_suggested_sub_route(point, route_so_far)
+    #     #
+    #     # return route_so_far
 
     def __init__(self, shape, x, y, name,
                  **kwargs):

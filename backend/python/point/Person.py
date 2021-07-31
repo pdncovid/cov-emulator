@@ -62,6 +62,7 @@ class Person:
         self.current_loc_leave = -1
 
         self.home_loc = None
+        self.home_weekend_loc = None
         self.work_loc = None
         self.current_loc = None
 
@@ -185,10 +186,10 @@ class Person:
 
     def set_home_loc(self, home_loc):
         self.home_loc = home_loc
-        self.route, time = self.home_loc.get_suggested_sub_route(self, 0, False)
+        self.route = self.home_loc.get_suggested_sub_route(self, [])
         self.route[0].enter_person(self)
 
-    def find_closest(self, target, cur=None):
+    def find_closest(self, target, cur, find_from_level=-1):
         if target is None:
             return None
         # find closest (in tree) object to target
@@ -202,32 +203,74 @@ class Person:
             _possible = find_in_subtree(cur.parent_location, target, cur)
             if len(_possible) > 0:
                 possible_targets.append(_possible)
+                if len(possible_targets) == find_from_level:
+                    break
             cur = cur.parent_location
         if len(possible_targets) == 0:
             raise Exception(f"Could not find {target} in the tree!!!")
 
-        level = int(np.floor(np.random.exponential()))
-        level = min(level, len(possible_targets) - 1)
+        if find_from_level == -1:
+            level = int(np.floor(np.random.exponential()))
+            level = min(level, len(possible_targets) - 1)
+        else:
+            level = min(find_from_level - 1, len(possible_targets) - 1)
 
         if level > 0:
             Logger.log(f"{self} is going to {target} that is at level {level}", 'e')
         return get_random_element(possible_targets[level])
 
-    def get_suggested_route(self, t, target_classes_or_objs, force_dt=False):
-        if self.current_target_idx >= len(self.route):
-            self.current_target_idx = len(self.route) - 1
-        route, time = [], t
-        for target in target_classes_or_objs:
-            selected = self.find_closest(target)
-            if selected is None:
-                raise Exception(f"Couldn't find {target} where {self} is currently at {self.get_current_target()}")
-            _route, time = selected.get_suggested_sub_route(self, time, force_dt)
+    def get_random_route_at(self, route_so_far, find_from_level):
+        from backend.python.const import get_loc_for_p_at_t
+        if len(route_so_far) == 0:
+            t = 0
+            cur = None
+        else:
+            t = route_so_far[-1].leaving_time
+            cur = route_so_far[-1].loc
 
-            route += _route
-        return route, time
+        cls_or_obj = get_loc_for_p_at_t(self, t)
+        if len(cls_or_obj) == 0:  # no plan for this time
+            return route_so_far
+        target = get_random_element(cls_or_obj)
+        if target is None:  # no plan for this time
+            return route_so_far
 
-    def set_random_route(self, root, t, target_classes_or_objs=None):
-        raise NotImplementedError()
+        selected = self.find_closest(target, cur=cur, find_from_level=find_from_level)
+        # if selected == cur:  # visiting the same location again is not valid
+        #     return route_so_far
+        route_so_far = selected.get_suggested_sub_route(self, route_so_far)
+
+        return route_so_far
+
+    def get_random_route_through(self, route_so_far, cls_or_obj, find_from_level):
+        if len(route_so_far) == 0:
+            t = 0
+            cur = None
+        else:
+            t = route_so_far[-1].leaving_time
+            cur = route_so_far[-1].loc
+
+        for target in cls_or_obj:
+            selected = self.find_closest(target, cur=cur, find_from_level=find_from_level)
+            route_so_far = selected.get_suggested_sub_route(self, route_so_far)
+        return route_so_far
+
+    def get_random_route(self, end_at):
+        route = []
+        time = 0
+        tries = 0
+        while time < end_at:
+            r_len = len(route)
+            route = self.get_random_route_at(route, find_from_level=1)
+            if len(route) == r_len:
+                tries += 1
+
+            if tries > 10:
+                if len(route) == 1:
+                    raise Exception()  # break due to not increasing route
+                break
+
+        return route
 
     def update_route(self, root, t, new_route_classes=None, replace=False):
         """
@@ -244,7 +287,7 @@ class Person:
         Logger.log(f"Current route for {self.ID} is {list(map(str, self.route))}", 'e')
         _t = t % Time.DAY
         self.backup_route()
-        route, time = self.get_suggested_route(_t, new_route_classes, force_dt=True)
+        route, time = self.get_random_route_through(_t, new_route_classes, force_dt=True, cur=None, find_from_level=1)
 
         if replace:
             replace_from = 1
@@ -275,12 +318,13 @@ class Person:
         if replace:
             self.route[0].enter_person(self, target_location=None)
 
-    def set_route(self, route, t):
+    def set_route(self, route, t, move2first=True):
         self.set_position(route[0].loc.x + np.random.normal(0, 1),
                           route[0].loc.y + np.random.normal(0, 1), True)
         self.route = route
         self.current_target_idx = 0
-        self.route[0].enter_person(self)
+        if move2first:
+            self.route[0].enter_person(self)
 
     def set_position(self, new_x, new_y, force=False):
         if not self.latched_to or force:

@@ -4,7 +4,6 @@ import numpy as np
 INT_MAX = 10000000000
 
 
-@njit
 def bs(arr, v):
     l, r = 0, len(arr)
     while r - l > 0:
@@ -158,3 +157,11 @@ def is_inside_polygon(points: list, p: tuple) -> bool:
 
     # Return true if count is odd, false otherwise
     return count % 2 == 1
+
+
+if __name__ == "__main__":
+    print(bs([13, 45, 65], 64))
+    print(bs([13, 45, 65], 65))
+    print(bs([13, 45, 65], 66))
+    print(bs([13, 45, 65], 13))
+    print(bs([13, 45, 65], 14))

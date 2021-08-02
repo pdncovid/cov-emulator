@@ -2,14 +2,24 @@ import React, { useState, useRef, useEffect } from "react";
 import { makeStyles, useTheme } from '@material-ui/core/styles';
 import ButtonGroup from '@material-ui/core/ButtonGroup';
 import Button from '@material-ui/core/Button';
+import ToggleButton from '@material-ui/lab/ToggleButton';
+import ToggleButtonGroup from '@material-ui/lab/ToggleButtonGroup';
+import Radio from '@material-ui/core/Radio';
+import RadioGroup from '@material-ui/core/RadioGroup';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import FormControl from '@material-ui/core/FormControl';
+import FormLabel from '@material-ui/core/FormLabel';
+
 import Alert from "react-bootstrap/Alert";
 import randomColor from "randomcolor";
 import InputLabel from '@material-ui/core/InputLabel';
 import Select from '@material-ui/core/Select';
-import FormControl from '@material-ui/core/FormControl';
 import { Stage, Layer, Line, Text } from "react-konva";
 import Grid from "../components/grid";
 import { ExportToCsv } from 'export-to-csv';
+import people_file from "../data/people.txt";
+import locs_file from "../data/locs.txt";
+
 function ProbDensePage() {
     const classes = useStyles();
     const [initialLoad, setInitialLoad] = useState(true);
@@ -24,8 +34,10 @@ function ProbDensePage() {
     var canvas_height = 600;
     var gs_y = 500;
     var gs_x = 60;
-    const x_axis_distance_grid_lines = 1.1;
+    const x_axis_distance_grid_lines = (canvas_height-50)/gs_y;
     const y_axis_distance_grid_lines = 0.5;
+
+    const [mode, setMode] = React.useState("p_go");
 
     const [selectedLines, setSelectedLines] = React.useState([]);
     const [highlightedLines, setHighlightedLines] = React.useState([]);
@@ -42,8 +54,9 @@ function ProbDensePage() {
     const [posx, setposx] = React.useState(0);
     const [posy, setposy] = React.useState(0);
 
-    const people = ['CommercialWorker', 'Student'];
-    const locs = ['Home', 'CommercialZone'];
+    const [people, setpeople] = React.useState([]);
+    const [locs, setlocs] = React.useState([]);
+
     const columns = [{ Header: 'person', accessor: 'person' }, { Header: 'location', accessor: 'location' }]
     for (let time = 0; time < 60 * 24; time++) {
         columns.push({ Header: time.toString(), accessor: time.toString() })
@@ -67,7 +80,7 @@ function ProbDensePage() {
         var _line = Array(24 * 60 * 2).fill(0);
         for (var i = 0; i < 24 * 60; i++) {
             _line[i * 2] = convertx2px(i / 60);
-            _line[i*2+1] = converty2py(data[i])
+            _line[i * 2 + 1] = converty2py(data[i])
         }
         let to_add = {
             points: _line,
@@ -76,12 +89,12 @@ function ProbDensePage() {
             lineCap: 'round',
             lineJoin: 'round',
             key: [p, l],
-            value: data,
+            values: data,
         };
-        for (let i=0;i<lines.length;i++){
-            if (lines.key == [p,l]){
+        for (let i = 0; i < lines.length; i++) {
+            if (lines.key == [p, l]) {
                 lines[i] = to_add;
-                return;      
+                return;
             }
         }
         lines.push(to_add);
@@ -89,14 +102,41 @@ function ProbDensePage() {
     useEffect(() => {
 
         console.log("Initializing Prob page")
+        console.log("loading people, location classes");
 
-        console.log(stageEl.current.getContainer().getBoundingClientRect())
-        
-        for (let i=0;i<people.length;i++){
-            for (let j=0;j<locs.length;j++){
-                allData[[i,j]] = Array(24 * 60).fill(0);
-            }
-        }
+        fetch(locs_file)
+            .then(r => r.text())
+            .then(text => {
+                let arr = text.split('\n');
+                arr.forEach(element => {
+                    if (element.length > 0) {
+                        if (locs.indexOf(strip(element)) == -1)
+                            locs.push(strip(element));
+                    }
+                });
+            }).then(() => {
+                fetch(people_file)
+                    .then(r => r.text())
+                    .then(text => {
+                        console.log('text decoded:', text.split('\n'));
+                        let arr = text.split('\n');
+                        arr.forEach(element => {
+                            if (element.length > 0) {
+                                if (people.indexOf(strip(element)) == -1)
+                                    people.push(strip(element));
+                            }
+                        });
+                    }).then(() => {
+                        console.log(locs)
+                        for (let i = 0; i < people.length; i++) {
+                            for (let j = 0; j < locs.length; j++) {
+                                console.log("Initializing array for ", people[i], locs[j], i, j)
+                                allData[[i, j]] = Array(24 * 60).fill(0);
+                            }
+                        }
+                    });
+            })
+
 
         // window.onscroll = () => {
         //     posx = Math.round(stageEl.current.getContainer().getBoundingClientRect().left * 1000) / 1000;
@@ -119,7 +159,7 @@ function ProbDensePage() {
         if (res == 'up' || res == "out") {
             setIsDown(false)
             lines.forEach(element => {
-                allData[element.key] = element.value;
+                allData[element.key] = element.values;
             });
         }
         if (res == 'move') {
@@ -153,15 +193,18 @@ function ProbDensePage() {
             for (p_idx = 0; p_idx < lines.length; p_idx++) {
                 if (lines[p_idx].key == highlightedLines[l_idx]) {
                     _line = lines[p_idx].points
-                    _val = lines[p_idx].value
+                    _val = lines[p_idx].values
                     break
                 }
             }
-
-            console.log(x,y, x1,x2, lines[p_idx])
+            if (_line == undefined) {
+                console.log("ERROR");
+            }
+            // console.log(x, y, x1, x2, lines[p_idx])
             for (var i = x1; i <= x2; i++) {
                 var _y = prevY + (y - prevY) * (i - x1) / (x2 - x1);
                 _y = Math.min(_y, 1);
+                _y = Math.max(_y, 0);
                 _line[2 * i + 1] = converty2py(_y);
                 _val[i] = _y;
                 if (isNaN(_line[2 * i + 1])) {
@@ -172,6 +215,7 @@ function ProbDensePage() {
             for (var i = x2; i <= x1; i++) {
                 var _y = y - (y - prevY) * (i - x2) / (x1 - x2);
                 _y = Math.min(_y, 1);
+                _y = Math.max(_y, 0);
                 _line[2 * i + 1] = converty2py(_y);
                 _val[i] = _y;
                 if (isNaN(_line[2 * i + 1])) {
@@ -179,13 +223,39 @@ function ProbDensePage() {
                 }
 
             }
-            lines[p_idx].value = _val;
+            lines[p_idx].values = _val;
             stageEl.current.children[1].children[p_idx].setPoints(_line);
         }
         // setLines(arrlines);
     }
 
-    const handlePersonClick = function (id, e) {
+    function addLine(p, l) {
+        if (p==undefined || l==undefined){
+            console.log("Person or location not selected")
+            return
+        }
+        console.log("Adding line ",p,l, people[p], locs[l], allData.key);
+        for (var i = 0; i < selectedLines.length; i++) {
+            if (selectedLines[i][0] == p && selectedLines[i][1] == l) {
+                console.log("Exists")
+                return
+            }
+        }
+        selectedLines.push([p, l]);
+        if (allData.hasOwnProperty([p, l]) && allData[[p,l]]!= undefined) {
+            init_line(p, l, allData[[p, l]]);
+        } else {
+            console.log("ERROR");
+            return
+        }
+        console.log("Added line ", people[p], locs[l]);
+    }
+
+    const handleModeChange = function (e){
+        setMode(e.target.value);
+    }
+
+    const handlePersonClick = function (e, id) {
         // console.log(id)
         setSelectedPerson(id);
     }
@@ -193,17 +263,23 @@ function ProbDensePage() {
     const handleLocClick = function (id, e) {
 
         setSelectedLoc(id);
-        for (var i = 0; i < selectedLines.length; i++) {
-            if (selectedLines[i][0] == selectedPerson && selectedLines[i][1] == id) {
-                console.log("Exists")
-                return
-            }
-        }
-        selectedLines.push([selectedPerson, id]);
-        init_line(selectedPerson, id, allData[[selectedPerson, id]]);
-        // console.log(id, selectedLoc)
-        console.log(selectedLines)
+        addLine(selectedPerson, id)
     }
+
+    const handleAddAllLocsClick = (event) => {
+
+        for (let i = 0; i < locs.length; i += 1) {
+            addLine(selectedPerson, i);
+        }
+    };
+
+
+    const handleAddAllPeopleClick = (event) => {
+
+        for (let i = 0; i < people.length; i += 1) {
+            addLine(i, selectedLoc);
+        }
+    };
 
     const handleSelectedListClick = (event) => {
         const { options } = event.target;
@@ -217,61 +293,154 @@ function ProbDensePage() {
     };
 
     const handleRemoveClick = (event) => {
-        
-        
-        for (let i = 0; i<highlightedLines.length; i += 1) {
-            for (let j =0;j<selectedLines.length;j++){
-                if (selectedLines[j] == highlightedLines[i]){
+
+
+        for (let i = 0; i < highlightedLines.length; i += 1) {
+            for (let j = 0; j < selectedLines.length; j++) {
+                if (selectedLines[j] == highlightedLines[i]) {
                     selectedLines.splice(j, 1);
                 }
             }
-            for (let j =0;j<lines.length;j++){
-                if (lines[j].key == highlightedLines[i]){
+            for (let j = 0; j < lines.length; j++) {
+                if (lines[j].key == highlightedLines[i]) {
                     lines.splice(j, 1);
                 }
             }
-            
+
         }
+        setHighlightedLines([]);
+        setSelectedLines(selectedLines);
         console.log(selectedLines)
     };
 
     const handleSaveClick = (event) => {
-        const options = { 
-            filename:'probLocPersonTime',
+        const options = {
+            filename: mode+'LocPersonTime',
             fieldSeparator: ',',
-            quoteStrings: '"',
+            quoteStrings: '',
             decimalSeparator: '.',
-            showLabels: true, 
+            showLabels: true,
             showTitle: false,
             useTextFile: false,
             useBom: true,
             useKeysAsHeaders: true,
             // headers: ['Column 1', 'Column 2', etc...] <-- Won't work with useKeysAsHeaders present!
-          };
+        };
 
-       
+
         var data_to_download = []
-        for (var index = 0; index < lines.length; index++) {
-            let record_to_download = {'person':people[lines[index].value[0]], 'location':locs[lines[index].value[1]]}
-            for (var colIndex = 0; colIndex < lines[index].points.length/2; colIndex++) {
-                record_to_download[colIndex] = lines[index].value[colIndex]
+        for (let p = 0; p < people.length; p++) {
+            for (let l = 0; l < locs.length; l++) {
+                let record_to_download = { 'person': people[p], 'location': locs[l] }    
+                for (var t = 0; t < allData[[p,l]].length; t++) {
+                    record_to_download[t] = allData[[p,l]][t]
+                }
+                data_to_download.push(record_to_download)
             }
-            data_to_download.push(record_to_download)
+            
+            
         }
-        console.log(data_to_download,csvLink)
-        
+        console.log(data_to_download, csvLink)
+
         const csvExporter = new ExportToCsv(options);
         csvExporter.generateCsv(data_to_download);
-        
-    }
-    const handleLoadClick = (event) => {
 
+    }
+    const handleLoadClick = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            /* Parse data */
+            const bstr = evt.target.result;
+            //   const wb = XLSX.read(bstr, { type: 'binary' });
+            //   /* Get first worksheet */
+            //   const wsname = wb.SheetNames[0];
+            //   const ws = wb.Sheets[wsname];
+            //   /* Convert array of arrays */
+            //   const data = XLSX.utils.sheet_to_csv(ws, { header: 1 });
+            //   processData(data);
+            const data = csvJSON(bstr);
+            var _allData = {};
+            console.log(data.length, data);
+            for (let i = 0; i < data.length; i++) {
+                if (data[i]['person'] == undefined || data[i]['location'] == undefined) {
+                    continue
+                }
+                let person = data[i]['person'];
+                let location = data[i]['location'];
+                let p = people.indexOf(person);
+                let l = locs.indexOf(location);
+                console.log(data[i]['person'], p, data[i]['location'], l, people, locs)
+                if (p == -1) {
+                    people.push(data[i]['person']);
+                    p = people.length - 1;
+                }
+                if (l == -1) {
+                    locs.push(data[i]['location']);
+                    l = locs.length - 1;
+                }
+
+                let arr = [];
+                for (let t = 0; t < 60 * 24; t++) {
+                    arr.push(parseFloat(data[i][t]));
+                }
+                _allData[[p, l]] = arr;
+
+                for (let j = 0; j < locs.length; j++) {
+                    if (_allData.hasOwnProperty([p, j])) {
+                        continue
+                    }
+                    _allData[[p, j]] = Array(24 * 60).fill(0);
+                }
+                for (let j = 0; j < people.length; j++) {
+                    if (_allData.hasOwnProperty([j, l])) {
+                        continue
+                    }
+                    _allData[[j, l]] = Array(24 * 60).fill(0);
+                }
+            }
+            console.log(_allData);
+            setAllData(_allData)
+        };
+        // reader.readAsBinaryString(file);
+        reader.readAsText(file);
+    }
+    function strip(str) {
+        return str.trim().replace(/[\n\r\t]/g, '')
+    }
+    function csvJSON(csv) {
+
+        var lines = csv.split("\n");
+
+        var result = [];
+
+        var headers = lines[0].split(",").map((e) => strip(e));
+
+        for (var i = 1; i < lines.length; i++) {
+
+            var obj = {};
+            var currentline = lines[i].split(",").map((e) => strip(e));
+
+            for (var j = 0; j < headers.length; j++) {
+                obj[headers[j]] = currentline[j];
+            }
+
+            result.push(obj);
+
+        }
+        return result;
     }
 
     return (
         <div className="prob-page">
-            <h1>Set up probability density of staying in each location</h1>
-
+            <FormControl component="fieldset">
+                <FormLabel component="legend">Mode</FormLabel>
+                <RadioGroup aria-label="mode" name="mode1" value={mode} onChange={handleModeChange}>
+                    <FormControlLabel value="p_go" control={<Radio />} label="How likely they will go?" />
+                    <FormControlLabel value="p_dt" control={<Radio />} label="How long will they stay?" />
+                    {/* <FormControlLabel value="disabled" disabled control={<Radio />} label="(Disabled option)" /> */}
+                </RadioGroup>
+            </FormControl>
 
             <Stage
                 width={canvas_width}
@@ -312,27 +481,10 @@ function ProbDensePage() {
                 {consoleText}
             </Alert>
 
-            <h2>People</h2>
-            <ButtonGroup variant="text" color="primary" aria-label="text primary button group">
-                {people.map((bt, i) => {
-                    return (<Button variant="contained" key={i} onClick={(e) => handlePersonClick(i, e)}>{bt}</Button>)
-                })}
-            </ButtonGroup>
-
-
-
-            <h2>Location</h2>
-            <ButtonGroup variant="text" color="primary" aria-label="text primary button group">
-                {locs.map((bt, i) => {
-                    return (<Button variant="contained" key={i} onClick={(e) => handleLocClick(i, e)}>{bt}</Button>)
-                })}
-            </ButtonGroup>
-
-
-            <h2>Selected lines</h2>
+            <h2>Staged lines</h2>
             <FormControl className={classes.formControl}>
                 <InputLabel shrink htmlFor="select-multiple-native">
-                    Selected lines
+                    Select lines to edit
                 </InputLabel>
                 <Select
                     multiple
@@ -353,9 +505,42 @@ function ProbDensePage() {
             </FormControl>
             <Button variant="contained" onClick={(e) => handleRemoveClick(e)}>Remove</Button>
             <Button variant="contained" onClick={(e) => handleSaveClick(e)}>Save</Button>
-            <Button variant="contained" onClick={(e) => handleLoadClick(e)}>Load</Button>
+            <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleLoadClick}
+            />
 
-            
+            <h2>People</h2>
+            <ToggleButtonGroup
+                value={selectedPerson}
+                exclusive
+                onChange={handlePersonClick}
+                aria-label="text alignment"
+            >
+                {people.map((bt, i) => {
+                    return (<ToggleButton variant="contained" key={i} value={i}>{bt}</ToggleButton>)
+                })}
+
+            </ToggleButtonGroup>
+            <br></br>
+            <Button variant="contained" onClick={(e) => handleAddAllLocsClick(e)}>Add all locations for {people[selectedPerson]}</Button>
+
+
+            <h2>Location</h2>
+            <ButtonGroup variant="text" color="primary" aria-label="text primary button group">
+                {locs.map((bt, i) => {
+                    return (<Button variant="contained" key={i} onClick={(e) => handleLocClick(i, e)}>{bt}</Button>)
+                })}
+            </ButtonGroup>
+            <br></br>
+            <Button variant="contained" onClick={(e) => handleAddAllPeopleClick(e)}>Add all people in {locs[selectedLoc]}</Button>
+
+
+
+            {/* <Button variant="contained" onClick={(e) => handleLoadClick(e)} accept="file">Load</Button> */}
+
+
         </div>
     );
 }

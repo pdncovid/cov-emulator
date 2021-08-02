@@ -16,12 +16,14 @@ from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import Visualizer
 from backend.python.const import work_map
+from backend.python.data.save_classes import all_subclasses, save_class_names
 from backend.python.enums import Mobility, Shape, TestSpawn, Containment
 from backend.python.functions import count_graph_n, get_random_element, separate_into_classes
 from backend.python.Time import Time
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Districts.DenseDistrict import DenseDistrict
+from backend.python.location.Location import Location
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.Home import Home
 from backend.python.point.BusDriver import BusDriver
@@ -230,6 +232,9 @@ def main(initializer, args):
 
 
 if __name__ == "__main__":
+    save_class_names("../../app/src/data/locs.txt", all_subclasses(Location))
+    save_class_names("../../app/src/data/people.txt", all_subclasses(Person))
+
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
     parser.add_argument('-n', help='target population', default=100)

@@ -13,9 +13,10 @@ class Home(Building):
             # home leaving time in the morning
             from backend.python.point.TuktukDriver import TuktukDriver
             if isinstance(point, TuktukDriver):
-                leave_at = np.random.randint(Time.get_time_from_dattime(5, 0), Time.get_time_from_dattime(12, 30))
+                leave_at = Time.get_random_time_between(Time.t + 1, 5,0,12,30)
             else:
-                leave_at = np.random.randint(Time.get_time_from_dattime(5, 0), Time.get_time_from_dattime(8, 30))
+                leave_at =Time.get_random_time_between(Time.t + 1, 5, 0, 12, 0)
+
             _r = [Target(self, leave_at, None)]
             route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
         else:

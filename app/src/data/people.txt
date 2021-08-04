@@ -1,9 +1,9 @@
+SchoolBusDriver
 TuktukDriver
+GarmentWorker
+GarmentAdmin
+Transporter
+Student
+CommercialZoneBusDriver
 CommercialWorker
 BusDriver
-GarmentWorker
-Student
-GarmentAdmin
-CommercialZoneBusDriver
-Transporter
-SchoolBusDriver

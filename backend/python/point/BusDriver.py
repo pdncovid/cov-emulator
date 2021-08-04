@@ -16,14 +16,19 @@ class BusDriver(Transporter):
         self.main_trans = Bus(Mobility.RANDOM.value)
         self.max_latches = 60
 
-    # def get_random_route(self, root, t,
-    #                      target_classes_or_objs=None,
-    #                      possible_override_trans=None,
-    #                      ending_time=np.random.randint(Time.get_time_from_dattime(18, 0),
-    #                                                    Time.get_time_from_dattime(23, 0))):
-    #     if possible_override_trans is None:
-    #         possible_override_trans = []
-    #     if Bus not in possible_override_trans:
-    #         possible_override_trans.append(Bus)
-    #     return super(BusDriver, self).get_random_route(root, t,
-    #                                                    target_classes_or_objs, possible_override_trans, ending_time)
+    def get_random_route(self, t, end_at):
+        route_so_far = super(BusDriver, self).get_random_route(t, Time.get_random_time_between(t, 5, 0, 9, 0))
+        ending_time = np.random.randint(Time.get_time_from_dattime(17, 0), Time.get_time_from_dattime(21, 0))
+        tries = 0
+        while tries < 10:
+            # TODO make this part as repeating same bus route
+            r_len = len(route_so_far)
+            route_so_far = self.get_random_route_at(route_so_far, find_from_level=1)
+            if len(route_so_far) == r_len:
+                tries += 1
+
+            if route_so_far[-1].leaving_time > ending_time:
+                break
+
+        route = RoutePlanningEngine.add_stops_as_targets_in_route(route_so_far, self)
+        return route

@@ -1,6 +1,7 @@
 import numpy as np
 
 from backend.python.MovementEngine import MovementEngine
+from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Time import Time
 from backend.python.enums import Mobility
 from backend.python.functions import get_random_element, separate_into_classes
@@ -16,30 +17,15 @@ class CommercialZoneBusDriver(Transporter):
         super().__init__()
         self.main_trans = CommercialZoneBus(Mobility.RANDOM.value)
 
-    # def get_random_route(self, root, t,
-    #                      target_classes_or_objs=None,
-    #                      possible_override_trans=None,
-    #                      ending_time=np.random.randint(Time.get_time_from_dattime(18, 0),
-    #                                                    Time.get_time_from_dattime(23, 0))):
-    #     from backend.python.location.Residential.ResidentialZone import ResidentialZone
-    #     from backend.python.RoutePlanningEngine import RoutePlanningEngine
-    #     if target_classes_or_objs is None:
-    #         target_classes_or_objs = []
-    #     if possible_override_trans is None:
-    #         possible_override_trans = []
-    #     if ResidentialZone not in target_classes_or_objs:
-    #         target_classes_or_objs.append(ResidentialZone)
-    #
-    #     route = super(CommercialZoneBusDriver, self).get_random_route(root, t, target_classes_or_objs,
-    #                                                                   possible_override_trans, ending_time)
-    #     # finally visit the working location
-    #     _route, final_time = self.get_random_route_through(route[-1].leaving_time, [self.work_loc], force_dt=True)
-    #     route += _route
-    #
-    #     # add all the stop in between major route destinations
-    #     route = RoutePlanningEngine.add_stops_as_targets_in_route(route, self)
-    #
-    #     # come back the same way that bus went in the morning
-    #     route = RoutePlanningEngine.mirror_route(route, self, duplicate_last=False, duplicate_first=False)
-    #     print(f"Commercial zone bus route for {self.ID} is {list(map(str, route))}")
-    #     return route
+    def get_random_route(self, t, end_at):
+        route_so_far = super(CommercialZoneBusDriver, self).get_random_route(t,Time.get_random_time_between(t, 5, 0,9, 0))
+
+        # finally visit the working location
+        route_so_far = self.get_random_route_through(route_so_far, [self.work_loc], find_from_level=1)
+        route_so_far[-1].leaving_time = Time.get_random_time_between(t, 16, 30,18, 30)
+        # add all the stop in between major route destinations
+        route_so_far = RoutePlanningEngine.add_stops_as_targets_in_route(route_so_far, self)
+
+        # come back the same way that bus went in the morning
+        route_so_far = RoutePlanningEngine.mirror_route(route_so_far, self, duplicate_last=False, duplicate_first=False)
+        return route_so_far

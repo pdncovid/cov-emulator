@@ -10,3 +10,6 @@ class Target:
 
     def enter_person(self, p, target_location=None):
         self.loc.enter_person(p, target_location)
+
+    def __copy__(self):
+        return type(self)(self.loc, self.leaving_time, self.likely_trans)

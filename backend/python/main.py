@@ -158,7 +158,6 @@ def main(initializer, args):
             good = True
 
             for p in tqdm(people, desc='Resetting day'):
-                RoutePlanningEngine.set_route(p, root, 0, 0)
                 if not p.reset_day(t):
                     good = False
             if not good:
@@ -234,7 +233,6 @@ def main(initializer, args):
 if __name__ == "__main__":
     save_class_names("../../app/src/data/locs.txt", all_subclasses(Location))
     save_class_names("../../app/src/data/people.txt", all_subclasses(Person))
-
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
     parser.add_argument('-n', help='target population', default=100)

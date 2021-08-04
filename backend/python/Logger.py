@@ -24,6 +24,8 @@ class Logger:
 
     def __init__(self, logpath, filename, print=True, write=False):
         if Logger._logger is None:
+            logging.getLogger('matplotlib.font_manager').disabled = True
+
             Logger.write_level = 'i'
             Logger.write_level_ = logging.INFO
 
@@ -35,6 +37,7 @@ class Logger:
 
             Logger._logger = logging.getLogger('my_logger')
             Logger._logger.propagate = False
+
 
             if print:
                 ch = MyStreamHandler(Logger.write_level_)

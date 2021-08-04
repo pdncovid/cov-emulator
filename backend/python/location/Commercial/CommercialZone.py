@@ -28,9 +28,7 @@ class CommercialZone(Location):
                 working_building = get_random_element(buildings)
                 CommercialZone.pb_map[point.ID] = working_building
 
-            t_end = min(
-                np.random.normal(Time.get_time_from_dattime(17, 0), abs(np.random.normal(0, Time.get_duration(1)))),
-                Time.get_time_from_dattime(18, 0))
+            t_end = Time.get_random_time_between(route_so_far[-1].leaving_time, 16,0,18,0)
             while route_so_far[-1].leaving_time < t_end:
                 route_so_far = working_building.get_suggested_sub_route(point, route_so_far)
 

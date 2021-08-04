@@ -169,9 +169,8 @@ class Location:
         return [b for b in self.locations if isinstance(b, cls)]
 
     def get_suggested_sub_route(self, point, route_so_far) -> list:
-        from backend.python.const import get_dur_for_p_in_loc_at_t
         t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else 0
-        dur = get_dur_for_p_in_loc_at_t(point, self, t)
+        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(point, self, t)
         _r = [Target(self, t + dur, None)]
         route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
         return route_so_far

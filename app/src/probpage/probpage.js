@@ -19,7 +19,8 @@ import Grid from "../components/grid";
 import { ExportToCsv } from 'export-to-csv';
 import people_file from "../data/people.txt";
 import locs_file from "../data/locs.txt";
-
+import {csvJSON} from "../utils/files";
+import {strip_text}  from "../utils/files";
 function ProbDensePage() {
     const classes = useStyles();
     const [initialLoad, setInitialLoad] = useState(true);
@@ -34,7 +35,7 @@ function ProbDensePage() {
     var canvas_height = 600;
     var gs_y = 500;
     var gs_x = 60;
-    const x_axis_distance_grid_lines = (canvas_height-50)/gs_y;
+    const x_axis_distance_grid_lines = (canvas_height - 50) / gs_y;
     const y_axis_distance_grid_lines = 0.5;
 
     const [mode, setMode] = React.useState("p_go");
@@ -55,7 +56,7 @@ function ProbDensePage() {
     const [posy, setposy] = React.useState(0);
 
     const [people, setpeople] = React.useState([]);
-    const [locs, setlocs] = React.useState([]);
+    const [locs, setlocs] = React.useState(['_home', '_w_home', '_work']);
 
     const columns = [{ Header: 'person', accessor: 'person' }, { Header: 'location', accessor: 'location' }]
     for (let time = 0; time < 60 * 24; time++) {
@@ -110,8 +111,8 @@ function ProbDensePage() {
                 let arr = text.split('\n');
                 arr.forEach(element => {
                     if (element.length > 0) {
-                        if (locs.indexOf(strip(element)) == -1)
-                            locs.push(strip(element));
+                        if (locs.indexOf(strip_text(element)) == -1)
+                            addLoc(element);
                     }
                 });
             }).then(() => {
@@ -122,8 +123,8 @@ function ProbDensePage() {
                         let arr = text.split('\n');
                         arr.forEach(element => {
                             if (element.length > 0) {
-                                if (people.indexOf(strip(element)) == -1)
-                                    people.push(strip(element));
+                                if (people.indexOf(strip_text(element)) == -1)
+                                    addPerson(element);
                             }
                         });
                     }).then(() => {
@@ -230,11 +231,11 @@ function ProbDensePage() {
     }
 
     function addLine(p, l) {
-        if (p==undefined || l==undefined){
+        if (p == undefined || l == undefined) {
             console.log("Person or location not selected")
             return
         }
-        console.log("Adding line ",p,l, people[p], locs[l], allData.key);
+        console.log("Adding line ", p, l, people[p], locs[l], allData.key);
         for (var i = 0; i < selectedLines.length; i++) {
             if (selectedLines[i][0] == p && selectedLines[i][1] == l) {
                 console.log("Exists")
@@ -242,7 +243,7 @@ function ProbDensePage() {
             }
         }
         selectedLines.push([p, l]);
-        if (allData.hasOwnProperty([p, l]) && allData[[p,l]]!= undefined) {
+        if (allData.hasOwnProperty([p, l]) && allData[[p, l]] != undefined) {
             init_line(p, l, allData[[p, l]]);
         } else {
             console.log("ERROR");
@@ -251,7 +252,27 @@ function ProbDensePage() {
         console.log("Added line ", people[p], locs[l]);
     }
 
-    const handleModeChange = function (e){
+    function addLoc(element) {
+        element = strip_text(element)
+        if (element == 'Cemetery' ) {
+            return;
+        }
+        locs.push(element);
+        setlocs(locs.sort(function (a, b) {
+            return a.localeCompare(b);
+        }));
+
+    }
+
+    function addPerson(element) {
+        element = strip_text(element)
+        people.push(element);
+        setpeople(people.sort(function (a, b) {
+            return a.localeCompare(b);
+        }))
+    }
+
+    const handleModeChange = function (e) {
         setMode(e.target.value);
     }
 
@@ -315,7 +336,7 @@ function ProbDensePage() {
 
     const handleSaveClick = (event) => {
         const options = {
-            filename: mode+'LocPersonTime',
+            filename: mode + 'LocPersonTime',
             fieldSeparator: ',',
             quoteStrings: '',
             decimalSeparator: '.',
@@ -331,14 +352,14 @@ function ProbDensePage() {
         var data_to_download = []
         for (let p = 0; p < people.length; p++) {
             for (let l = 0; l < locs.length; l++) {
-                let record_to_download = { 'person': people[p], 'location': locs[l] }    
-                for (var t = 0; t < allData[[p,l]].length; t++) {
-                    record_to_download[t] = allData[[p,l]][t]
+                let record_to_download = { 'person': people[p], 'location': locs[l] }
+                for (var t = 0; t < allData[[p, l]].length; t++) {
+                    record_to_download[t] = allData[[p, l]][t]
                 }
                 data_to_download.push(record_to_download)
             }
-            
-            
+
+
         }
         console.log(data_to_download, csvLink)
 
@@ -372,11 +393,11 @@ function ProbDensePage() {
                 let l = locs.indexOf(location);
                 console.log(data[i]['person'], p, data[i]['location'], l, people, locs)
                 if (p == -1) {
-                    people.push(data[i]['person']);
+                    addPerson(data[i]['person']);
                     p = people.length - 1;
                 }
                 if (l == -1) {
-                    locs.push(data[i]['location']);
+                    addLoc(data[i]['location']);
                     l = locs.length - 1;
                 }
 
@@ -405,32 +426,8 @@ function ProbDensePage() {
         // reader.readAsBinaryString(file);
         reader.readAsText(file);
     }
-    function strip(str) {
-        return str.trim().replace(/[\n\r\t]/g, '')
-    }
-    function csvJSON(csv) {
-
-        var lines = csv.split("\n");
-
-        var result = [];
-
-        var headers = lines[0].split(",").map((e) => strip(e));
-
-        for (var i = 1; i < lines.length; i++) {
-
-            var obj = {};
-            var currentline = lines[i].split(",").map((e) => strip(e));
-
-            for (var j = 0; j < headers.length; j++) {
-                obj[headers[j]] = currentline[j];
-            }
-
-            result.push(obj);
-
-        }
-        return result;
-    }
-
+    
+    
     return (
         <div className="prob-page">
             <FormControl component="fieldset">
@@ -517,6 +514,7 @@ function ProbDensePage() {
                 exclusive
                 onChange={handlePersonClick}
                 aria-label="text alignment"
+                flexWrap="wrap"
             >
                 {people.map((bt, i) => {
                     return (<ToggleButton variant="contained" key={i} value={i}>{bt}</ToggleButton>)
@@ -528,7 +526,7 @@ function ProbDensePage() {
 
 
             <h2>Location</h2>
-            <ButtonGroup variant="text" color="primary" aria-label="text primary button group">
+            <ButtonGroup variant="contained" color="primary" aria-label="text primary button group" flexWrap="wrap" orientation='vertical'>
                 {locs.map((bt, i) => {
                     return (<Button variant="contained" key={i} onClick={(e) => handleLocClick(i, e)}>{bt}</Button>)
                 })}

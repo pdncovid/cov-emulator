@@ -42,12 +42,12 @@ def initialize2():
     # people += [GarmentWorker() for _ in range(100)]
     # people += [GarmentAdmin() for _ in range(10)]
     # people += [CommercialWorker() for _ in range(10)]
-    # people += [Student() for _ in range(100)]
+    people += [Student() for _ in range(100)]
 
-    # people += [TuktukDriver() for _ in range(5)]
-    # people += [BusDriver() for _ in range(10)]
+    people += [TuktukDriver() for _ in range(5)]
+    people += [BusDriver() for _ in range(10)]
     people += [CommercialZoneBusDriver() for _ in range(10)]
-    # people += [SchoolBusDriver() for _ in range(10)]
+    people += [SchoolBusDriver() for _ in range(10)]
     for _ in range(0):
         idx = np.random.randint(0, len(people))
         people[idx].set_infected(0, people[idx], args.common_p)
@@ -63,12 +63,12 @@ def initialize2():
     combus = CommercialZoneBus(Mobility.RANDOM.value)
     schoolbus = SchoolBus(Mobility.RANDOM.value)
     tuktuk = Tuktuk(Mobility.RANDOM.value)
-    main_trans = [walk]
+    main_trans = [schoolbus,tuktuk,bus]
 
     for person in people:
 
         person.set_home_loc(get_random_element(loc_classes[Home]))  # todo
-        person.home_weekend_loc = person.find_closest(Home, person.home_loc.parent_location, find_from_level=2)
+        person.home_weekend_loc = person.find_closest('Home', person.home_loc.parent_location, find_from_level=2)
         person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc, find_from_level=-1)  # todo
 
         if person.main_trans is None:

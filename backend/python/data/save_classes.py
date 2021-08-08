@@ -10,11 +10,14 @@ def all_subclasses(cls):
         for subc in sub:
             s.add(subc)
             f(subc, lvl + 1)
+
     f(cls, 0)
+
+    s = list(map(lambda x: x.__name__, s))
     return s
 
-def save_class_names(filename, arr):
-    arr = map(lambda x: x.__name__(), arr)
+
+def save_array(filename, arr):
     s = "\n".join(map(str, arr))
     print(s)
     fp = open(filename, 'w')

@@ -68,12 +68,12 @@ default_infectiousness = {
     TestCenter: 0.9,
 }
 work_map = {
-    CommercialWorker: CommercialZone,
-    GarmentWorker: IndustrialZone,
-    GarmentAdmin: IndustrialZone,
-    Student: EducationZone,
+    CommercialWorker: 'CommercialZone',
+    GarmentWorker: 'IndustrialZone',
+    GarmentAdmin: 'IndustrialZone',
+    Student: 'EducationZone',
     BusDriver: None,
     TuktukDriver: None,
-    CommercialZoneBusDriver: CommercialBuilding,
-    SchoolBusDriver: School
+    CommercialZoneBusDriver: 'CommercialBuilding',
+    SchoolBusDriver: 'School'
 }

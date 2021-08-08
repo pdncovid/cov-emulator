@@ -18,7 +18,6 @@ class TuktukDriver(Transporter):
         ending_time = Time.get_random_time_between(t, 17, 0, 21, 0)
         tries = 0
         while tries < 10:
-            # TODO make this part as repeating same bus route
             r_len = len(route_so_far)
             route_so_far = self.get_random_route_at(route_so_far, find_from_level=1)
             if len(route_so_far) == r_len:

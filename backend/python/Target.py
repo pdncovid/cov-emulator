@@ -11,5 +11,8 @@ class Target:
     def enter_person(self, p, target_location=None):
         self.loc.enter_person(p, target_location)
 
+    def is_equal_wo_time(self, tar2):
+        return self.loc == tar2.loc and self.likely_trans == tar2.likely_trans
+
     def __copy__(self):
         return type(self)(self.loc, self.leaving_time, self.likely_trans)

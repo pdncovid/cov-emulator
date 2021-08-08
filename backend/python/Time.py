@@ -56,3 +56,10 @@ class Time:
         string = Time.i_to_time(i)
         _, day, hours = string.split(" ")
         return pd.to_datetime(pd.to_datetime(hours).value + datetime.timedelta(days=int(day) - 1).total_seconds() * 1e9)
+
+    @staticmethod
+    def i_to_minutes(i):
+        string = Time.i_to_time(i)
+        _, day, hours = string.split(" ")
+        hrs, mins = hours.split(":")
+        return int(hrs)*60+int(mins)+int(day)*1440

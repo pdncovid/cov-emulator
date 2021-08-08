@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 
@@ -16,7 +17,7 @@ from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import Visualizer
 from backend.python.const import work_map
-from backend.python.data.save_classes import all_subclasses, save_class_names
+from backend.python.data.save_classes import all_subclasses, save_array
 from backend.python.enums import Mobility, Shape, TestSpawn, Containment
 from backend.python.functions import count_graph_n, get_random_element, separate_into_classes
 from backend.python.Time import Time
@@ -38,6 +39,7 @@ from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
+from backend.python.transport.Movement import Movement
 from backend.python.transport.SchoolBus import SchoolBus
 from backend.python.transport.Tuktuk import Tuktuk
 from backend.python.transport.Walk import Walk
@@ -90,7 +92,7 @@ def initialize():
     for person in people:
 
         person.set_home_loc(get_random_element(loc_classes[Home]))  # todo
-        person.home_weekend_loc = person.find_closest(Home, person.home_loc.parent_location, find_from_level=2)
+        person.home_weekend_loc = person.find_closest('Home', person.home_loc.parent_location, find_from_level=2)
         person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc, find_from_level=-1)  # todo
 
         if person.main_trans is None:
@@ -105,6 +107,21 @@ def update_point_parameters(args):
 
 
 def main(initializer, args):
+    test_name = time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime())
+    os.makedirs('data/' + test_name)
+
+    loc_classes = all_subclasses(Location)
+    people_classes = all_subclasses(Person)
+    movement_classes = all_subclasses(Movement)
+    loc_classes_map = {x: i for i, x in enumerate(loc_classes)}
+    people_classes_map = {x: i for i, x in enumerate(people_classes)}
+    movement_classes_map = {x: i for i, x in enumerate(movement_classes)}
+    save_array('data/' + test_name + '/locs.txt', loc_classes)
+    save_array('data/' + test_name + '/people.txt', people_classes)
+    save_array('data/' + test_name + '/movement.txt', movement_classes_map)
+    save_array("../../app/src/data/locs.txt", loc_classes)
+    save_array("../../app/src/data/people.txt", people_classes)
+
     plot = True
     global log
     log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
@@ -120,8 +137,8 @@ def main(initializer, args):
     log.log_graph(root)
 
     # DAILY REPORT
-    df = pd.DataFrame(columns=['loc', 'person', 'time', 'loc_class'])
-    df = df.astype(dtype={"loc": "int64", "person": "int64", "time": "int64", "loc_class": 'object'})
+    df = pd.DataFrame(columns=[])
+    # df = df.astype(dtype={"loc": "int64", "person": "int64", "time": "int64", "loc_class": 'object'})
     # df.set_index('time')
 
     # add test centers to medical zones
@@ -136,7 +153,7 @@ def main(initializer, args):
 
     # initialize plots
     if plot:
-        Visualizer.initialize(root, test_centers, people, root.radius, root.radius)
+        Visualizer.initialize(root, test_centers, people, loc_classes_map, root.radius, root.radius)
 
     # initial iterations to initialize positions of the people
     for t in range(5):
@@ -204,24 +221,28 @@ def main(initializer, args):
         if plot:
             # record in daily report
             tmp_list = []
-            t_str = Time.i_to_datetime(t)
+            mins = Time.i_to_minutes(t)
             for p in people:
                 cur = p.get_current_location()
                 tmp_list.append(
                     {
 
                         'person': p.ID,
-                        'loc': cur.name,
-                        'person_class': p.__class__.__name__,
-                        'loc_class': cur.__class__.__name__,
+                        'location': cur.ID,
+                        'x': round(Person.all_positions[p.ID][0]*100)/100,
+                        'y': round(Person.all_positions[p.ID][1]*100)/100,
+                        'person_class': people_classes_map[p.__class__.__name__],
+                        'loc_class': loc_classes_map[cur.__class__.__name__],
+                        'cur_movement': movement_classes_map[p.current_trans.__class__.__name__],
                         'cur_tar_idx': len(p.route) - 1 if p.is_day_finished else p.current_target_idx,
                         'route_len': len(p.route),
 
-                        'time': t_str,
+                        'time': mins,
                     }
                 )
             df = df.append(pd.DataFrame(tmp_list))
             if t % (Time.DAY // 1) == 0:
+                pd.DataFrame.to_csv(df, f"data/{test_name}/{t:05d}.csv")
                 plt.pause(0.001)
                 Visualizer.plot_map_and_points(root, people, test_centers, root.radius, root.radius, t)
                 Visualizer.plot_position_timeline(df, root)
@@ -231,8 +252,6 @@ def main(initializer, args):
 
 
 if __name__ == "__main__":
-    save_class_names("../../app/src/data/locs.txt", all_subclasses(Location))
-    save_class_names("../../app/src/data/people.txt", all_subclasses(Person))
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
     parser.add_argument('-n', help='target population', default=100)

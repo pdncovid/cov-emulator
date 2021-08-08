@@ -18,6 +18,14 @@ def bs(arr, v):
     return l
 
 
+def get_idx_most_likely(arr):
+    arr = np.cumsum(arr)
+    if arr.iloc[-1] < 1e-5:
+        return -1
+    p = np.random.rand() * arr.iloc[-1]
+    return bs(arr.values,p)
+
+
 def separate_into_classes(root):
     classes = {}
 
@@ -41,8 +49,8 @@ def find_in_subtree(c, tar, skip):
             return
         if r == tar:
             _all.append(r)
-        if type(tar) == type:
-            if isinstance(r, tar):
+        if type(tar) == str:
+            if r.__class__.__name__ == tar:
                 _all.append(r)
 
         for child in r.locations:

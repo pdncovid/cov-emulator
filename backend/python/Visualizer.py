@@ -37,6 +37,7 @@ class Visualizer:
                    State.DEAD.value: State.DEAD.name}
     test_center_color = 'yellow'
     location_palette = {}
+    loc_cls2id = {}
 
     info_fig = None
     info_axs = []
@@ -51,15 +52,15 @@ class Visualizer:
     scale = 1000
 
     @staticmethod
-    def initialize(root, test_centers, points, h, w):
-        Visualizer.init_location_colors(root)
+    def initialize(root, test_centers, points,loc_class_map, h, w):
+        Visualizer.init_location_colors(loc_class_map)
         Visualizer.init_map_figure(root, test_centers, points, h, w)
         Visualizer.init_info_figure()
         Visualizer.init_timeline_figure()
 
     @staticmethod
     def init_map_figure(root, test_centers, points, h, w):
-        Visualizer.map_fig, Visualizer.map_ax = plt.subplots(figsize=(8,8))
+        Visualizer.map_fig, Visualizer.map_ax = plt.subplots(figsize=(8, 8))
 
         # drawing heat-map
         xx, yy, zz = Visualizer.get_heatmap(points, h, w)
@@ -97,29 +98,20 @@ class Visualizer:
     @staticmethod
     def init_timeline_figure():
         # ======================================================================= plot line plot
-        fig, axs = plt.subplots(1, 3, figsize=(15,6))
+        fig, axs = plt.subplots(1, 3, figsize=(15, 6))
         Visualizer.timeline_fig = fig
         Visualizer.timeline_axs = axs
 
     @staticmethod
-    def init_location_colors(root):
+    def init_location_colors(loc_class_map):
         # ====================================================== find all the class names and creates color palette
         cmap = sns.color_palette("Spectral", as_cmap=True)
-        classes = []
-
-        def g(r):
-            classes.append(r.__class__.__name__)
-            for ch in r.locations:
-                g(ch)
-
-        g(root)
-        classes = np.unique(classes)
-        classes.sort()
 
         palette = {}
-        for i, cls in enumerate(classes):
-            cc = i / len(classes)
-            palette[cls] = cmap(cc)
+        for i, cls in enumerate(loc_class_map.keys()):
+            cc = i / len(loc_class_map)
+            palette[i] = cmap(cc)
+        Visualizer.loc_cls2id = loc_class_map
         Visualizer.location_palette = palette
 
     @staticmethod
@@ -270,7 +262,8 @@ class Visualizer:
             if rr.shape == Shape.CIRCLE.value:
                 circle = plt.Circle((rr.x / Visualizer.scale, rr.y / Visualizer.scale),
                                     rr.radius / Visualizer.scale, facecolor=[1, 0, 0, 0.5],
-                                    fill=rr.quarantined, edgecolor=Visualizer.location_palette[rr.__class__.__name__])
+                                    fill=rr.quarantined,
+                                    edgecolor=Visualizer.location_palette[Visualizer.loc_cls2id[rr.__class__.__name__]])
                 Visualizer.map_ax.add_patch(circle)
             elif rr.shape == Shape.POLYGON.value:
                 coord = rr.boundary
@@ -317,25 +310,26 @@ class Visualizer:
     def plot_position_timeline(df, root):
         ax = Visualizer.timeline_axs[0]
         hm = ax.collections[-1] if len(ax.collections) > 0 else None
-        g = df[['time', 'loc']].groupby(['time', 'loc'])
+        g = df[['time', 'location']].groupby(['time', 'location'])
         g = g.size().reset_index(name='count')
-        g = g.pivot(index='loc', columns='time', values='count')
+        g = g.pivot(index='location', columns='time', values='count')
         g.fillna(0, inplace=True)
 
         if hm is not None:
             hm.colorbar.remove()
             plt.draw()
             ax.cla()
-        hm = sns.heatmap(g, ax=ax, cbar=True, xticklabels=g.values.shape[1]//10)
+        hm = sns.heatmap(g, ax=ax, cbar=True, xticklabels=g.values.shape[1] // 10)
         xlabels = hm.get_xticklabels()
         for i in range(len(xlabels)):
             xlabels[i].set_text(xlabels[i].get_text()[:16])
         hm.set_xticklabels(xlabels)
         # ax.cla()
-        # sns.lineplot(data=df, x='time', hue='person', y='loc', ax=ax)
+        # sns.lineplot(data=df, x='time', hue='person', y='location', ax=ax)
 
-        ax.tick_params(axis='x', which='major', rotation=90, labelsize=8, colors='r', pad=2)
-        ax.tick_params(axis='x', which='minor', rotation=90, labelsize=6, colors='b')
+        # ax.tick_params(axis='x', which='major', rotation=90, labelsize=8, colors='r', pad=2)
+        # ax.tick_params(axis='x', which='minor', rotation=90, labelsize=6, colors='b')
+
         # ax.xaxis.set_major_locator(mdates.AutoDateLocator())
         # ax.xaxis.set_minor_locator(mdates.AutoDateLocator())
         # ax.xaxis.set_major_formatter(mdates.AutoDateFormatter(ax.xaxis.get_major_locator()))
@@ -349,7 +343,7 @@ class Visualizer:
         # ======================================================================= sets background color in line plot
         def f(r):
             Visualizer.timeline_axs[0].axhspan(r.ID - 0.49, r.ID + 0.49,
-                                               color=Visualizer.location_palette[r.__class__.__name__],
+                                               color=Visualizer.location_palette[Visualizer.loc_cls2id[r.__class__.__name__]],
                                                alpha=0.5)
             for ch in r.locations:
                 f(ch)
@@ -358,17 +352,18 @@ class Visualizer:
 
         ax = Visualizer.timeline_axs[1]
         ax.cla()
-        df['day_time'] = pd.to_datetime((df['time'].apply(lambda x: x.value) % (1440 * 60 * 1e9)).astype('int64'))
+        # df['day_time'] = pd.to_datetime((df['time'].apply(lambda x: x.value) % (1440 * 60 * 1e9)).astype('int64'))
+        df['day_time'] = (df['time'] % 1440).astype('int64')
         sns.histplot(data=df, x='day_time', hue='loc_class', palette=Visualizer.location_palette, ax=ax)
-        ax.xaxis.set_tick_params(rotation=90)
-        ax.xaxis.set_major_locator(mdates.HourLocator())
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        # ax.xaxis.set_tick_params(rotation=90)
+        # ax.xaxis.set_major_locator(mdates.HourLocator())
+        # ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
         ax = Visualizer.timeline_axs[2]
         ax.cla()
-        df['per_complete'] = df['cur_tar_idx'] / (df['route_len']-1)
+        df['per_complete'] = df['cur_tar_idx'] / (df['route_len'] - 1)
 
         sns.lineplot(data=df, x='day_time', y='per_complete', hue='person_class', ax=ax)
-        ax.xaxis.set_tick_params(rotation=90)
-        ax.xaxis.set_major_locator(mdates.HourLocator())
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        # ax.xaxis.set_tick_params(rotation=90)
+        # ax.xaxis.set_major_locator(mdates.HourLocator())
+        # ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))

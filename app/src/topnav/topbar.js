@@ -9,7 +9,7 @@ function TopBar({ location }) {
   return (
     <Navbar bg="primary" expand="lg" variant="dark">
       <Navbar.Brand href="/home">COV19Sim</Navbar.Brand>
-      <Navbar.Toggle aria-controls="basic-navbar-nav" />
+      {/* <Navbar.Toggle aria-controls="basic-navbar-nav" /> */}
       <Navbar.Collapse id="basic-navbar-nav">
         <Nav className="mr-auto">
           <Nav.Link href="/home" active={pathname == "/"}>
@@ -17,6 +17,9 @@ function TopBar({ location }) {
           </Nav.Link>
           <Nav.Link href="/prob" active={pathname == "/"}>
             Prob
+          </Nav.Link>
+          <Nav.Link href="/results" active={pathname == "/"}>
+            Results
           </Nav.Link>
         </Nav>
       </Navbar.Collapse>

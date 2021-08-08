@@ -18,7 +18,7 @@ class BusDriver(Transporter):
 
     def get_random_route(self, t, end_at):
         route_so_far = super(BusDriver, self).get_random_route(t, Time.get_random_time_between(t, 5, 0, 9, 0))
-        ending_time = np.random.randint(Time.get_time_from_dattime(17, 0), Time.get_time_from_dattime(21, 0))
+        ending_time = Time.get_random_time_between(route_so_far[-1].leaving_time,17, 30, 21, 30)
         tries = 0
         while tries < 10:
             # TODO make this part as repeating same bus route

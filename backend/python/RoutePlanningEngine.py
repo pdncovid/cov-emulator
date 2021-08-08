@@ -5,12 +5,24 @@ from backend.python.MovementEngine import MovementEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
 import numpy as np
+import pandas as pd
+from backend.python.functions import bs, get_idx_most_likely
+import os
+import sys
 
-from backend.python.functions import bs
 
+def process_loc_p():
+    p = os.getcwd()
+    while os.path.basename(p) != 'backend':
+        p = os.path.dirname(p)
+    p = os.path.join(p, "python")
+    p = os.path.join(p, "data")
+    p = os.path.join(p, "p_goLocPersonTime.csv")
+    return pd.read_csv(p)
 
 
 class RoutePlanningEngine:
+    df_loc_p = process_loc_p()
 
     @staticmethod
     def get_common_route(point):
@@ -36,18 +48,18 @@ class RoutePlanningEngine:
                 # these people cant change route randomly!!!
                 continue
             change_change = 0.001
-            if t % Time.DAY > 1000:
+            if t % Time.DAY > Time.get_time_from_dattime(18, 0):
                 change_change *= 0.0001
             if np.random.rand() < change_change:
                 p.update_route(root, t % Time.DAY, RoutePlanningEngine.get_alternate_route(p))
 
     @staticmethod
     def set_route(p, t):
-        day = t//Time.DAY
+        day = t // Time.DAY
         from backend.python.point.Transporter import Transporter
 
         move2first = True
-        ending_time = Time.get_random_time_between(t, 18,0,23,0)
+        ending_time = Time.get_random_time_between(t, 18, 0, 23, 0)
         # route = p.get_random_route(end_at=ending_time)
         if day % 2 == 0:
             if isinstance(p, Transporter):
@@ -63,8 +75,18 @@ class RoutePlanningEngine:
             else:
 
                 route = p.get_random_route(t, end_at=ending_time)
-
+        route = RoutePlanningEngine.optimize_route(route)
         p.set_route(route, t, move2first)
+
+    @staticmethod
+    def optimize_route(route):
+        _route = [route[0]]
+        for i in range(1, len(route)):
+            if _route[-1].is_equal_wo_time(route[i]):
+                _route[-1].leaving_time = route[i].leaving_time
+            else:
+                _route.append(route[i])
+        return _route
 
     @staticmethod
     def add_stops_as_targets_in_route(route, p):
@@ -107,6 +129,27 @@ class RoutePlanningEngine:
 
     @staticmethod
     def get_loc_for_p_at_t(p, t):
+        df = RoutePlanningEngine.df_loc_p
+        t = str(int(t * (1440 / Time.get_duration(24))))
+        lh = df[df['person'] == p.__class__.__name__][[t, 'location']]
+        idx = get_idx_most_likely(lh[t])
+        if idx == -1:
+            return []
+        s = lh.iloc[idx, 1]
+        if s == '_home':
+            return [p.home_loc]
+        if s == '_work':
+            if p.work_loc is None:
+                return []
+            return [p.work_loc]
+        if s == '_w_home':
+            if p.home_weekend_loc is None:
+                return []
+            return [p.home_weekend_loc]
+        return [lh.iloc[idx, 1]]
+
+    @staticmethod
+    def get_loc_for_p_at_t2(p, t):
 
         from backend.python.location.Commercial.CommercialZone import CommercialZone
         from backend.python.location.Education.EducationZone import EducationZone

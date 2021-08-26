@@ -1,7 +1,5 @@
 from backend.python.Logger import Logger
-from backend.python.RoutePlanningEngine import RoutePlanningEngine
-from backend.python.Time import Time
-from backend.python.functions import get_random_element
+
 from backend.python.point.Person import Person
 import numpy as np
 
@@ -67,22 +65,22 @@ class Transporter(Person):
     #     return route
 
     # override
-    def on_enter_location(self, t):
-        pass
+    def on_enter_location(self, loc, t):
+        # if isinstance(point, Transporter):
+        self.main_trans.try_to_latch_people(loc)
 
     # override
     def set_current_location(self, loc, t):
         super(Transporter, self).set_current_location(loc, t)
 
-        for p in self.latched_people:
-            loc.enter_person(p, target_location=None)
         i = 0
         do_check = False
         while i < (len(self.latched_people)):
-            if self.latched_dst[i] == self.latched_people[i].get_current_location():
+            loc.enter_person(self.latched_people[i])
+            if self.latched_dst[i] == loc:
                 Logger.log(f"{self.latched_people[i].ID} reached latched destination {self.get_current_location()}"
-                           f"from  transporter {self.ID}")
-                self.delatch(i)
+                           f"from  transporter {self.ID}", 'd')
+                self.delatch(i, loc)
                 do_check = True
                 i -= 1
             i += 1
@@ -132,7 +130,7 @@ class Transporter(Person):
         if self.get_current_location() == self.home_loc:
             return False
         if isinstance(p, Transporter):
-            Logger.log(f"Cant latch transporter to a transporter", 'e')
+            Logger.log(f"Cant latch transporter to a transporter", 'd')
             return False
         if p == self:
             raise Exception("Can't latch to self")
@@ -143,21 +141,34 @@ class Transporter(Person):
             Logger.log(f"{p.ID} latched to {self.ID}", 'w')
             return True
         else:
-            Logger.log(f"Not enough space ({len(self.latched_people)}/{self.max_latches}) to latch onto!", 'e')
+            Logger.log(f"Not enough space ({len(self.latched_people)}/{self.max_latches}) to latch onto!", 'd')
             return False
 
     def delatch_all(self):
         i = 0
         while i < (len(self.latched_people)):
-            self.delatch(i)
+            self.delatch(i, self.get_current_location())
 
-    def delatch(self, idx):
+    def delatch(self, idx, loc):
         if type(idx) != int:
             idx = self.latched_people.index(idx)
-        Logger.log(f"{self.latched_people[idx].ID} will be delatched "
+        p = self.latched_people[idx]
+        Logger.log(f"{p.ID} will be delatched "
                    f"from  transporter {self.ID} at {self.get_current_location()}")
-        self.latched_people[idx].in_inter_trans = False
-        self.latched_people[idx].latched_to = None
+
+        # p.in_inter_trans = False
+        p.latched_to = None
+
+        loc.enter_person(p)
+
+        # last mile problem. Transporter will drop at last closest location. But person has to goto one of the children
+        # of the dropped location. Search for locations, and enter to that location.
+        # Otherwise person cant go there (SOMETIMES)!.
+        from backend.python.transport.Walk import Walk
+        from backend.python.MovementEngine import MovementEngine
+        # MovementEngine.find_next_location(p).enter_person(p, None)
+        # p.get_current_location().add_to_next_location(p)
+
         self.latched_people.pop(idx)
         self.latched_dst.pop(idx)
 

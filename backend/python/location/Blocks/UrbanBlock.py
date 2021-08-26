@@ -18,6 +18,8 @@ class UrbanBlock(Location):
     #     #     route_so_far = get_random_element(self.locations).get_suggested_sub_route(point, route_so_far)
     #     #
     #     # return route_so_far
+    def enter_person(self, p):
+        super(UrbanBlock, self).enter_person(p)
 
     def __init__(self, shape, x, y, name,
                  **kwargs):

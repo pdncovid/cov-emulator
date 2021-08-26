@@ -44,16 +44,16 @@ def initialize2():
     # people += [CommercialWorker() for _ in range(10)]
     people += [Student() for _ in range(100)]
 
-    people += [TuktukDriver() for _ in range(5)]
+    # people += [TuktukDriver() for _ in range(5)]
     people += [BusDriver() for _ in range(10)]
-    people += [CommercialZoneBusDriver() for _ in range(10)]
-    people += [SchoolBusDriver() for _ in range(10)]
+    # people += [CommercialZoneBusDriver() for _ in range(10)]
+    # people += [SchoolBusDriver() for _ in range(10)]
     for _ in range(0):
         idx = np.random.randint(0, len(people))
         people[idx].set_infected(0, people[idx], args.common_p)
 
     # initialize location tree
-    root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "D1", r=100)
+    root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "UB", r=100)
     root.add_sub_location(Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3))
     loc_classes = separate_into_classes(root)
 
@@ -63,16 +63,15 @@ def initialize2():
     combus = CommercialZoneBus(Mobility.RANDOM.value)
     schoolbus = SchoolBus(Mobility.RANDOM.value)
     tuktuk = Tuktuk(Mobility.RANDOM.value)
-    main_trans = [schoolbus,tuktuk,bus]
+    main_trans = [bus]
 
     for person in people:
 
-        person.set_home_loc(get_random_element(loc_classes[Home]))  # todo
-        person.home_weekend_loc = person.find_closest('Home', person.home_loc.parent_location, find_from_level=2)
-        person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc, find_from_level=-1)  # todo
-
         if person.main_trans is None:
             person.main_trans = get_random_element(main_trans)
+        person.set_home_loc(get_random_element(loc_classes[Home]))
+        person.home_weekend_loc = person.find_closest('Home', person.home_loc.parent_location, find_from_level=2)
+        person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc, find_from_level=-1)
 
     return people, root
 
@@ -87,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
     parser.add_argument('--containment', help='containment strategy used ', type=int,
-                        default=Containment.QUARANTINECENTER.value)
+                        default=Containment.NONE.value)
     parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
     parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
     parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)

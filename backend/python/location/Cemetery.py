@@ -19,9 +19,9 @@ class Cemetery(Location):
     def process_people_switching(self, t):
         pass  # no movement when entered. cant go out. therefore we put only dead people here
 
-    def enter_person(self, p, target_location=None):
+    def enter_person(self, p):
         if p.is_dead():
-            super().enter_person(p, target_location)
+            super().enter_person(p)
             p.set_position(self.x, self.y, force=True)
             if p.current_trans is not None:
                 p.current_trans.remove_point_from_transport(p)

@@ -12,6 +12,7 @@ class Walk(Movement):
         super().__init__(velocity_cap, mobility_pattern)
         self.destination_reach_eps = 1.0
         self.infectiousness = 1.0
+        self.override_level = 0
         Walk.all_instances.append(self)
 
     def get_in_transport_transmission_p(self):

@@ -13,6 +13,7 @@ from backend.python.point.GarmentAdmin import GarmentAdmin
 from backend.python.point.GarmentWorker import GarmentWorker
 from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
+from backend.python.transport.Walk import Walk
 
 
 class IndustrialZone(Location):
@@ -71,6 +72,7 @@ class IndustrialZone(Location):
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
+        self.override_transport = Walk()
         self.spawn_sub_locations(GarmentBuilding,
                                  kwargs.get('n_buildings', 0), kwargs.get('r_buildings', 0), **kwargs)
         self.spawn_sub_locations(GarmentCanteen, kwargs.get('n_canteens', 0), kwargs.get('r_canteens', 0), **kwargs)

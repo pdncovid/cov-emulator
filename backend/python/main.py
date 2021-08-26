@@ -4,10 +4,9 @@ import time
 
 import numpy as np
 import argparse
-import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
-
+import matplotlib.pyplot as plt
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Logger import Logger
 from backend.python.CovEngine import CovEngine
@@ -38,6 +37,7 @@ from backend.python.point.SchoolBusDriver import SchoolBusDriver
 from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
+from backend.python.transport.Car import Car
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
 from backend.python.transport.Movement import Movement
 from backend.python.transport.SchoolBus import SchoolBus
@@ -67,13 +67,13 @@ def initialize():
     people += [GarmentAdmin() for _ in range(int(0.03 * args.n))]
     people += [Student() for _ in range(int(0.3 * args.n))]
 
-    people += [BusDriver() for _ in range(int(0.05 * args.n))]
-    people += [TuktukDriver() for _ in range(int(0.05 * args.n))]
-    people += [CommercialZoneBusDriver() for _ in range(int(0.03 * args.n))]
-    people += [SchoolBusDriver() for _ in range(int(0.02 * args.n))]
+    people += [BusDriver() for _ in range(int(0.15 * args.n))]
+    # people += [TuktukDriver() for _ in range(int(0.05 * args.n))]
+    # people += [CommercialZoneBusDriver() for _ in range(int(0.03 * args.n))]
+    # people += [SchoolBusDriver() for _ in range(int(0.02 * args.n))]
 
     for _ in range(args.i):
-        idx = np.random.randint(0, args.n)
+        idx = np.random.randint(0, len(people))
         people[idx].set_infected(0, people[idx], args.common_p)
 
     # initialize location tree
@@ -82,21 +82,23 @@ def initialize():
     loc_classes = separate_into_classes(root)
 
     # set random routes for each person and set their main transportation method
-    walk = Walk(Mobility.RANDOM.value)
-    bus = Bus(Mobility.RANDOM.value)
-    combus = CommercialZoneBus(Mobility.RANDOM.value)
-    schoolbus = SchoolBus(Mobility.RANDOM.value)
-    tuktuk = Tuktuk(Mobility.RANDOM.value)
-    main_trans = [bus, tuktuk, walk]
+    # walk = Walk(Mobility.RANDOM.value) # DO NOT Add walk as a main transport!!! At minimum a person uses the bus
+    # combus = CommercialZoneBus(Mobility.RANDOM.value)
+    # schoolbus = SchoolBus(Mobility.RANDOM.value)
+
+    bus = Bus()
+    car = Car()
+    tuktuk = Tuktuk()
+    main_trans = [bus]
 
     for person in people:
-
+        if person.main_trans is None:
+            person.main_trans = get_random_element(main_trans)
         person.set_home_loc(get_random_element(loc_classes[Home]))  # todo
         person.home_weekend_loc = person.find_closest('Home', person.home_loc.parent_location, find_from_level=2)
         person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc, find_from_level=-1)  # todo
 
-        if person.main_trans is None:
-            person.main_trans = get_random_element(main_trans)
+
 
     return people, root
 
@@ -116,13 +118,14 @@ def main(initializer, args):
     loc_classes_map = {x: i for i, x in enumerate(loc_classes)}
     people_classes_map = {x: i for i, x in enumerate(people_classes)}
     movement_classes_map = {x: i for i, x in enumerate(movement_classes)}
+    movement_classes_map[None] = -1
     save_array('data/' + test_name + '/locs.txt', loc_classes)
     save_array('data/' + test_name + '/people.txt', people_classes)
-    save_array('data/' + test_name + '/movement.txt', movement_classes_map)
+    save_array('data/' + test_name + '/movement.txt', movement_classes)
     save_array("../../app/src/data/locs.txt", loc_classes)
     save_array("../../app/src/data/people.txt", people_classes)
 
-    plot = True
+    plot = False
     global log
     log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
     set_parameters(args)
@@ -136,11 +139,6 @@ def main(initializer, args):
     log.log(f"{len(people)} {count_graph_n(root)}", 'c')
     log.log_graph(root)
 
-    # DAILY REPORT
-    df = pd.DataFrame(columns=[])
-    # df = df.astype(dtype={"loc": "int64", "person": "int64", "time": "int64", "loc_class": 'object'})
-    # df.set_index('time')
-
     # add test centers to medical zones
     test_centers = []
     classes = separate_into_classes(root)
@@ -151,7 +149,7 @@ def main(initializer, args):
     # find cemeteries
     cemetery = classes[Cemetery]
 
-    # initialize plots
+    # # initialize plots
     if plot:
         Visualizer.initialize(root, test_centers, people, loc_classes_map, root.radius, root.radius)
 
@@ -162,24 +160,69 @@ def main(initializer, args):
     process_disease_freq = Time.get_duration(2)
     process_disease_at = process_disease_freq
 
+    # DAILY REPORT
+    df = pd.DataFrame(columns=[])
+    # df = df.astype(dtype={"loc": "int64", "person": "int64", "time": "int64", "loc_class": 'object'})
+    # df.set_index('time')
+
     # main iteration loop
     for i in range(iterations):
         t = Time.get_time()
 
-        log.log(f"Iteration: {t} {Time.i_to_time(t)}", 'c')
-        log.log(f"=========================Iteration: {t} {Time.i_to_time(t)}======================", 'd')
+        # log.log(f"Iteration: {t} {Time.i_to_time(t)}", 'c')
+        log.log(f"=========================Iteration: {t} {Time.i_to_time(t)}======================", 'c')
         log.log_people(people)
 
         # reset day
         if t % Time.DAY == 0:
-            good = True
+            # loading route initializing probability matrices based on type of day in the week and containment strategy
+            RoutePlanningEngine.set_parameters((t//Time.DAY)%7, args.containment)
 
+            good = True
+            pd.DataFrame.to_csv(df, f"data/{test_name}/{int(t//Time.DAY):05d}.csv")
+            df = pd.DataFrame(columns=[])
+
+            df_person = []
             for p in tqdm(people, desc='Resetting day'):
                 if not p.reset_day(t):
                     good = False
+                df_person.append(
+                    {
+                        'person': p.ID,
+                        'gender': p.gender,
+                        'age': p.age,
+                        'immunity': p.immunity,
+                        'behaviour': p.behaviour,
+                        'character_vector': p.character_vector,
+                        'route': ' '.join(map(str, RoutePlanningEngine.convert_route_to_occupancy_array(p.route,
+                                                                                                        loc_classes_map,
+                                                                                                        5))),
+                        'home_loc': p.home_loc.ID,
+                        'home_weekend_loc': p.home_weekend_loc.ID if p.home_weekend_loc is not None else -1,
+                        'work_loc': p.work_loc.ID if p.work_loc is not None else -1,
+                        'main_trans': movement_classes_map[
+                            p.main_trans.__class__.__name__] if p.main_trans is not None else -1,
+                        'state': p.state,
+                        'disease_state': p.disease_state,
+                        'infected_time': p.infected_time,
+                        'infected_source_class': people_classes_map[
+                            p.source.__class__.__name__] if p.source is not None else -1,
+                        'infected_loc_class': loc_classes_map[
+                            p.infected_location.__class__.__name__] if p.infected_location is not None else -1,
+                        'temp': p.temp,
+                        'x': round(Person.all_positions[p.ID][0] * 100) / 100,
+                        'y': round(Person.all_positions[p.ID][1] * 100) / 100,
+                        'person_class': people_classes_map[p.__class__.__name__],
+                        'cur_tar_idx': len(p.route) - 1 if p.is_day_finished else p.current_target_idx,
+                        'route_len': len(p.route),
+
+                    }
+                )
+            df_person = pd.DataFrame(df_person)
             if not good:
                 a = input("RESET FAILED")
-            #     raise Exception("Day reset failed")
+            pd.DataFrame.to_csv(df_person, f"data/{test_name}/{int(t//Time.DAY):05d}_person_info.csv")
+
 
         # process movement
         MovementEngine.process_people_switching(root, t)
@@ -218,35 +261,34 @@ def main(initializer, args):
         #         break
 
         # ==================================== plotting ==============================================================
-        if plot:
-            # record in daily report
-            tmp_list = []
-            mins = Time.i_to_minutes(t)
-            for p in people:
-                cur = p.get_current_location()
-                tmp_list.append(
-                    {
 
-                        'person': p.ID,
-                        'location': cur.ID,
-                        'x': round(Person.all_positions[p.ID][0]*100)/100,
-                        'y': round(Person.all_positions[p.ID][1]*100)/100,
-                        'person_class': people_classes_map[p.__class__.__name__],
-                        'loc_class': loc_classes_map[cur.__class__.__name__],
-                        'cur_movement': movement_classes_map[p.current_trans.__class__.__name__],
-                        'cur_tar_idx': len(p.route) - 1 if p.is_day_finished else p.current_target_idx,
-                        'route_len': len(p.route),
+        # record in daily report
+        tmp_list = []
+        mins = Time.i_to_minutes(t)
+        for p in people:
+            cur = p.get_current_location()
+            tmp_list.append(
+                {
 
-                        'time': mins,
-                    }
-                )
-            df = df.append(pd.DataFrame(tmp_list))
-            if t % (Time.DAY // 1) == 0:
-                pd.DataFrame.to_csv(df, f"data/{test_name}/{t:05d}.csv")
-                plt.pause(0.001)
-                Visualizer.plot_map_and_points(root, people, test_centers, root.radius, root.radius, t)
-                Visualizer.plot_position_timeline(df, root)
-                Visualizer.plot_info(people)
+                    'person': p.ID,
+                    'location': cur.ID,
+                    'x': round(Person.all_positions[p.ID][0] * 100) / 100,
+                    'y': round(Person.all_positions[p.ID][1] * 100) / 100,
+                    'person_class': people_classes_map[p.__class__.__name__],
+                    'loc_class': loc_classes_map[cur.__class__.__name__],
+                    'cur_movement': movement_classes_map[p.current_trans.__class__.__name__],
+                    'cur_tar_idx': len(p.route) - 1 if p.is_day_finished else p.current_target_idx,
+                    'route_len': len(p.route),
+
+                    'time': mins,
+                }
+            )
+        df = df.append(pd.DataFrame(tmp_list))
+        if t % (Time.DAY // 100) == 0 and plot:
+            plt.pause(0.001)
+            Visualizer.plot_map_and_points(root, people, test_centers, root.radius, root.radius, t)
+        # Visualizer.plot_position_timeline(df, root)
+        # Visualizer.plot_info(people)
 
         Time.increment_time_unit()
 
@@ -255,13 +297,13 @@ if __name__ == "__main__":
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
     parser.add_argument('-n', help='target population', default=100)
-    parser.add_argument('-i', help='initial infected', type=int, default=2)
+    parser.add_argument('-i', help='initial infected', type=int, default=1)
 
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
     parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
     parser.add_argument('--containment', help='containment strategy used ', type=int,
-                        default=Containment.QUARANTINECENTER.value)
+                        default=Containment.NONE.value)
     parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
     parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
     parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)

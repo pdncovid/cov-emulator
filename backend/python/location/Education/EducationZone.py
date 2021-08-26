@@ -34,5 +34,5 @@ class EducationZone(Location):
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
-
+        self.override_transport = Walk()
         self.spawn_sub_locations(School, kwargs.get('n_buildings', 0), kwargs.get('r_buildings', 0), **kwargs)

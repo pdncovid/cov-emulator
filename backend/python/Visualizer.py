@@ -55,8 +55,8 @@ class Visualizer:
     def initialize(root, test_centers, points,loc_class_map, h, w):
         Visualizer.init_location_colors(loc_class_map)
         Visualizer.init_map_figure(root, test_centers, points, h, w)
-        Visualizer.init_info_figure()
-        Visualizer.init_timeline_figure()
+        # Visualizer.init_info_figure()
+        # Visualizer.init_timeline_figure()
 
     @staticmethod
     def init_map_figure(root, test_centers, points, h, w):
@@ -353,17 +353,21 @@ class Visualizer:
         ax = Visualizer.timeline_axs[1]
         ax.cla()
         # df['day_time'] = pd.to_datetime((df['time'].apply(lambda x: x.value) % (1440 * 60 * 1e9)).astype('int64'))
-        df['day_time'] = (df['time'] % 1440).astype('int64')
-        sns.histplot(data=df, x='day_time', hue='loc_class', palette=Visualizer.location_palette, ax=ax)
+        df2 = df[['time', 'loc_class']]
+        df2['day_time'] = (df2['time'] % 1440).astype('int64')
+        sns.histplot(data=df2, x='day_time', hue='loc_class', palette=Visualizer.location_palette, ax=ax)
         # ax.xaxis.set_tick_params(rotation=90)
         # ax.xaxis.set_major_locator(mdates.HourLocator())
         # ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
         ax = Visualizer.timeline_axs[2]
         ax.cla()
-        df['per_complete'] = df['cur_tar_idx'] / (df['route_len'] - 1)
 
-        sns.lineplot(data=df, x='day_time', y='per_complete', hue='person_class', ax=ax)
+        df2 = df[['time', 'person_class', 'cur_tar_idx','route_len']]
+        df2['per_complete'] = df2['cur_tar_idx'] / (df2['route_len'] - 1)
+        df2['day_time'] = (df2['time'] % 1440).astype('int64')
+
+        sns.lineplot(data=df2, x='day_time', y='per_complete', hue='person_class', ax=ax)
         # ax.xaxis.set_tick_params(rotation=90)
         # ax.xaxis.set_major_locator(mdates.HourLocator())
         # ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))

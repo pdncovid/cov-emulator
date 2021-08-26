@@ -17,10 +17,9 @@ class MovementByTransporter(Movement):
         return d
 
     # override
-    def add_point_to_transport(self, point, target_location):
-        super().add_point_to_transport(point, target_location)
-        if isinstance(point, Transporter):
-            self.try_to_latch_people(point)
+    def add_point_to_transport(self, point):
+        super().add_point_to_transport(point)
+
 
     # # override
     # def transport_point(self, point, destination_xy):
@@ -34,18 +33,27 @@ class MovementByTransporter(Movement):
         MovementByTransporter.all_instances.append(self)
 
     def find_feasibility(self, tr, path2next_tar):
-        hops2reach = [-1. for _ in path2next_tar]
+        hops2reach = [1e10 for _ in path2next_tar]
+        dist_by_disp = [1e10 for _ in path2next_tar]
 
         for i in range(len(path2next_tar)):
             tar = path2next_tar[i]
             hops = 0
-            for j in range(tr.current_target_idx, len(tr.route)):
+            displacement = tr.get_current_location().get_distance_to(tar)
+            distance = 0
+            # tr passed the current_target_idx and going to next. therefore +1
+            for j in range(tr.current_target_idx + 1, len(tr.route)):
                 hops += 1
+                if j == tr.current_target_idx + 1:
+                    distance += tr.get_current_location().get_distance_to(tr.route[j].loc)
+                else:
+                    distance += tr.route[j].loc.get_distance_to(tr.route[j - 1].loc)
                 if tar == tr.route[j].loc:
+                    dist_by_disp[i] = distance/displacement
+                    hops2reach[i] = hops
                     break
             else:
-                hops = -1
-            hops2reach[i] = hops
+                hops2reach[i] = 1e10
         Logger.log(f"Path to target {list(map(str, path2next_tar))} {hops2reach}", 'i')
         des = None
         best = 1e10
@@ -54,43 +62,44 @@ class MovementByTransporter(Movement):
             return arr[x] * (len(arr) - x)
 
         for i in range(len(hops2reach)):
-            if hops2reach[i] < 0:
+            if hops2reach[i] == 1e10:
                 continue
-            if cost(hops2reach, i) < best:
-                best = cost(hops2reach, i)
+            if dist_by_disp[i] > 10:
+                continue
+            c = dist_by_disp[i]#*cost(hops2reach, i)
+            if c < best:
+                best = c
                 des = path2next_tar[i]
         return best, des
 
-    def try_to_latch_person(self, p, transporter):
-        possible_transporters = []  # element - (cost, transporter, destination)
-        path2next_tar = MovementEngine.get_next_target_path(p)
-        # for pl in p.get_current_location().points:
-        #     if isinstance(pl, Transporter):
-        pl = transporter
-        Logger.log(f"Trying to latch {p.ID} ({path2next_tar[-1].name}) in {self} to transporter "
-                   f"{pl.ID} ({list(map(str, pl.route))}) {pl.get_current_location()}", 'i')
-        cost, des = self.find_feasibility(pl, path2next_tar)
-        if des is not None:
-            possible_transporters.append((cost, pl, des))
+    def try_to_latch_people(self, location):
+        transporters = []
+        for p in location.points:
+            if isinstance(p, Transporter):
+                transporters.append(p)
 
-        if len(possible_transporters) == 0:
-            Logger.log("No one to latch", 'i')
-            return
-        possible_transporters.sort(key=lambda x: x[0])
-
-        for i in range(len(possible_transporters)):
-            (cost, transporter, destination) = possible_transporters[i]
-            if transporter.latch(p, destination):
-                Logger.log(f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}",
-                           'e')
-                break
-
-    def try_to_latch_people(self, transporter):
-        # todo find people waiting for long time and make them walk
-        for p in transporter.get_current_location().points:  # check for all points in the current location
+        for p in location.points:  # check for all points in the current location
             if isinstance(p, Transporter):
                 continue
-            if p.all_movement_ids[p.ID] != p.all_movement_ids[transporter.ID]:  # not in same movement method!
+            if p.latched_to is not None:
                 continue
-            if not p.latched_to:
-                self.try_to_latch_person(p, transporter)
+            path2next_tar = MovementEngine.get_next_target_path(p)
+            possible_transporters = []
+            for transporter in transporters:
+                if p.all_movement_ids[p.ID] != p.all_movement_ids[transporter.ID]:  # not in same movement method!
+                    continue
+                cost, des = self.find_feasibility(transporter, path2next_tar)
+                if des is not None:
+                    possible_transporters.append((cost, transporter, des))
+            if len(possible_transporters) == 0:
+                Logger.log("No one to latch", 'i')
+                return
+            possible_transporters.sort(key=lambda x: x[0])
+
+            for i in range(len(possible_transporters)):
+                (cost, transporter, destination) = possible_transporters[i]
+                if transporter.latch(p, destination):
+                    Logger.log(
+                        f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}",
+                        'd')
+                    break

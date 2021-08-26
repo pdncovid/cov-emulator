@@ -10,5 +10,5 @@ class CommercialWorker(Person):
 
     def __init__(self):
         super().__init__()
-        if np.random.random() < CommercialWorker.combusp:
-            self.main_trans = CommercialZoneBus(Mobility.RANDOM.value)
+        # if np.random.random() < CommercialWorker.combusp:
+        #     self.main_trans = CommercialZoneBus(Mobility.RANDOM.value)

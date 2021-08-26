@@ -20,7 +20,9 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
 
 
     useEffect(() => {
-        
+        var _grid = [];
+        var _ticks = [];
+        var _tickTexts = [];
         console.log('Drawing grid');
         // grid lines along Y-axis
         for (var i = 0; i <= num_lines_y; i++) {
@@ -37,7 +39,7 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
             else {
                 var points = [xl + 0.5, 0, xl + 0.5, canvas_height];
             }
-            grid.push({
+            _grid.push({
                 points: points,
                 stroke: strokeStyle,
                 strokeWidth: lineWidth,
@@ -61,7 +63,7 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
             else {
                 var points = [0, yl + 0.5, canvas_width, yl + 0.5];
             }
-            grid.push({
+            _grid.push({
                 points: points,
                 stroke: strokeStyle,
                 strokeWidth: lineWidth,
@@ -78,10 +80,10 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
 
             // Draw a tick mark 6px long (-3 to 3)
             var points = [convertx2px(i) + 0.5, converty2py(0) - 3, convertx2px(i) + 0.5, converty2py(0) + 3];
-            console.log(points)
-            tick.push({ points: points, stroke: strokeStyle, strokeWidth: lineWidth, lineCap: 'round', lineJoin: 'round', });
+    
+            _ticks.push({ points: points, stroke: strokeStyle, strokeWidth: lineWidth, lineCap: 'round', lineJoin: 'round', });
             // Text value at that point
-            tickText.push({
+            _tickTexts.push({
                 x: convertx2px(i) - 2, y: converty2py(0) + 15, text: x_axis_starting_point.number * i + x_axis_starting_point.suffix, fontSize: 9, fontFamily: 'Arial', fill: 'black',
             });
         }
@@ -91,11 +93,11 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
 
             // Draw a tick mark 6px long (-3 to 3)
             var points = [convertx2px(-i) + 0.5, converty2py(0) - 3, convertx2px(-i) + 0.5, converty2py(0) + 3];
-            console.log(points)
-            tick.push({ points: points, stroke: strokeStyle, strokeWidth: lineWidth, lineCap: 'round', lineJoin: 'round', });
+            
+            _ticks.push({ points: points, stroke: strokeStyle, strokeWidth: lineWidth, lineCap: 'round', lineJoin: 'round', });
 
             // Text value at that point
-            tickText.push({
+            _tickTexts.push({
                 x: convertx2px(-i) + 3,
                 y: converty2py(0) + 15,
                 text: -x_axis_starting_point.number * i + x_axis_starting_point.suffix,
@@ -111,11 +113,11 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
 
             // Draw a tick mark 6px long (-3 to 3)
             var points = [convertx2px(0) - 3, converty2py(i) + 0.5, convertx2px(0) + 3, converty2py(i) + 0.5];
-            console.log(points)
-            tick.push({ points: points, stroke: strokeStyle, strokeWidth: lineWidth, lineCap: 'round', lineJoin: 'round', });
+            
+            _ticks.push({ points: points, stroke: strokeStyle, strokeWidth: lineWidth, lineCap: 'round', lineJoin: 'round', });
 
             // Text value at that point
-            tickText.push({
+            _tickTexts.push({
                 x: convertx2px(0) + 8,
                 y: converty2py(i) + 3,
                 text: -y_axis_starting_point.number * i + y_axis_starting_point.suffix,
@@ -131,12 +133,12 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
 
             // Draw a tick mark 6px long (-3 to 3)
             var points = [convertx2px(0) + -3, converty2py(-i) + 0.5, convertx2px(0) + 3, converty2py(-i) + 0.5];
-            console.log(points)
-            tick.push({ points: points, stroke: strokeStyle, strokeWidth: lineWidth, lineCap: 'round', lineJoin: 'round', });
+            
+            _ticks.push({ points: points, stroke: strokeStyle, strokeWidth: lineWidth, lineCap: 'round', lineJoin: 'round', });
 
 
             // Text value at that point
-            tickText.push({
+            _tickTexts.push({
                 x: convertx2px(0) + 8,
                 y: converty2py(-i) + 3,
                 text: y_axis_starting_point.number * i + y_axis_starting_point.suffix,
@@ -146,7 +148,10 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
             });
         }
 
-    }, [initialLoad])
+        setGrid(_grid)
+        setTicks(_ticks)
+        setTickTexts(_tickTexts)
+    }, [gs_y,gs_x])
 
 
 

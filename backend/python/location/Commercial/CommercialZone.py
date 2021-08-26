@@ -47,7 +47,7 @@ class CommercialZone(Location):
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
-
+        self.override_transport = Walk()
         self.spawn_sub_locations(CommercialBuilding,
                                  kwargs.get('n_buildings', 0), kwargs.get('r_buildings', 0), **kwargs)
         self.spawn_sub_locations(CommercialCanteen, kwargs.get('n_canteens', 0), kwargs.get('r_canteens', 0), **kwargs)

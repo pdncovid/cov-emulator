@@ -24,6 +24,8 @@ from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.Home import Home
 from backend.python.location.Residential.ResidentialPark import ResidentialPark
 from backend.python.location.Residential.ResidentialZone import ResidentialZone
+from backend.python.location.Stations.BusStation import BusStation
+from backend.python.location.Stations.TukTukStation import TukTukStation
 from backend.python.location.TestCenter import TestCenter
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
@@ -39,6 +41,9 @@ default_infectiousness = {
 
     UrbanBlock: 0.8,
     RuralBlock: 0.6,
+
+    BusStation: 0.9,
+    TukTukStation: 0.8,
 
     CommercialBuilding: 0.8,
     CommercialCanteen: 0.9,
@@ -68,12 +73,12 @@ default_infectiousness = {
     TestCenter: 0.9,
 }
 work_map = {
-    CommercialWorker: 'CommercialZone',
-    GarmentWorker: 'IndustrialZone',
-    GarmentAdmin: 'IndustrialZone',
-    Student: 'EducationZone',
-    BusDriver: None,
-    TuktukDriver: None,
+    CommercialWorker: 'CommercialWorkArea',
+    GarmentWorker: 'GarmentWorkArea',
+    GarmentAdmin: 'GarmentOffice',
+    Student: 'Classroom',
+    BusDriver: 'BusStation',
+    TuktukDriver: 'TukTukStation',
     CommercialZoneBusDriver: 'CommercialBuilding',
     SchoolBusDriver: 'School'
 }

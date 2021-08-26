@@ -10,6 +10,6 @@ class Student(Person):
     def __init__(self):
         super().__init__()
 
-        if np.random.random() < Student.combusp:
-            self.main_trans = SchoolBus(Mobility.RANDOM.value)
+        # if np.random.random() < Student.combusp:
+        #     self.main_trans = SchoolBus(Mobility.RANDOM.value)
 

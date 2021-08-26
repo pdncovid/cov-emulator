@@ -152,13 +152,12 @@ class Location:
 
         return x, y
 
-    def get_leaves_of_class(self, cls):
+    def get_locations_according_function(self, f):
         leaves = []
 
         def dfs(rr: Location):
-            if len(rr.locations) == 0:
-                if isinstance(rr, cls):
-                    leaves.append(rr)
+            if f(rr):
+                leaves.append(rr)
             for child in rr.locations:
                 dfs(child)
 
@@ -168,8 +167,14 @@ class Location:
     def get_children_of_class(self, cls):
         return [b for b in self.locations if isinstance(b, cls)]
 
+    def get_root(self):
+        rr = self
+        while rr.parent_location is not None:
+            rr = rr.parent_location
+        return rr
+
     def get_suggested_sub_route(self, point, route_so_far) -> list:
-        t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else 0
+        t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else Time.get_time()
         dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(point, self, t)
         _r = [Target(self, t + dur, None)]
         route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
@@ -215,12 +220,12 @@ class Location:
                     continue
                 if p.is_day_finished and p.get_current_location() == p.route[0].loc:
                     continue
-                if p.in_inter_trans:
+                if p.all_destinations[p.ID] != -1:
                     # waiting too long in this place!!!
-                    if t - p.current_loc_leave > Time.get_duration(2) and \
-                            t - p.current_loc_enter > Time.get_duration(2):
+                    if t - p.current_loc_leave > Time.get_duration(1) and \
+                            t - p.current_loc_enter > Time.get_duration(1):
                         Logger.log(
-                            f"OT {p} @ {p.get_current_location().name} -> ({p.get_next_target()}) "
+                            f"OT {p} @ {p.get_current_location().name} -> {MovementEngine.find_next_location(p)} [{p.get_next_target()}] "
                             f"({p.current_target_idx}/{len(p.route)}) "
                             f"dt={t - p.current_loc_leave} "
                             f"Move {p.current_trans} "
@@ -229,11 +234,9 @@ class Location:
                         )
                         from backend.python.transport.Walk import Walk
                         walk = get_random_element(Walk.all_instances)
-                        dest = walk.get_destination_of(p)
-                        walk.add_point_to_transport(p, dest)
-                        continue
-                    if t - p.current_loc_leave > Time.get_duration(1) and \
-                            t - p.current_loc_enter > Time.get_duration(1):
+                        walk.add_point_to_transport(p)
+                    elif t - p.current_loc_leave > Time.get_duration(0.5) and \
+                            t - p.current_loc_enter > Time.get_duration(0.5):
                         # todo change current transportation system to tuk tuk or taxi
                         Logger.log(
                             f"OT {p} @ {p.get_current_location().name} -> ({p.get_next_target()}) "
@@ -243,60 +246,98 @@ class Location:
                             f"ADD TO Tuktuk"
                             , 'c'
                         )
-
                         from backend.python.transport.Tuktuk import Tuktuk
                         tuktuk = get_random_element(Tuktuk.all_instances)
-                        dest = tuktuk.get_destination_of(p)
-                        tuktuk.add_point_to_transport(p, dest)
+                        tuktuk.add_point_to_transport(p)
                     continue
 
-                # overstay. move point to the transport medium
-                next_location = MovementEngine.find_next_location(p)
+                self.leave_this_location(p)
 
-                if self.depth == next_location.depth:
-                    transporting_location = self.parent_location
-                elif self.depth > next_location.depth:
-                    transporting_location = next_location
-                else:
-                    transporting_location = self
+    def leave_this_location(self, p):
+        # overstay. move point to the transport medium
+        next_location = MovementEngine.find_next_location(p)
 
-                if transporting_location is None:
-                    # this is because when we update route we set current_loc to root sometimes
-                    transporting_location = self
+        if self.depth == next_location.depth:
+            transporting_location = self.parent_location
+        elif self.depth > next_location.depth:
+            transporting_location = next_location
+        else:
+            transporting_location = self
 
-                assert next_location is not None
-                # leaving current location
-                if ContainmentEngine.can_go_there(p, self, next_location):
-                    transporting_location.enter_person(p, next_location)
-                    p.in_inter_trans = True
-                else:
-                    Logger.log(f"{p.ID} cannot leave {self}")
+        if transporting_location is None:
+            # this is because when we update route we set current_loc to root sometimes
+            transporting_location = self
 
-    def enter_person(self, p, target_location=None):
+        assert next_location is not None
+
+        # leaving current location
+        can_go_out_movement = transporting_location.can_enter(p)
+        can_go_out_containment = ContainmentEngine.can_go_there(p, self, next_location)
+        if can_go_out_containment and can_go_out_movement:
+            p.set_point_destination(next_location)
+            Logger.log(f"{p.ID} move {p.get_current_location()} -> {next_location} ({transporting_location}) [{p.get_next_target()}]", 'd')
+            transporting_location.enter_person(p)
+            # p.in_inter_trans = True
+        else:
+            if not can_go_out_movement:
+                transporting_location.set_movement_method(p)
+            Logger.log(f"{p.ID} cannot leave {self}", 'd')
+
+    def can_enter(self, p):
+        from backend.python.transport.MovementByTransporter import MovementByTransporter
+        if isinstance(p, Transporter):
+            return True
+        if p.latched_to is not None:
+            return True
+        if self.override_transport is None and isinstance(p.main_trans, MovementByTransporter):
+            return False
+        return True
+
+    def on_destination_reached(self, p):
+        Logger.log(f"Destination {self} reached by {p}", 'd')
+        p.set_point_destination(None)
+        self.enter_person(p)
+
+    def enter_person(self, p):
+        if p.get_current_location() is not None:
+            p.get_current_location().remove_point(p)
+
         t = Time.get_time()
+        p.current_loc_enter = t
+        self.points.append(p)
+        self.is_visiting.append(p.get_next_target().loc != self)
+        p.set_current_location(self, t)
+        self.set_movement_method(p)
+
+        if p.latched_to is None:
+            latched_text = ''
+        else:
+            latched_text = f' latched with {p.latched_to.ID}'
+        Logger.log(f"Entered {p.ID} to {self.name} using {p.current_trans}{latched_text}. [{p.get_next_target()}].", 'd')
+
         current_loc_leave = self.get_leaving_time(p, t)
         is_visiting = True
-        if p.get_current_location() is None:  # initialize
+        # if p.get_current_location() is None:  # initialize
+        #     pass
+
+        if p.get_next_target().loc == self:
+            is_visiting = False
+            if p.current_target_idx == len(p.route) - 1 and p.route[-1].loc == self:
+                p.is_day_finished = True
+                Logger.log(f"{self.ID} finished daily route!", 'c')
+            else:
+                p.increment_target_location()
+            current_loc_leave = self.get_leaving_time(p, t)  # new leaving time after incrementing target
+        elif p.get_current_target().loc == self:
             pass
         else:
-            p.get_current_location().remove_point(p)
-            if p.get_next_target().loc == self:
-                is_visiting = False
-                p.increment_target_location()
-                current_loc_leave = self.get_leaving_time(p, t)
-            elif p.get_current_target().loc == self:
-                pass
-            else:
-                current_loc_leave = t - 1
-
-        p.current_loc_enter = t
+            # next_location = MovementEngine.find_next_location(p)
+            # p.set_point_destination(next_location)
+            current_loc_leave = t - 1
         p.current_loc_leave = current_loc_leave
-        self.points.append(p)
-        self.is_visiting.append(is_visiting)
-        p.set_current_location(self, t)
 
         # following lines should be always after the above code
-        p.on_enter_location(t)
+        p.on_enter_location(self, t)  # transporters try to latch others here
 
         if self.capacity is not None:
             if self.capacity < len(self.is_visiting) - sum(self.is_visiting):
@@ -325,17 +366,15 @@ class Location:
                         # todo bug: if p is in home, when cap is full current_loc jump to self.parent
                         return  # don't add to this location because capacity reached
                     raise Exception("Capacity full at root node!!! Cannot handle this!")
+
+    def set_movement_method(self, p):
         if not p.latched_to:
             # add the person to the default transportation system, if the person is not latched to someone else.
+            trans = p.main_trans
             if self.override_transport is not None and not isinstance(p, Transporter):
-                trans = self.override_transport
-            else:
-                trans = p.main_trans
-            trans.add_point_to_transport(p, target_location)
-            Logger.log(f"Entered {p.ID} to {self.name} using {trans}. Destination {target_location}", 'i')
-        else:
-            Logger.log(f"Entered {p.ID} to {self.name} latched with {p.latched_to.ID} Destination {target_location}",
-                       'i')
+                if self.override_transport.override_level <= p.main_trans.override_level:
+                    trans = self.override_transport
+            trans.add_point_to_transport(p)
 
     def get_leaving_time(self, p, t):
         # if p.route[p.current_target_idx].duration_time != -1:

@@ -12,6 +12,7 @@ class CommercialZoneBus(MovementByTransporter):
 
         self.destination_reach_eps = 10.0
         self.infectiousness = 1.0
+        self.override_level = 4
         CommercialZoneBus.all_instances.append(self)
 
     def get_in_transport_transmission_p(self):  # todo function of latch density

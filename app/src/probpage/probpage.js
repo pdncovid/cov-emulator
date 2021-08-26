@@ -9,6 +9,8 @@ import RadioGroup from '@material-ui/core/RadioGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import FormControl from '@material-ui/core/FormControl';
 import FormLabel from '@material-ui/core/FormLabel';
+import Typography from '@material-ui/core/Typography';
+import Slider from '@material-ui/core/Slider';
 
 import Alert from "react-bootstrap/Alert";
 import randomColor from "randomcolor";
@@ -19,8 +21,8 @@ import Grid from "../components/grid";
 import { ExportToCsv } from 'export-to-csv';
 import people_file from "../data/people.txt";
 import locs_file from "../data/locs.txt";
-import {csvJSON} from "../utils/files";
-import {strip_text}  from "../utils/files";
+import { csvJSON } from "../utils/files";
+import { strip_text } from "../utils/files";
 function ProbDensePage() {
     const classes = useStyles();
     const [initialLoad, setInitialLoad] = useState(true);
@@ -33,30 +35,32 @@ function ProbDensePage() {
 
     var canvas_width = 1500;
     var canvas_height = 600;
-    var gs_y = 500;
-    var gs_x = 60;
-    const x_axis_distance_grid_lines = (canvas_height - 50) / gs_y;
-    const y_axis_distance_grid_lines = 0.5;
 
-    const [mode, setMode] = React.useState("p_go");
+    const [gs_y, setGSY] = useState(500);
+    const [gs_x, setGSX] = useState(60);
+    var x_axis_distance_grid_lines = (canvas_height - 50) / gs_y;
+    var y_axis_distance_grid_lines = 0.5 / (gs_x / 60);
 
-    const [selectedLines, setSelectedLines] = React.useState([]);
-    const [highlightedLines, setHighlightedLines] = React.useState([]);
-    const [selectedPerson, setSelectedPerson] = React.useState(0);
-    const [selectedLoc, setSelectedLoc] = React.useState(0);
-    const [allData, setAllData] = React.useState({});
+    const [mode, setMode] = useState("p_go");
 
-    const [isDown, setIsDown] = React.useState(false);
-    const [consoleText, setConsoleText] = React.useState("HSW");
-    const [lines, setLines] = React.useState([]);
+    const [selectedLines, setSelectedLines] = useState([]);
+    const [highlightedLines, setHighlightedLines] = useState([]);
+    const [selectedPerson, setSelectedPerson] = useState(0);
+    const [selectedLoc, setSelectedLoc] = useState(0);
+    const [allData, setAllData] = useState({});
 
-    const [prevX, setprevX] = React.useState(0);
-    const [prevY, setprevY] = React.useState(0);
-    const [posx, setposx] = React.useState(0);
-    const [posy, setposy] = React.useState(0);
+    const [isDown, setIsDown] = useState(false);
+    const [consoleText, setConsoleText] = useState("HSW");
+    const [lines, setLines] = useState([]);
+    // const lines = useRef([]);
 
-    const [people, setpeople] = React.useState([]);
-    const [locs, setlocs] = React.useState(['_home', '_w_home', '_work']);
+    const [prevX, setprevX] = useState(0);
+    const [prevY, setprevY] = useState(0);
+    const [posx, setposx] = useState(0);
+    const [posy, setposy] = useState(0);
+
+    const [people, setpeople] = useState([]);
+    const [locs, setlocs] = useState(['_home', '_w_home', '_work']);
 
     const columns = [{ Header: 'person', accessor: 'person' }, { Header: 'location', accessor: 'location' }]
     for (let time = 0; time < 60 * 24; time++) {
@@ -77,29 +81,7 @@ function ProbDensePage() {
         return -(y * gs_y) + (x_axis_distance_grid_lines * gs_y)
     }
 
-    function init_line(p, l, data) {
-        var _line = Array(24 * 60 * 2).fill(0);
-        for (var i = 0; i < 24 * 60; i++) {
-            _line[i * 2] = convertx2px(i / 60);
-            _line[i * 2 + 1] = converty2py(data[i])
-        }
-        let to_add = {
-            points: _line,
-            stroke: randomColor(),
-            strokeWidth: 5,
-            lineCap: 'round',
-            lineJoin: 'round',
-            key: [p, l],
-            values: data,
-        };
-        for (let i = 0; i < lines.length; i++) {
-            if (lines.key == [p, l]) {
-                lines[i] = to_add;
-                return;
-            }
-        }
-        lines.push(to_add);
-    }
+
     useEffect(() => {
 
         console.log("Initializing Prob page")
@@ -145,6 +127,33 @@ function ProbDensePage() {
         // }
     }, [initialLoad])
 
+    useEffect(() => {
+        if (mode == 'p_go') {
+            setGSY(500)
+            setGSX(60)
+        } else if (mode == 'p_dt') {
+            setGSY(500)
+            setGSX(600)
+        }
+
+
+
+    }, [mode])
+
+    useEffect(() => {
+        let ps = []
+        let ls = [];
+        while (lines.length > 0) {
+            ps.push(lines[0].key[0]);
+            ls.push(lines[0].key[1]);
+            removeLine(lines[0].key.toString());
+        }
+        for (let i=0;i<ps.length;i++){
+            addLine(ps[i], ls[i])
+        }
+
+
+    }, [gs_x, gs_y])
 
 
     function findxy(res, e) {
@@ -203,7 +212,13 @@ function ProbDensePage() {
             }
             // console.log(x, y, x1, x2, lines[p_idx])
             for (var i = x1; i <= x2; i++) {
-                var _y = prevY + (y - prevY) * (i - x1) / (x2 - x1);
+                var _y;
+                if (x1==x2){
+                    _y = y;
+                }else{
+                    _y = prevY + (y - prevY) * (i - x1) / (x2 - x1);
+                }
+                
                 _y = Math.min(_y, 1);
                 _y = Math.max(_y, 0);
                 _line[2 * i + 1] = converty2py(_y);
@@ -214,7 +229,12 @@ function ProbDensePage() {
 
             }
             for (var i = x2; i <= x1; i++) {
-                var _y = y - (y - prevY) * (i - x2) / (x1 - x2);
+                var _y;
+                if (x1==x2){
+                    _y = y;
+                }else{
+                    _y = prevY + (y - prevY) * (i - x1) / (x2 - x1);
+                }
                 _y = Math.min(_y, 1);
                 _y = Math.max(_y, 0);
                 _line[2 * i + 1] = converty2py(_y);
@@ -227,15 +247,32 @@ function ProbDensePage() {
             lines[p_idx].values = _val;
             stageEl.current.children[1].children[p_idx].setPoints(_line);
         }
-        // setLines(arrlines);
     }
+    function init_line(p, l, data) {
+        console.log("Initializing line for " + p + " " + l)
+        var _line = Array(24 * 60 * 2).fill(0);
+        for (var i = 0; i < 24 * 60; i++) {
+            _line[i * 2] = convertx2px(i / 60);
+            _line[i * 2 + 1] = converty2py(data[i])
+        }
+        let to_add = {
+            points: _line,
+            stroke: randomColor(),
+            strokeWidth: 5,
+            lineCap: 'round',
+            lineJoin: 'round',
+            key: [p, l],
+            values: data,
+        };
+        return to_add;
 
+    }
     function addLine(p, l) {
         if (p == undefined || l == undefined) {
             console.log("Person or location not selected")
             return
         }
-        console.log("Adding line ", p, l, people[p], locs[l], allData.key);
+        console.log("Adding line ", p, l, people[p], locs[l]);
         for (var i = 0; i < selectedLines.length; i++) {
             if (selectedLines[i][0] == p && selectedLines[i][1] == l) {
                 console.log("Exists")
@@ -244,7 +281,15 @@ function ProbDensePage() {
         }
         selectedLines.push([p, l]);
         if (allData.hasOwnProperty([p, l]) && allData[[p, l]] != undefined) {
-            init_line(p, l, allData[[p, l]]);
+            const line = init_line(p, l, allData[[p, l]]);
+            var _lines = lines;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines.key == [p, l]) {
+                    _lines[i] = line;
+                }
+            }
+            _lines.push(line);
+            setLines(_lines);
         } else {
             console.log("ERROR");
             return
@@ -252,9 +297,36 @@ function ProbDensePage() {
         console.log("Added line ", people[p], locs[l]);
     }
 
+    function removeLine(pl_key) {
+        console.log("removing line " + pl_key)
+        let _selectedLines = selectedLines;
+        let _lines = lines;
+        let _highlightedLines = highlightedLines;
+
+        for (let j = 0; j < selectedLines.length; j++) {
+            if (_selectedLines[j] == pl_key) {
+                _selectedLines.splice(j, 1);
+            }
+        }
+        for (let j = 0; j < lines.length; j++) {
+            if (_lines[j].key == pl_key) {
+                _lines.splice(j, 1);
+            }
+        }
+        for (let j = 0; j < highlightedLines.length; j++) {
+            if (_highlightedLines[j] == pl_key) {
+                _highlightedLines.splice(j, 1);
+            }
+        }
+        setSelectedLines(_selectedLines)
+        setHighlightedLines(_highlightedLines)
+        setLines(_lines)
+
+    }
+
     function addLoc(element) {
         element = strip_text(element)
-        if (element == 'Cemetery' ) {
+        if (element == 'Cemetery') {
             return;
         }
         locs.push(element);
@@ -277,12 +349,10 @@ function ProbDensePage() {
     }
 
     const handlePersonClick = function (e, id) {
-        // console.log(id)
         setSelectedPerson(id);
     }
 
     const handleLocClick = function (id, e) {
-
         setSelectedLoc(id);
         addLine(selectedPerson, id)
     }
@@ -314,24 +384,9 @@ function ProbDensePage() {
     };
 
     const handleRemoveClick = (event) => {
-
-
-        for (let i = 0; i < highlightedLines.length; i += 1) {
-            for (let j = 0; j < selectedLines.length; j++) {
-                if (selectedLines[j] == highlightedLines[i]) {
-                    selectedLines.splice(j, 1);
-                }
-            }
-            for (let j = 0; j < lines.length; j++) {
-                if (lines[j].key == highlightedLines[i]) {
-                    lines.splice(j, 1);
-                }
-            }
-
+        while (highlightedLines.length > 0) {
+            removeLine(highlightedLines[0]);
         }
-        setHighlightedLines([]);
-        setSelectedLines(selectedLines);
-        console.log(selectedLines)
     };
 
     const handleSaveClick = (event) => {
@@ -426,8 +481,10 @@ function ProbDensePage() {
         // reader.readAsBinaryString(file);
         reader.readAsText(file);
     }
-    
-    
+    const handleSliderChange = (event, newValue) => {
+        setGSX(newValue);
+      };
+
     return (
         <div className="prob-page">
             <FormControl component="fieldset">
@@ -438,7 +495,18 @@ function ProbDensePage() {
                     {/* <FormControlLabel value="disabled" disabled control={<Radio />} label="(Disabled option)" /> */}
                 </RadioGroup>
             </FormControl>
-
+            <Typography id="gs-slider" gutterBottom>
+                Temperature
+            </Typography>
+            <Slider
+                onChange={handleSliderChange}
+                aria-labelledby="gs-slider"
+                valueLabelDisplay="auto"
+                step={10}
+                marks
+                min={60}
+                max={600}
+            />
             <Stage
                 width={canvas_width}
                 height={canvas_height}
@@ -458,10 +526,14 @@ function ProbDensePage() {
 
 
             >
-                <Grid canvas_width={canvas_width} canvas_height={canvas_height}
-                    x_axis_distance_grid_lines={x_axis_distance_grid_lines} y_axis_distance_grid_lines={y_axis_distance_grid_lines}
-                    gs_y={gs_y} gs_x={gs_x}
-                    convertx2px={convertx2px} converty2py={converty2py} />
+                <Grid canvas_width={canvas_width}
+                    canvas_height={canvas_height}
+                    x_axis_distance_grid_lines={x_axis_distance_grid_lines}
+                    y_axis_distance_grid_lines={y_axis_distance_grid_lines}
+                    gs_y={gs_y}
+                    gs_x={gs_x}
+                    convertx2px={convertx2px}
+                    converty2py={converty2py} />
                 <Layer ref={layerEl}>
                     {lines.map((line, i) => {
                         return (

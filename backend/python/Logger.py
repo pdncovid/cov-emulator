@@ -38,7 +38,6 @@ class Logger:
             Logger._logger = logging.getLogger('my_logger')
             Logger._logger.propagate = False
 
-
             if print:
                 ch = MyStreamHandler(Logger.write_level_)
                 ch.setLevel(logging.ERROR)

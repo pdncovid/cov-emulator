@@ -31,6 +31,8 @@ class Movement(metaclass=Singleton):
 
         self.infectious = 1.0
 
+        self.override_level = 0  # 0 means definitely override, higher value means less likely to override at a location
+
         # self.points = []
         # self.points_enter_time = []
         # self.points_source = []
@@ -50,9 +52,9 @@ class Movement(metaclass=Singleton):
              "infectious": self.infectious}
         return d
 
-    def add_point_to_transport(self, point, target_location):
+    def add_point_to_transport(self, point):
         from backend.python.location.Cemetery import Cemetery
-
+        target_location = point.get_point_destination()
         if isinstance(target_location, Cemetery):
             raise Exception("Cannot put to cemetery like this!!!")
         if point.current_trans != self:
@@ -63,17 +65,6 @@ class Movement(metaclass=Singleton):
             point.all_movement_ids[point.ID] = self.ID
             point.all_movement_enter_times[point.ID] = Time.get_time()
             point.all_sources[point.ID] = point.get_current_location().ID
-            self.update_point_destination(point, target_location)
-        else:
-            self.update_point_destination(point, target_location)
-
-    def update_point_destination(self, point, target_location):
-        if target_location is not None:
-            Person.all_destinations[point.ID] = target_location.ID
-            Person.all_destination_exits[point.ID] = target_location.exit
-        else:
-            Person.all_destinations[point.ID] = -1
-            Person.all_destination_exits[point.ID] = point.get_current_location().exit
 
     def remove_point_from_transport(self, point):
         assert point.all_movement_ids[point.ID] == self.ID
@@ -93,10 +84,6 @@ class Movement(metaclass=Singleton):
     def get_in_transport_transmission_p(self):
         raise NotImplementedError()
 
-    def get_destination_of(self, p):
-        id = Person.all_destinations[p.ID]
-        if id != -1:
-            return Location.all_locations[id]
 
     # def move(self, point, t):
     #     destination = self.get_destination_of(point)

@@ -8,6 +8,8 @@ class ContainmentEngine:
 
     @staticmethod
     def can_go_there(p, current_l, next_l):
+        if current_l == next_l:
+            return True
         # todo add any containment strategy logic
         if current_l.depth >= next_l.depth:
             move_out = True

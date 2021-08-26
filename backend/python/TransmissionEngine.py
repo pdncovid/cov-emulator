@@ -4,7 +4,6 @@ from backend.python.Logger import Logger
 from backend.python.enums import State
 from backend.python.functions import bs
 from backend.python.Time import Time
-from numba import njit
 
 from backend.python.point.Person import Person
 

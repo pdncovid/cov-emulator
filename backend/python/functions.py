@@ -1,4 +1,4 @@
-from numba import njit
+
 import numpy as np
 
 INT_MAX = 10000000000
@@ -18,12 +18,24 @@ def bs(arr, v):
     return l
 
 
-def get_idx_most_likely(arr):
-    arr = np.cumsum(arr)
-    if arr.iloc[-1] < 1e-5:
-        return -1
-    p = np.random.rand() * arr.iloc[-1]
-    return bs(arr.values,p)
+def get_idx_most_likely(arr, method=0, scale=0.1):
+
+    if method == 0:
+        arr, idx = zip(*sorted(zip(arr, np.arange(len(arr)))))
+        arr = arr[::-1]
+        idx = idx[::-1]
+        arr = np.cumsum(arr)
+        if arr[-1] < 1e-5:
+            return -1
+        p = min(np.random.exponential(scale),0.99) * arr[-1]
+        return idx[bs(arr, p)] # ERROR; IndexError: tuple index out of range
+
+    if method == 1:
+        arr = np.cumsum(arr)
+        if arr[-1] < 1e-5:
+            return -1
+        p = np.random.rand() * arr[-1]
+        return bs(arr, p)
 
 
 def separate_into_classes(root):

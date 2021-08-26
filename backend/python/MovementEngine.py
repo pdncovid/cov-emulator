@@ -1,5 +1,7 @@
 import numpy as np
 
+from backend.python.Logger import Logger
+
 
 class MovementEngine:
 
@@ -9,6 +11,13 @@ class MovementEngine:
 
         is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
 
+        new_v = _p.all_velocities + np.random.random((len(_p.all_velocities), 2))
+        # v might be too small
+        new_v = np.sign(new_v) * np.clip(np.abs(new_v),
+                                         0.5 * np.expand_dims(_p.all_current_loc_vcap, -1),
+                                         np.expand_dims(_p.all_current_loc_vcap, -1))
+        _p.all_velocities = new_v
+
         # inside location random movement
         new_xy = _p.all_positions + _p.all_velocities * is_in_loc_move
         is_outside = np.sum((new_xy - _p.all_current_loc_positions) ** 2, 1) > _p.all_current_loc_radii ** 2
@@ -17,29 +26,30 @@ class MovementEngine:
         new_xy[is_outside] = _p.all_positions[is_outside]
 
         # movement to other location
-        new_xy = np.where(is_in_loc_move,
-                          new_xy,  # if in location movement
-                          np.where(np.expand_dims(np.sum((_p.all_destination_exits - _p.all_positions) ** 2,
-                                                         1) < _p.all_current_loc_vcap ** 2, -1),
-                                   _p.all_destination_exits,  # if between location move reaches destination
-                                   _p.all_positions + np.sign(
-                                       _p.all_destination_exits - _p.all_positions) * np.expand_dims(
-                                       _p.all_current_loc_vcap, -1)))# todo unlatched people wont wait!!!!!
+        new_xy_inter_loc = np.where(
+            np.expand_dims(np.sum((_p.all_destination_exits - _p.all_positions) ** 2, 1) < _p.all_current_loc_vcap ** 2,
+                           -1),
+            _p.all_destination_exits,  # if between location move reaches destination
+            _p.all_positions + np.sign(_p.all_destination_exits - _p.all_positions) * np.expand_dims(
+                _p.all_current_loc_vcap, -1))
 
+        new_xy = np.where(is_in_loc_move, new_xy, new_xy_inter_loc)
+
+        from backend.python.point.Transporter import Transporter
+        from backend.python.transport.MovementByTransporter import MovementByTransporter
         for idx, p in enumerate(all_people):
-            if p.latched_to:
+            if isinstance(p.current_trans, MovementByTransporter) and not isinstance(p, Transporter):
                 continue
             p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1])
+            if p.all_destinations[p.ID] == -1: # in location move
+                continue
             if MovementEngine.is_close(p, p.all_destination_exits[p.ID], eps=p.current_trans.destination_reach_eps) and \
                     is_in_loc_move[p.ID] == False:
-                p.get_current_location().all_locations[p.all_destinations[p.ID]].enter_person(
-                    p)  # destination point reached
-                p.in_inter_trans = False
+                # destination point reached
+                p.get_current_location().all_locations[p.all_destinations[p.ID]].on_destination_reached(p)
 
+                # p.in_inter_trans = False
 
-        new_v = _p.all_velocities + np.random.random((len(_p.all_velocities), 2))
-        _p.all_velocities = np.clip(new_v, -np.expand_dims(_p.all_current_loc_vcap, -1),
-                                    np.expand_dims(_p.all_current_loc_vcap, -1))
 
         # t = Time.get_time()
         # for p in all_people:
@@ -125,18 +135,18 @@ class MovementEngine:
         ln = point.get_next_target().loc
         return MovementEngine.get_path(lc, ln)
 
-    @staticmethod
-    def random_move(location, p, v_cap):
-        new_x, new_y = p.all_positions[p.ID] + p.all_velocities[p.ID]
-
-        if location.is_inside(new_x, new_y):
-            p.set_position(new_x, new_y)
-        else:
-            p.all_velocities[p.ID] = -(p.all_velocities[p.ID] + 1) / 2
-            MovementEngine.move_towards(p, location.exit, v_cap)
-
-        p.all_velocities[p.ID] += np.random.rand(2) * 2 - 1
-        p.all_velocities[p.ID] = np.clip(p.all_velocities[p.ID], -v_cap, v_cap)
+    # @staticmethod
+    # def random_move(location, p, v_cap):
+    #     new_x, new_y = p.all_positions[p.ID] + p.all_velocities[p.ID]
+    #
+    #     if location.is_inside(new_x, new_y):
+    #         p.set_position(new_x, new_y)
+    #     else:
+    #         p.all_velocities[p.ID] = -(p.all_velocities[p.ID] + 1) / 2
+    #         MovementEngine.move_towards(p, location.exit, v_cap)
+    #
+    #     p.all_velocities[p.ID] += np.random.rand(2) * 2 - 1
+    #     p.all_velocities[p.ID] = np.clip(p.all_velocities[p.ID], -v_cap, v_cap)
 
     @staticmethod
     def move_towards(p, xy, v_cap):

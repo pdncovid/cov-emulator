@@ -40,20 +40,15 @@ class Person:
         Person.all_positions = np.concatenate([Person.all_positions, [[0, 0]]], 0)
         Person.all_velocities = np.concatenate([Person.all_velocities, [[0, 0]]], 0)
 
-        Person.all_movement_ids = np.append(Person.all_destinations, -1)
-        Person.all_movement_enter_times = np.append(Person.all_destinations, -1)
-        Person.all_sources = np.append(Person.all_destinations, -1)
+        Person.all_movement_ids = np.append(Person.all_movement_ids, -1)
+        Person.all_movement_enter_times = np.append(Person.all_movement_enter_times, -1)
+        Person.all_sources = np.append(Person.all_sources, -1)
         Person.all_destinations = np.append(Person.all_destinations, -1)
         Person.all_destination_exits = np.concatenate([Person.all_destination_exits, [[0, 0]]], 0)
 
         Person.all_current_loc_positions = np.concatenate([Person.all_current_loc_positions, [[0, 0]]], 0)
         Person.all_current_loc_radii = np.append(Person.all_current_loc_radii, 0)
         Person.all_current_loc_vcap = np.append(Person.all_current_loc_vcap, 0)
-
-        self._backup_route = None
-        self._backup_duration_time = None
-        self._backup_leaving_time = None
-        self._backup_likely_trans = None
 
         self.is_day_finished = False
 
@@ -70,7 +65,7 @@ class Person:
         self.main_trans = None  # main transport medium the point will use
         self.current_trans = None
 
-        self.in_inter_trans = False
+        # self.in_inter_trans = False
         self.latched_to = None
         self.latch_onto_hash = None
 
@@ -78,7 +73,7 @@ class Person:
 
         self.source = None  # infected source point
         self.infected_time = -1  # infected time
-        self.infected_location = None  # infected location (ID)
+        self.infected_location = None  # infected location
         self.disease_state = 0  # disease state, higher value means bad for the patient # todo add to repr
 
         self.tested_positive_time = -1  # tested positive time
@@ -94,13 +89,18 @@ class Person:
     def __str__(self):
         return str(self.ID)
 
+    def print(self):
+        d = self.get_description_dict()
+        for key in d.keys():
+            print(key, d[key])
+
     def get_description_dict(self):
         d = {'class': self.__class__.__name__, 'id': self.ID,
              'x': self.all_positions[self.ID][0], 'y': self.all_positions[self.ID][0],
              'vx': self.all_velocities[self.ID][0], 'vy': self.all_velocities[self.ID][1],
              'state': self.state, 'gender': self.gender, 'is_day_finished': self.is_day_finished,
              'current_target_idx': self.current_target_idx, 'current_loc_enter': self.current_loc_enter,
-             'current_loc_leave': self.current_loc_leave, 'in_inter_trans': self.in_inter_trans,
+             'current_loc_leave': self.current_loc_leave, 'destination': self.all_destinations[self.ID],
              'wealth': self.character_vector,
              'behaviour': self.behaviour, 'infected_time': self.infected_time, 'temp': self.temp,
              "tested_positive_time": self.tested_positive_time}
@@ -136,18 +136,9 @@ class Person:
     def get_character_transform_matrix(self):
         return np.random.random((Person.n_characteristics, Person.n_characteristics))
 
-    def backup_route(self):
-        if self._backup_route is None:
-            self._backup_route = [r for r in self.route]
-
-    def restore_route(self):
-        if self._backup_route is not None:
-            self.route = [r for r in self._backup_route]
-            self._backup_route = None
-            self.current_target_idx = len(self.route) - 1
-
     def reset_day(self, t):
-        if self.get_current_location() != self.home_loc and not self.get_current_location().quarantined:
+        if self.get_current_location() != self.home_loc and self.get_current_location() != self.home_weekend_loc and\
+                not self.get_current_location().quarantined:
             Logger.log(
                 f"{self.ID} {self.__class__.__name__} not at home when day resets. (Now at {self.get_current_location().name} "
                 f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])}) "
@@ -156,36 +147,34 @@ class Person:
                 f"{self.__repr__()}"
 
                 , 'c')
+            self.print()
             return False
 
         self.is_day_finished = False
+        self.current_target_idx = 0
         from backend.python.RoutePlanningEngine import RoutePlanningEngine
         RoutePlanningEngine.set_route(self, t)
         self.adjust_leaving_time(t)
         self.character_vector = np.dot(self.get_character_transform_matrix(), self.character_vector.T)
         return True
 
-    def on_enter_location(self, t):
+    def on_enter_location(self, loc, t):
         pass
 
     def adjust_leaving_time(self, t):
         _t = t - t % Time.DAY
         for i in range(len(self.route)):
-            if self.route[i].leaving_time == -1:
-                continue
             if self.route[i].leaving_time < _t or self.route[i].leaving_time > _t + Time.DAY:
                 self.route[i].leaving_time = self.route[i].leaving_time % Time.DAY + _t
 
     def increment_target_location(self):
         msg = f"{self.ID} incremented target from {self.get_current_target()} to "
-        self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
+        if self.current_target_idx + 1 < len(self.route):
+            self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
         from backend.python.MovementEngine import MovementEngine
         next_loc = MovementEngine.find_next_location(self)
         msg += f"{self.get_current_target()} ({self.current_target_idx}/{len(self.route)} target). Next location is {next_loc}."
         Logger.log(msg, 'i')
-        if self.current_target_idx == 0:
-            self.is_day_finished = True
-            Logger.log(f"{self.ID} finished daily route!", 'c')
 
     def set_home_loc(self, home_loc):
         self.home_loc = home_loc
@@ -224,13 +213,14 @@ class Person:
 
     def get_random_route_at(self, route_so_far, find_from_level):
         if len(route_so_far) == 0:
-            t = 0
+            t = Time.get_time()
             cur = None
         else:
             t = route_so_far[-1].leaving_time
             cur = route_so_far[-1].loc
-
-        cls_or_obj = RoutePlanningEngine.get_loc_for_p_at_t(self, t%Time.DAY)
+        if len(route_so_far) > 1:
+            route_so_far = RoutePlanningEngine.optimize_route(route_so_far)
+        cls_or_obj = RoutePlanningEngine.get_loc_for_p_at_t(route_so_far, self, t)
         if len(cls_or_obj) == 0:  # no plan for this time
             return route_so_far
         target = get_random_element(cls_or_obj)
@@ -241,7 +231,7 @@ class Person:
 
     def get_random_route_through(self, route_so_far, cls_or_obj, find_from_level):
         if len(route_so_far) == 0:
-            t = 0
+            t = Time.get_time()
             cur = None
         else:
             t = route_so_far[-1].leaving_time
@@ -262,14 +252,14 @@ class Person:
             r_len = len(route)
             route = self.get_random_route_at(route, find_from_level=1)
             t = route[-1].leaving_time
-            if len(route) == r_len:
-                tries += 1
-            if tries >5 and len(route) == 1:
-                pass
-            if tries > 10:
-                if len(route) == 1:
-                    raise Exception()  # break due to not increasing route
-                break
+            # if len(route) == r_len:
+            #     tries += 1
+            # if tries > 5 and len(route) == 1:
+            #     pass
+            # if tries > 10:
+            #     if len(route) == 1:
+            #         raise Exception()  # break due to not increasing route
+            #     break
 
         return route
 
@@ -283,25 +273,20 @@ class Person:
 
         Logger.log(f"Current route for {self.ID} is {list(map(str, self.route))}", 'e')
         _t = t % Time.DAY
-        self.backup_route()
-        route, time = self.get_random_route_through(_t, new_route_classes, find_from_level=1)
 
         if replace:
             replace_from = 1
-            # self.route = self.route[:1]
         else:
             replace_from = self.current_target_idx + 1
-            # self.route = self.route[:self.current_target_idx + 1]
+        route_so_far = self.route[:replace_from]
+        route_so_far = self.get_random_route_through(route_so_far, new_route_classes, find_from_level=1)
 
         # todo make sure current_target_idx is consistent with route
-        new_route = self.route[:replace_from]
-        while len(self.route) > replace_from and time > self.route[replace_from].leaving_time:
-            replace_from += 1
+        # while len(self.route) > replace_from and time > self.route[replace_from].leaving_time:
+        #     replace_from += 1
 
-        new_route += route + self.route[replace_from:]
-
-        self.route = new_route
-        self.adjust_leaving_time(t)
+        self.set_route(route_so_far, t, move2first=replace)
+        # self.adjust_leaving_time(t)
 
         Logger.log(f"Route updated for {self.ID} as {list(map(str, self.route))}", 'e')
 
@@ -311,12 +296,15 @@ class Person:
             self.latched_to.delatch(self)
 
         if self.current_target_idx >= len(self.route):
-            self.current_target_idx = len(route) - 1
-        if replace:
-            self.route[0].enter_person(self, target_location=None)
+            self.current_target_idx = len(self.route) - 1
 
     def set_route(self, route, t, move2first=True):
 
+        route = RoutePlanningEngine.optimize_route(route)
+        if route[0].loc != self.home_loc and route[0].loc != self.home_weekend_loc:
+            raise Exception("Initial location invalid!")
+        if route[-1].loc != self.home_loc and route[-1].loc != self.home_weekend_loc:
+            raise Exception("Last location invalid!")
         self.route = route
         if move2first:
             self.current_target_idx = 0
@@ -332,6 +320,19 @@ class Person:
             raise Exception(f"Tried to move {self.ID} in {self.get_current_location()} (enter at:{start})."
                             f"Going to {self.get_next_target()}")
 
+    def set_point_destination(self, target_location):
+        if target_location is not None:
+            Person.all_destinations[self.ID] = target_location.ID
+            Person.all_destination_exits[self.ID] = target_location.exit
+        else:
+            Person.all_destinations[self.ID] = -1
+            Person.all_destination_exits[self.ID] = self.get_current_location().exit
+
+    def get_point_destination(self):
+        id = Person.all_destinations[self.ID]
+        if id != -1:
+            return self.get_current_location().all_locations[id]
+
     def set_current_location(self, loc, t):
         self.current_loc = loc
         Person.all_current_loc_positions[self.ID] = loc.x, loc.y
@@ -344,6 +345,8 @@ class Person:
         return self.route[self.current_target_idx]
 
     def get_next_target(self):
+        # if self.in_inter_trans:
+        #     return self.route[self.current_target_idx]
         return self.route[(self.current_target_idx + 1) % len(self.route)]
 
     def set_infected(self, t, p, common_p):
@@ -356,7 +359,6 @@ class Person:
 
     def set_recovered(self):
         self.state = State.RECOVERED.value
-        self.restore_route()
         self.disease_state = 0
 
     def set_susceptible(self):

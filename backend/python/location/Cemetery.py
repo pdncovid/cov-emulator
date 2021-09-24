@@ -10,11 +10,11 @@ class Cemetery(Location):
     def __init__(self, shape, x, y, name,
                  **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
-        self.set_quarantined(True, 0)
+        self.set_quarantined(False, 0)
         self.override_transport = Walk(0.1)
 
     def set_quarantined(self, quarantined, t, recursive=False):
-        self.quarantined = True
+        self.quarantined = False
 
     def process_people_switching(self, t):
         pass  # no movement when entered. cant go out. therefore we put only dead people here
@@ -26,7 +26,10 @@ class Cemetery(Location):
             if p.current_trans is not None:
                 p.current_trans.remove_point_from_transport(p)
             if p.latched_to is not None:
-                p.latched_to.delatch(p)  # bus ekedi malaa
+                try:
+                    p.latched_to.delatch(p, self)  # bus ekedi malaa
+                except Exception as e:
+                    pass
         else:
             raise Exception(f"Put only dead people! :P {p.__repr__()}")
 

@@ -30,6 +30,8 @@ class Location:
 
         self.infectious = default_infectiousness[self.__class__] if kwargs.get(
             'infectiousness') is None else kwargs.get('infectiousness')
+        self.social_distance = 0.0
+        self.hygiene_boost = 0 # TODO
 
         self.quarantined = kwargs.get('quarantined', False)
         self.quarantined_time = -1
@@ -176,7 +178,8 @@ class Location:
     def get_suggested_sub_route(self, point, route_so_far) -> list:
         t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else Time.get_time()
         dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(point, self, t)
-        _r = [Target(self, t + dur, None)]
+        travel_time = MovementEngine.get_time_to_move(route_so_far[-1].loc, self, point) if len(route_so_far) > 0 else 0
+        _r = [Target(self, t + dur + travel_time, None)]
         route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
         return route_so_far
 
@@ -275,13 +278,16 @@ class Location:
         can_go_out_containment = ContainmentEngine.can_go_there(p, self, next_location)
         if can_go_out_containment and can_go_out_movement:
             p.set_point_destination(next_location)
-            Logger.log(f"{p.ID} move {p.get_current_location()} -> {next_location} ({transporting_location}) [{p.get_next_target()}]", 'd')
+            Logger.log(
+                f"{p.ID} move {p.get_current_location()} -> {next_location} ({transporting_location}) [{p.get_next_target()}]",
+                'd')
             transporting_location.enter_person(p)
             # p.in_inter_trans = True
         else:
             if not can_go_out_movement:
-                transporting_location.set_movement_method(p)
-            Logger.log(f"{p.ID} cannot leave {self}", 'd')
+                MovementEngine.set_movement_method(transporting_location, p)
+                # p.set_point_destination(next_location)
+            Logger.log(f"# {p} cannot leave {self}", 'c')
 
     def can_enter(self, p):
         from backend.python.transport.MovementByTransporter import MovementByTransporter
@@ -289,7 +295,7 @@ class Location:
             return True
         if p.latched_to is not None:
             return True
-        if self.override_transport is None and isinstance(p.main_trans, MovementByTransporter):
+        if self.override_transport is None and isinstance(p.main_trans, MovementByTransporter): # todo check this logic. add overriding levels
             return False
         return True
 
@@ -307,13 +313,14 @@ class Location:
         self.points.append(p)
         self.is_visiting.append(p.get_next_target().loc != self)
         p.set_current_location(self, t)
-        self.set_movement_method(p)
+        MovementEngine.set_movement_method(self, p)
 
         if p.latched_to is None:
             latched_text = ''
         else:
             latched_text = f' latched with {p.latched_to.ID}'
-        Logger.log(f"Entered {p.ID} to {self.name} using {p.current_trans}{latched_text}. [{p.get_next_target()}].", 'd')
+        Logger.log(f"Entered {p.ID} to {self.name} using {p.current_trans}{latched_text}. [{p.get_next_target()}].",
+                   'd')
 
         current_loc_leave = self.get_leaving_time(p, t)
         is_visiting = True
@@ -322,7 +329,7 @@ class Location:
 
         if p.get_next_target().loc == self:
             is_visiting = False
-            if p.current_target_idx == len(p.route) - 1 and p.route[-1].loc == self:
+            if p.current_target_idx == len(p.route) - 1 and p.route[-1].loc == self and p.is_day_finished==False:
                 p.is_day_finished = True
                 Logger.log(f"{self.ID} finished daily route!", 'c')
             else:
@@ -366,15 +373,6 @@ class Location:
                         # todo bug: if p is in home, when cap is full current_loc jump to self.parent
                         return  # don't add to this location because capacity reached
                     raise Exception("Capacity full at root node!!! Cannot handle this!")
-
-    def set_movement_method(self, p):
-        if not p.latched_to:
-            # add the person to the default transportation system, if the person is not latched to someone else.
-            trans = p.main_trans
-            if self.override_transport is not None and not isinstance(p, Transporter):
-                if self.override_transport.override_level <= p.main_trans.override_level:
-                    trans = self.override_transport
-            trans.add_point_to_transport(p)
 
     def get_leaving_time(self, p, t):
         # if p.route[p.current_target_idx].duration_time != -1:

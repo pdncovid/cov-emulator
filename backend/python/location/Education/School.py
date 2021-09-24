@@ -39,7 +39,7 @@ class School(Building):
     #             route_so_far = classroom.get_suggested_sub_route(point, route_so_far)
     #
     #     elif isinstance(point, SchoolBusDriver):
-    #         # if route_so_far[-1].leaving_time > Time.get_time_from_dattime(9, 30):
+    #         # if route_so_far[-1].leaving_time > Time.get_time_from_datetime(9, 30):
     #         #     raise Exception(
     #         #         f"school bus driver arriving at the school too late ({Time.i_to_time(route_so_far[-1].leaving_time)})")
     #         _r = [Target(self, Time.get_random_time_between(route_so_far[-1].leaving_time,14, 30, 15, 0), None)]

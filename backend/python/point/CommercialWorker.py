@@ -12,3 +12,5 @@ class CommercialWorker(Person):
         super().__init__()
         # if np.random.random() < CommercialWorker.combusp:
         #     self.main_trans = CommercialZoneBus(Mobility.RANDOM.value)
+    def initialize_age(self):
+        return np.random.randint(20, 60)

@@ -22,7 +22,7 @@ class CommercialBuilding(Building):
     #         route_so_far = get_random_element(work_areas).get_suggested_sub_route(point, route_so_far)
     #
     #     # elif isinstance(point, CommercialZoneBusDriver):
-    #     #     _r = [Target(self, Time.get_time_from_dattime(17, 15), None)]
+    #     #     _r = [Target(self, Time.get_time_from_datetime(17, 15), None)]
     #     #     route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
     #     # elif isinstance(point, BusDriver):
     #     #     _r = [Target(self, route_so_far[-1].leaving_time + Time.get_duration(0.5), None)]

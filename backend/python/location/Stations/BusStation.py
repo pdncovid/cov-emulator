@@ -24,16 +24,23 @@ class BusStation(Building):
         from backend.python.point.BusDriver import BusDriver
         from backend.python.transport.Bus import Bus
         bus = Bus()
+
+        # if there is no route for the bus id, initialize a route. This route will be repeated each time the _work is
+        # called.
         if point.ID not in BusStation.bus_routes.keys() and isinstance(point, BusDriver):
             BusStation.bus_routes[point.ID] = []
             root = self.get_root()
             # pass_through = ['ResidentialZone', 'IndustrialZone', 'CommercialZone', 'EducationZone', 'MedicalZone']
 
+            # select locations that do not have a override transport or a movement level worse than bus
             loc_wo_trans = root.get_locations_according_function(
                 lambda rr: (rr.override_transport is None or
                             rr.override_transport.override_level >= bus.override_level)  # and
                 # (sum(_r.override_transport is not None for _r in rr.locations) > 0)
             )
+
+            # if the children locations have an override transport, bus will pass through here.
+            # If not Bus will goto higher nodes in the tree
             children_of_wo_trans_locs = set()
             pass_through = []
             for r in loc_wo_trans:
@@ -54,6 +61,7 @@ class BusStation(Building):
                         continue
                     BusStation.bus_routes[point.ID].append(ch)    # pass through all the children
                 # BusStation.bus_routes[point.ID].append(loc)     # pass through the parent. But teleport once reached
+
         bus_route = BusStation.bus_routes[point.ID]
 
         route_so_far = point.get_random_route_through(route_so_far, bus_route, 1)

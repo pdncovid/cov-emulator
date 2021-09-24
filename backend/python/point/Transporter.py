@@ -17,8 +17,8 @@ class Transporter(Person):
     # def get_random_route(self, root, t,
     #                      target_classes_or_objs=None,
     #                      possible_override_trans=None,
-    #                      ending_time=np.random.randint(Time.get_time_from_dattime(18, 0),
-    #                                                    Time.get_time_from_dattime(23, 0))):
+    #                      ending_time=np.random.randint(Time.get_time_from_datetime(18, 0),
+    #                                                    Time.get_time_from_datetime(23, 0))):
     #     if target_classes_or_objs is None:
     #         target_classes_or_objs = []
     #     if possible_override_trans is None:
@@ -153,11 +153,12 @@ class Transporter(Person):
         if type(idx) != int:
             idx = self.latched_people.index(idx)
         p = self.latched_people[idx]
-        Logger.log(f"{p.ID} will be delatched "
-                   f"from  transporter {self.ID} at {self.get_current_location()}")
+        Logger.log(f"{p.ID} will be delatched from  transporter {self.ID} at {self.get_current_location()}",'d')
 
         # p.in_inter_trans = False
         p.latched_to = None
+        self.latched_people.pop(idx)
+        self.latched_dst.pop(idx)
 
         loc.enter_person(p)
 
@@ -169,8 +170,7 @@ class Transporter(Person):
         # MovementEngine.find_next_location(p).enter_person(p, None)
         # p.get_current_location().add_to_next_location(p)
 
-        self.latched_people.pop(idx)
-        self.latched_dst.pop(idx)
+
 
     # override
     def update_route(self, root, t, new_route_classes=None, replace=False):

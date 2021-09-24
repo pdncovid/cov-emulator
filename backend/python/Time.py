@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Time:
-    _shift_hrs = 4
+    _shift_hrs = 1
     _scale = 5
     t = 0
     DAY = -1
@@ -37,13 +37,13 @@ class Time:
         return hours * (60 / Time._scale)
 
     @staticmethod
-    def get_time_from_dattime(hours, mins=0):
+    def get_time_from_datetime(hours, mins=0):
         return (hours - Time._shift_hrs) % 24 * (60 / Time._scale) + mins / Time._scale
 
     @staticmethod
     def get_random_time_between(t, h1, m1, h2, m2):
-        return (t - t % Time.DAY) + np.random.randint(Time.get_time_from_dattime(h1, m1),
-                                                      Time.get_time_from_dattime(h2, m2))
+        return (t - t % Time.DAY) + np.random.randint(Time.get_time_from_datetime(h1, m1),
+                                                      Time.get_time_from_datetime(h2, m2))
 
     @staticmethod
     def i_to_time(i):

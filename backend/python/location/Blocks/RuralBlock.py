@@ -13,7 +13,7 @@ from backend.python.transport.Walk import Walk
 class RuralBlock(Location):
     # def get_suggested_sub_route(self, point, route_so_far):
     #     raise NotImplementedError()
-    #     # while route_so_far[-1].leaving_time < Time.get_time_from_dattime(20, 0):
+    #     # while route_so_far[-1].leaving_time < Time.get_time_from_datetime(20, 0):
     #     #     route_so_far = get_random_element(self.locations).get_suggested_sub_route(point, route_so_far)
     #     # return route_so_far
 

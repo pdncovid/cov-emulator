@@ -2,9 +2,9 @@ from backend.python.point.Person import Person
 import numpy as np
 
 
-class GarmentAdmin(Person):
+class Infant(Person):
     def __init__(self):
         super().__init__()
 
     def initialize_age(self):
-        return np.random.randint(35, 60)
+        return np.random.randint(0, 5)

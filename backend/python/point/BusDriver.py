@@ -15,6 +15,8 @@ class BusDriver(Transporter):
         super().__init__()
         self.main_trans = Bus(Mobility.RANDOM.value)
         self.max_latches = 60
+    def initialize_age(self):
+        return np.random.randint(25, 50)
 
     # def get_random_route(self, t, end_at):
     #     route_so_far = super(BusDriver, self).get_random_route(t, Time.get_random_time_between(t, 5, 0, 9, 0))

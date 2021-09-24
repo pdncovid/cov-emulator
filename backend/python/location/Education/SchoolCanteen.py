@@ -23,7 +23,7 @@ class SchoolCanteen(Building):
     #     else:
     #         _r = [Target(
     #             self,
-    #             np.random.randint(Time.get_time_from_dattime(11, 0), Time.get_time_from_dattime(14, 0)),
+    #             np.random.randint(Time.get_time_from_datetime(11, 0), Time.get_time_from_datetime(14, 0)),
     #             None)]
     #
     #     route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)

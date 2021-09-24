@@ -13,9 +13,9 @@ class GarmentWorkArea(Room):
     #
     #     t = route_so_far[-1].leaving_time
     #     if isinstance(point, GarmentWorker):
-    #         lts = [Time.get_time_from_dattime(10, 0),
-    #                Time.get_time_from_dattime(12, 0),
-    #                Time.get_time_from_dattime(17, 0)]
+    #         lts = [Time.get_time_from_datetime(10, 0),
+    #                Time.get_time_from_datetime(12, 0),
+    #                Time.get_time_from_datetime(17, 0)]
     #         for lt in lts:
     #             if t < lt:
     #                 if force_dt:

@@ -16,8 +16,10 @@ class TransmissionEngine:
     def disease_transmission(points, t, r):
         x, y = Person.all_positions[:, 0], Person.all_positions[:, 1]
         state = np.array([p.state for p in points])
-
-        contacts, distance, sourceid = TransmissionEngine.get_close_contacts_and_distance(x, y, state, r)
+        person_social_dist = np.array([p.social_distance for p in points])
+        location_social_dist = np.array([p.get_current_location().social_distance for p in points])
+        social_dist = np.maximum(person_social_dist, location_social_dist)
+        contacts, distance, sourceid = TransmissionEngine.get_close_contacts_and_distance(x, y, state, social_dist, r)
 
         new_infected = TransmissionEngine.transmit_disease(points, contacts, distance, sourceid, t)
 
@@ -26,7 +28,7 @@ class TransmissionEngine:
 
     @staticmethod
     # @njit
-    def get_close_contacts_and_distance(x, y, state, r):
+    def get_close_contacts_and_distance(x, y, state, social_dist, r):
         contacts = np.zeros(len(x))
         distance = np.ones(len(x)) * 1000
         sourceid = np.zeros(len(x), dtype=np.int64)
@@ -57,7 +59,7 @@ class TransmissionEngine:
 
             d = np.sqrt(np.power(x[close_points_idx] - x[i], 2) + np.power(y[close_points_idx] - y[i], 2))
 
-            close_points_idx = close_points_idx[d < r]
+            close_points_idx = close_points_idx[np.logical_and(d < r, d > social_dist)]
             d = d[d < r]
 
             contacts[close_points_idx] += 1
@@ -83,12 +85,13 @@ class TransmissionEngine:
         for i in range(len(valid)):
             contact_person = points[valid[i]]
             infected_person = points[sourceid[valid[i]]]
-
-            location_p = contact_person.get_current_location().infectious # if contact_person.current_loc == infected_person.current_loc else 0
+            # if contact_person.current_loc == infected_person.current_loc else 0
+            location_p = contact_person.get_current_location().infectious
             behaviour_p = contact_person.behaviour * infected_person.behaviour
+            age_p = 1  # todo
             trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
 
-            if rand[i] < tr_p[i] * trans_p * location_p * behaviour_p:
+            if rand[i] < tr_p[i] * trans_p * location_p * behaviour_p * age_p:
                 contact_person.set_infected(t, infected_person, TransmissionEngine.common_fever_p)
                 c += 1
         return c

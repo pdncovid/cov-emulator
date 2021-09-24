@@ -32,7 +32,7 @@ class Person:
         Person._id += 1
 
         self.gender = 0 if np.random.rand() < 0.5 else 1  # gender of the person
-        self.age = np.random.uniform(1, 80)  # age todo add to repr
+        self.age = self.initialize_age()  # age todo add to repr
         self.immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find and add to repr
         self.character_vector = np.zeros((Person.n_characteristics,))  # characteristics of the point
         self.behaviour = 0.5  # behaviour of the point (healthy medical practices -> unhealthy)
@@ -77,6 +77,8 @@ class Person:
         self.disease_state = 0  # disease state, higher value means bad for the patient # todo add to repr
 
         self.tested_positive_time = -1  # tested positive time
+
+        self.social_distance = 0.0
 
         self.temp = 0  # temperature of the point
         self.update_temp(0.0)
@@ -130,6 +132,9 @@ class Person:
 
         return d
 
+    def initialize_age(self):
+        raise NotImplementedError()
+
     def initialize_character_vector(self, vec):
         self.character_vector = vec
 
@@ -137,11 +142,12 @@ class Person:
         return np.random.random((Person.n_characteristics, Person.n_characteristics))
 
     def reset_day(self, t):
-        if self.get_current_location() != self.home_loc and self.get_current_location() != self.home_weekend_loc and\
-                not self.get_current_location().quarantined:
+        from backend.python.point.Transporter import Transporter
+        if self.get_current_location() != self.home_loc and self.get_current_location() != self.home_weekend_loc and \
+                not self.get_current_location().quarantined and not isinstance(self, Transporter):
             Logger.log(
                 f"{self.ID} {self.__class__.__name__} not at home when day resets. (Now at {self.get_current_location().name} "
-                f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])}) "
+                f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])} next target {self.get_next_target().loc.name}) "
                 f"CTarget {self.current_target_idx}/{len(self.route)} "
                 f"Route {list(map(str, self.route))}. "
                 f"{self.__repr__()}"
@@ -165,7 +171,7 @@ class Person:
         _t = t - t % Time.DAY
         for i in range(len(self.route)):
             if self.route[i].leaving_time < _t or self.route[i].leaving_time > _t + Time.DAY:
-                self.route[i].leaving_time = self.route[i].leaving_time % Time.DAY + _t
+                self.route[i].set_leaving_time(self.route[i].leaving_time % Time.DAY + _t)
 
     def increment_target_location(self):
         msg = f"{self.ID} incremented target from {self.get_current_target()} to "
@@ -347,7 +353,7 @@ class Person:
     def get_next_target(self):
         # if self.in_inter_trans:
         #     return self.route[self.current_target_idx]
-        return self.route[(self.current_target_idx + 1) % len(self.route)]
+        return self.route[min(self.current_target_idx + 1, len(self.route) - 1)]
 
     def set_infected(self, t, p, common_p):
         self.state = State.INFECTED.value

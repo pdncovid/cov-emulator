@@ -8,19 +8,21 @@ import numpy as np
 import pandas as pd
 
 from backend.python.enums import State, Containment
-from backend.python.functions import bs, get_idx_most_likely
+from backend.python.functions import bs, get_idx_most_likely, get_random_element
 import os
 import sys
-
-
-
 
 
 class RoutePlanningEngine:
     df_loc_p = None
     df_loc_o = None
+    df_loc_p_1 = None
+    df_loc_o_1 = None
+
     loaded_day_of_week = -1
     loaded_containment = -1
+
+    weekday_shift = 4  # start day of a week is Friday
 
     # @staticmethod
     # def get_alternate_route(point):
@@ -38,13 +40,14 @@ class RoutePlanningEngine:
     #             # these people cant change route randomly!!!
     #             continue
     #         change_change = 0.001
-    #         if t % Time.DAY > Time.get_time_from_dattime(18, 0):
+    #         if t % Time.DAY > Time.get_time_from_datetime(18, 0):
     #             change_change *= 0.0001
     #         if np.random.rand() < change_change:
     #             p.update_route(root, t % Time.DAY, RoutePlanningEngine.get_alternate_route(p))
 
     @staticmethod
     def process_loc_p(day_of_week=1, containment=Containment.NONE.value):
+        day_of_week = (day_of_week + RoutePlanningEngine.weekday_shift) % 7
         if RoutePlanningEngine.loaded_day_of_week == day_of_week and RoutePlanningEngine.loaded_containment == containment:
             return
 
@@ -53,14 +56,23 @@ class RoutePlanningEngine:
             p = os.path.dirname(p)
         p = os.path.join(p, "python")
         p = os.path.join(p, "data")
-        if 0 <= day_of_week <= 3:
-            p = os.path.join(p, "p_goLocPersonTime.csv")
+        if 0 <= day_of_week < 3:
+            p1 = os.path.join(p, "p_goLocPersonTime.csv")
+            p2 = os.path.join(p, "p_goLocPersonTime.csv")
+        elif day_of_week == 3:
+            p1 = os.path.join(p, "p_goLocPersonTime.csv")
+            p2 = os.path.join(p, "p_go_4_LocPersonTime.csv")
         elif day_of_week == 4:
-            p = os.path.join(p, "p_go_4_LocPersonTime.csv")
+            p1 = os.path.join(p, "p_go_4_LocPersonTime.csv")
+            p2 = os.path.join(p, "p_go_5_LocPersonTime.csv")
         elif day_of_week == 5:
-            p = os.path.join(p, "p_go_5_LocPersonTime.csv")
+            p1 = os.path.join(p, "p_go_5_LocPersonTime.csv")
+            p2 = os.path.join(p, "p_go_6_LocPersonTime.csv")
         elif day_of_week == 6:
-            p = os.path.join(p, "p_go_6_LocPersonTime.csv")
+            p1 = os.path.join(p, "p_go_6_LocPersonTime.csv")
+            p2 = os.path.join(p, "p_goLocPersonTime.csv")
+        else:
+            raise NotImplementedError()
 
         if containment == Containment.NONE.value:
             pass
@@ -70,10 +82,11 @@ class RoutePlanningEngine:
             raise NotImplementedError()
         elif containment == Containment.QUARANTINECENTER.value:
             raise NotImplementedError()
-        return pd.read_csv(p)
+        return p1, p2
 
     @staticmethod
     def process_loc_o(day_of_week=1, containment=Containment.NONE.value):
+        day_of_week = (day_of_week + RoutePlanningEngine.weekday_shift) % 7
         if RoutePlanningEngine.loaded_day_of_week == day_of_week and RoutePlanningEngine.loaded_containment == containment:
             return
         p = os.getcwd()
@@ -81,10 +94,9 @@ class RoutePlanningEngine:
             p = os.path.dirname(p)
         p = os.path.join(p, "python")
         p = os.path.join(p, "data")
-        if 0 <= day_of_week <= 4:
-            p = os.path.join(p, "p_dtLocPersonTime.csv")
-        elif 5 <= day_of_week <= 6:
-            p = os.path.join(p, "p_dtLocPersonTime.csv")
+
+        p1 = os.path.join(p, "p_dtLocPersonTime.csv")
+        p2 = os.path.join(p, "p_dtLocPersonTime.csv")
 
         if containment == Containment.NONE.value:
             pass
@@ -94,17 +106,29 @@ class RoutePlanningEngine:
             raise NotImplementedError()
         elif containment == Containment.QUARANTINECENTER.value:
             raise NotImplementedError()
-        return pd.read_csv(p)
+        return p1, p2
+
     @staticmethod
     def set_parameters(day_of_week, containment):
-        RoutePlanningEngine.df_loc_p = RoutePlanningEngine.process_loc_p(day_of_week, containment)
-        RoutePlanningEngine.df_loc_o = RoutePlanningEngine.process_loc_o(day_of_week, containment)
+        p1, p2 = RoutePlanningEngine.process_loc_p(day_of_week, containment)
+        o1, o2 = RoutePlanningEngine.process_loc_o(day_of_week, containment)
+        if RoutePlanningEngine.df_loc_p_1 is None:
+            RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p1)
+        if RoutePlanningEngine.df_loc_o_1 is None:
+            RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o1)
+
+        RoutePlanningEngine.df_loc_p = RoutePlanningEngine.df_loc_p_1
+        RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p2)
+
+        RoutePlanningEngine.df_loc_o = RoutePlanningEngine.df_loc_o_1
+        RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o2)
+
         RoutePlanningEngine.loaded_day_of_week = day_of_week
         RoutePlanningEngine.loaded_containment = containment
 
     @staticmethod
     def set_route(p, t):
-        day = t // Time.DAY
+
         if p.state == State.DEAD.value:
             return
         from backend.python.point.Transporter import Transporter
@@ -116,8 +140,43 @@ class RoutePlanningEngine:
             route = p.get_random_route(t, end_at=ending_time)
         else:
             route = p.get_random_route(t, end_at=ending_time)
+        if route[-1].loc != p.home_loc and route[-1].loc != p.home_weekend_loc:
+            day = t // Time.DAY
+            cls_or_obj = RoutePlanningEngine.get_loc_for_p_at_t(route, p,
+                                                                (day + 1) * Time.DAY + Time.get_time_from_datetime(1,
+                                                                                                                   0))
+            target = get_random_element(cls_or_obj)
+            route = p.get_random_route_through(route, [target], 1)
 
         p.set_route(route, t, move2first)
+
+    @staticmethod
+    def add_target_to_route(route_so_far, target, enter_t, leave_t):
+        start_i, end_i = -1, -1
+        for i in range(len(route_so_far)):
+            if route_so_far[i].leaving_time > enter_t:
+                start_i = i
+                break
+        if start_i < 0:
+            raise Exception()
+        for i in range(start_i, len(route_so_far)):
+            if route_so_far[i].leaving_time > leave_t:
+                end_i = i
+                break
+        if end_i < start_i:
+            raise Exception()
+        if start_i == end_i:
+            route_so_far.append(target)
+            route_so_far.append(route_so_far[-2].__copy__())
+            if route_so_far[-1].leaving_time < leave_t:
+                route_so_far[-1].set_leaving_time(leave_t)
+            route_so_far[start_i].set_leaving_time(enter_t)
+        else:
+            route_so_far[start_i].set_leaving_time(enter_t)
+            route_so_far = route_so_far[:start_i + 1] + route_so_far[end_i:]
+            route_so_far.insert(start_i + 1, target)
+
+        return route_so_far
 
     @staticmethod
     def optimize_route(route):
@@ -139,6 +198,9 @@ class RoutePlanningEngine:
         new_route += [route[-1]]
         if new_route[0].loc != p.home_loc:
             new_route = [route[0]] + new_route
+        for i in range(len(new_route)-1):
+            if new_route[i].leaving_time > new_route[i+1].leaving_time:
+                raise Exception()
         return new_route
 
     @staticmethod
@@ -170,18 +232,32 @@ class RoutePlanningEngine:
 
     @staticmethod
     def get_loc_for_p_at_t(route_so_far, p, t):
-        t = str(Time.i_to_minutes(t) % 1440)
+        day = t // Time.DAY
 
-        df_p = RoutePlanningEngine.df_loc_p
-        df_o = RoutePlanningEngine.df_loc_o
-
+        if day > Time.get_time() // Time.DAY:
+            df_p = RoutePlanningEngine.df_loc_p_1
+            df_o = RoutePlanningEngine.df_loc_o_1
+        else:
+            df_p = RoutePlanningEngine.df_loc_p
+            df_o = RoutePlanningEngine.df_loc_o
+        t = Time.i_to_minutes(t) % 1440
+        t = str(t)
         if len(route_so_far) > 0:
+            loc_name = route_so_far[-1].loc.__class__.__name__
+            if route_so_far[-1].loc == p.home_loc:
+                loc_name = '_home'
+            if route_so_far[-1].loc == p.home_weekend_loc:
+                loc_name = '_w_home'
+            if route_so_far[-1].loc == p.work_loc:
+                loc_name = '_work'
+
             last_t = Time.i_to_minutes(route_so_far[-2].leaving_time) % 1440 if len(route_so_far) > 1 else 0
             dt = str((int(t) - int(last_t)) % 1440)
-            p_of_occupancy = df_o[df_o['person'] == p.__class__.__name__][[dt, 'location']]
-            p_of_staying = p_of_occupancy.loc[p_of_occupancy['location'] == route_so_far[-1].loc.__class__.__name__][dt].values[0]
 
-            if p_of_staying >= 1-np.random.exponential(0.1):
+            p_of_occupancy = df_o[df_o['person'] == p.__class__.__name__][[dt, 'location']]
+            p_of_staying = p_of_occupancy.loc[p_of_occupancy['location'] == loc_name][dt].values[0]
+
+            if p_of_staying >= 1 - np.random.exponential(0.1):
                 return [route_so_far[-1].loc]
 
         p_of_visiting = df_p[df_p['person'] == p.__class__.__name__][[t, 'location']]

@@ -2,6 +2,7 @@ from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.functions import get_random_element
+from backend.python.location.GatheringPlace import GatheringPlace
 from backend.python.location.Location import Location
 from backend.python.location.Residential.Home import Home
 from backend.python.location.Residential.ResidentialPark import ResidentialPark
@@ -35,3 +36,4 @@ class ResidentialZone(Location):
         self.spawn_sub_locations(ResidentialPark, kwargs.get('n_parks', 0), kwargs.get('r_parks', 0), **kwargs)
         self.spawn_sub_locations(BusStation, 1, kwargs.get('r_parks', 0), **kwargs)
         self.spawn_sub_locations(TukTukStation, 1, kwargs.get('r_parks', 0), **kwargs)
+        self.spawn_sub_locations(GatheringPlace, 1, kwargs.get('r_parks', 0), **kwargs)

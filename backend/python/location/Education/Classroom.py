@@ -14,8 +14,8 @@ class Classroom(Room):
     # def get_suggested_sub_route(self, point, route_so_far):
     #     if isinstance(point, Student):
     #
-    #         lts = [Time.get_time_from_dattime(10, 30),
-    #                Time.get_time_from_dattime(13, 29)]
+    #         lts = [Time.get_time_from_datetime(10, 30),
+    #                Time.get_time_from_datetime(13, 29)]
     #         for lt in lts:
     #             t = route_so_far[-1].leaving_time
     #             if t < lt:

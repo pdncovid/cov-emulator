@@ -13,6 +13,9 @@ class TuktukDriver(Transporter):
         self.main_trans = Tuktuk(Mobility.RANDOM.value)
         self.max_latches = 3
 
+    def initialize_age(self):
+        return np.random.randint(19, 35)
+
     # def get_random_route(self, t, end_at):
     #     route_so_far = super(TuktukDriver, self).get_random_route(t, Time.get_random_time_between(t, 5, 0, 9, 0))
     #     ending_time = Time.get_random_time_between(route_so_far[-1].leaving_time, 17, 30, 21, 30)

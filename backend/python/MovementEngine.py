@@ -14,7 +14,7 @@ class MovementEngine:
         new_v = _p.all_velocities + np.random.random((len(_p.all_velocities), 2))
         # v might be too small
         new_v = np.sign(new_v) * np.clip(np.abs(new_v),
-                                         0.5 * np.expand_dims(_p.all_current_loc_vcap, -1),
+                                         np.expand_dims(_p.all_current_loc_vcap, -1) * 0.5,
                                          np.expand_dims(_p.all_current_loc_vcap, -1))
         _p.all_velocities = new_v
 
@@ -41,7 +41,7 @@ class MovementEngine:
             if isinstance(p.current_trans, MovementByTransporter) and not isinstance(p, Transporter):
                 continue
             p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1])
-            if p.all_destinations[p.ID] == -1: # in location move
+            if p.all_destinations[p.ID] == -1:  # in location move
                 continue
             if MovementEngine.is_close(p, p.all_destination_exits[p.ID], eps=p.current_trans.destination_reach_eps) and \
                     is_in_loc_move[p.ID] == False:
@@ -49,7 +49,6 @@ class MovementEngine:
                 p.get_current_location().all_locations[p.all_destinations[p.ID]].on_destination_reached(p)
 
                 # p.in_inter_trans = False
-
 
         # t = Time.get_time()
         # for p in all_people:
@@ -134,6 +133,45 @@ class MovementEngine:
         lc = point.get_current_location()
         ln = point.get_next_target().loc
         return MovementEngine.get_path(lc, ln)
+
+    @staticmethod
+    def get_time_to_move(loc1, loc2, p):
+        t = 0
+        path = MovementEngine.get_path(loc1, loc2)
+        cur = loc1
+        for loc in path:
+            t += MovementEngine._get_time_to_move_adj(cur, loc, p)
+            cur = loc
+        return t
+
+    @staticmethod
+    def _get_time_to_move_adj(loc1, loc2, p):
+        if loc1 == loc2:
+            return 0
+        dist = loc1.get_distance_to(loc2)
+        if loc1.depth == loc2.depth:
+            return dist / MovementEngine.get_movement_method(loc1.parent_location, p).vcap
+        if loc1.depth < loc2.depth:
+            return dist / MovementEngine.get_movement_method(loc1, p).vcap
+        if loc2.depth < loc1.depth:
+            return dist / MovementEngine.get_movement_method(loc2, p).vcap
+        raise Exception("Cannot reach here")
+
+    @staticmethod
+    def set_movement_method(loc, p):
+        if not p.latched_to:
+            # add the person to the default transportation system, if the person is not latched to someone else.
+            trans = MovementEngine.get_movement_method(loc, p)
+            trans.add_point_to_transport(p)
+
+    @staticmethod
+    def get_movement_method(moving_loc, p):
+        trans = p.main_trans
+        from backend.python.point.Transporter import Transporter
+        if moving_loc.override_transport is not None and not isinstance(p, Transporter):
+            if moving_loc.override_transport.override_level <= p.main_trans.override_level:
+                trans = moving_loc.override_transport
+        return trans
 
     # @staticmethod
     # def random_move(location, p, v_cap):

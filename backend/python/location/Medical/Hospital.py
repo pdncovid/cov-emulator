@@ -15,7 +15,7 @@ class Hospital(Building):
     #         _r = [Target(self, t+np.random.randint(0, min(Time.get_duration(1), Time.DAY + 1 - t)), None)]
     #
     #     else:
-    #         _r = [Target(self, np.random.randint(Time.get_time_from_dattime(9, 0), Time.DAY), None)]
+    #         _r = [Target(self, np.random.randint(Time.get_time_from_datetime(9, 0), Time.DAY), None)]
     #
     #     route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
     #     return route_so_far

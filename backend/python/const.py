@@ -12,6 +12,7 @@ from backend.python.location.Education.Classroom import Classroom
 from backend.python.location.Education.EducationZone import EducationZone
 from backend.python.location.Education.School import School
 from backend.python.location.Education.SchoolCanteen import SchoolCanteen
+from backend.python.location.GatheringPlace import GatheringPlace
 from backend.python.location.Industrial.GarmentBuilding import GarmentBuilding
 from backend.python.location.Industrial.GarmentCanteen import GarmentCanteen
 from backend.python.location.Industrial.GarmentOffice import GarmentOffice
@@ -32,6 +33,8 @@ from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
 from backend.python.point.GarmentAdmin import GarmentAdmin
 from backend.python.point.GarmentWorker import GarmentWorker
+from backend.python.point.Infant import Infant
+from backend.python.point.Retired import Retired
 from backend.python.point.SchoolBusDriver import SchoolBusDriver
 from backend.python.point.Student import Student
 from backend.python.point.TuktukDriver import TuktukDriver
@@ -69,6 +72,7 @@ default_infectiousness = {
     ResidentialPark: 0.7,
     ResidentialZone: 0.7,
 
+    GatheringPlace: 0.9,
     Cemetery: 0.0,
     TestCenter: 0.9,
 }
@@ -80,5 +84,7 @@ work_map = {
     BusDriver: 'BusStation',
     TuktukDriver: 'TukTukStation',
     CommercialZoneBusDriver: 'CommercialBuilding',
-    SchoolBusDriver: 'School'
+    SchoolBusDriver: 'School',
+    Retired: None,
+    Infant:None,
 }

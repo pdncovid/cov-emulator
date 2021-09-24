@@ -14,7 +14,7 @@ class ResidentialPark(Building):
     #         _r = [Target(self, t + np.random.randint(0, min(Time.get_duration(1), Time.DAY - t)), None)]
     #
     #     else:
-    #         _r = [Target(self, np.random.randint(Time.get_time_from_dattime(17, 0), Time.get_time_from_dattime(18, 30)),
+    #         _r = [Target(self, np.random.randint(Time.get_time_from_datetime(17, 0), Time.get_time_from_datetime(18, 30)),
     #                      None)]
     #
     #     route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)

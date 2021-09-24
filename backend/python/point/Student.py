@@ -6,10 +6,13 @@ from backend.python.transport.SchoolBus import SchoolBus
 
 
 class Student(Person):
-    combusp=0.1
+    combusp = 0.1
+
     def __init__(self):
         super().__init__()
 
         # if np.random.random() < Student.combusp:
         #     self.main_trans = SchoolBus(Mobility.RANDOM.value)
 
+    def initialize_age(self):
+        return np.random.randint(5, 19)

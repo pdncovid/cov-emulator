@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 
+import Grid from '@material-ui/core/Grid';
+
 import Plot from 'react-plotly.js';
 import { csvJSON, csv2JSONarr, strip_text } from "../utils/files";
-import { hist } from "../utils/functions";
+import { hist, padZeros } from "../utils/functions";
 
 import InputLabel from '@material-ui/core/InputLabel';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -17,7 +19,6 @@ import Button from '@material-ui/core/Button';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import { ConsoleLog } from "react-console-log";
 
-import * as dfd from "danfojs/src/index";
 import DataFrame from 'dataframe-js';
 
 function ResultsPage() {
@@ -32,69 +33,144 @@ function ResultsPage() {
     const [selectedPeople, setSelectedPeople] = useState([]);
     const [peopleCheckedState, setPeopleCheckedState] = React.useState({});
 
+    const [days, setDays] = useState([]);
+    const [selectedDay, setSelectedDay] = useState('');
     const [day_logs, setDayLogs] = useState([]);
     const [person_info_logs, setPersonInfoLogs] = useState([]);
+    const [cov_info_logs, setCovInfoLogs] = useState([]);
+
+    const [unstagedPeople, setUnstagedPeople] = useState([]);
+    const [stagedPeople, setStagedPeople] = useState([]);
+    const [selectedUnstagedPeople, setSelectedUnstagedPeople] = useState([]);
+    const [selectedStagedPeople, setSelectedStagedPeople] = useState([]);
+
 
     const [locHistData, setLocHistData] = useState([]);
     const [moveHistData, setMoveHistData] = useState([]);
     const [peoplePieData, setPeoplePieData] = useState([]);
     const [routeHistData, setRouteHistData] = useState([]);
     const [popPyramidData, setPopPyramidData] = useState([]);
+    const [personPathData, setPersonPathData] = useState([]);
+    const [stateTimelineData, setStateTimelineData] = useState([]);
 
-    const [selectedLog, setSelectLog] = useState('');
-    const [selectedPersonLog, setSelectedPersonLog] = useState('');
+
 
     const [loadedDf, setLoadedDf] = useState([]);
     const [loadedPersonDf, setLoadedPersonDf] = useState([]);
 
+    const [processedDf, setProcessedDf] = useState([]);
+    const [processedPersonDf, setProcessedPersonDf] = useState([]);
+
     useEffect(() => {
     }, [initialLoad])
+
     //processLocHist
     useEffect(() => {
         try {
-            loadedDf.select("loc_class")
+            processedDf.select("loc_class")
         } catch {
             return;
         }
-        let map = {}
-        for (let i = 0; i < people.length; i++) {
-            map[i] = false;
-        }
-        for (let i = 0; i < selectedPeople.length; i++) {
-            map[people.indexOf(selectedPeople[i])] = true;
-            console.log("selected person class " + selectedPeople[i])
-        }
-        console.log(map)
-
-        let sub_df = loadedDf.where(row => map[row.get('person_class')] == true)
-
+        var sub_df = processedDf;
         processLocHist(sub_df)
         processMoveHist(sub_df)
 
-    }, [loadedDf, day_logs, selectedPeople])
+    }, [processedDf])
 
     //processRouteHist
     //processPieChart
     useEffect(() => {
         try {
-            loadedPersonDf.select("person")
+            processedPersonDf.select("person")
         } catch {
             return;
         }
-        let map = {}
-        for (let i = 0; i < people.length; i++) {
-            map[i] = false;
-        }
-        for (let i = 0; i < selectedPeople.length; i++) {
-            map[people.indexOf(selectedPeople[i])] = true;
-            console.log("selected person class " + selectedPeople[i])
-        }
-        let sub_df = loadedPersonDf.where(row => map[row.get('person_class')] == true)
+        var sub_df = processedPersonDf;
         processRouteHist(sub_df)
         processPieChart(sub_df)
         processPopPyramid(sub_df)
-    }, [loadedPersonDf, person_info_logs, selectedPeople])
+    }, [processedPersonDf])
 
+    //set selected people ids
+    useEffect(() => {
+        try {
+            processedPersonDf.select("person")
+        } catch {
+            return;
+        }
+        let person_class = processedPersonDf.select('person_class').toArray().map((e) => people[e[0]])
+        let person_id = processedPersonDf.select('person').toArray().map((e) => e[0])
+        var arr = [];
+        person_id.forEach((e, i) => {
+            arr.push(e + " " + person_class[i])
+        });
+        setUnstagedPeople(arr);
+        setStagedPeople([]);
+        setSelectedUnstagedPeople([])
+        setSelectedStagedPeople([])
+    }, [processedPersonDf])
+
+    //draw person path
+    useEffect(() => {
+        try {
+            processedDf.select("loc_class")
+        } catch {
+            return;
+        }
+        drawPersonPath(processedDf)
+    }, [stagedPeople])
+
+    useEffect(() => {
+        var cov_df = null;
+        cov_info_logs.forEach(file => {
+            console.log("loading " + file.name);
+            loadfile(file).then(_df => {
+                _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
+                // console.log("Dropping missing values")
+                // _df = _df.dropMissingValues();
+                // console.log("Dropping missing values: DONE")
+
+                
+                // if (cov_df == null) {
+                //     cov_df = _df;
+                // } else {
+                //     cov_df = cov_df.join(_df, _df.listColumns(), 'outer')
+                // }
+                drawCovidStateTimeline(_df)
+            }, (error) => { });
+
+        });
+
+        // console.log(cov_df) // not initialized!!!
+    }, [cov_info_logs])
+
+    async function drawCovidStateTimeline(df) {
+        let _x = df.select("time").toArray().map((e) => e[0]/1440)
+        df.listColumns().forEach(col => {
+            if (col == "time" || col == "") {
+            } else {
+                var is_found = false;
+                stateTimelineData.forEach(trace => {
+                    if (trace.name == col) {
+                        trace.x=trace.x.concat(_x)
+                        trace.y=trace.y.concat(df.select(col).toArray().map((e) => e[0]))
+                        is_found = true;
+                    }
+                });
+                if (is_found == false) {
+                    var trace1 = {
+                        x: _x,
+                        y: df.select(col).toArray().map((e) => e[0]),
+                        name: col,
+                        mode: 'line',
+                    };
+                    stateTimelineData.push(trace1)
+                }
+            }
+        });
+        console.log(stateTimelineData)
+        setStateTimelineData([...stateTimelineData]);
+    }
 
     async function processLocHist(sub_df) {
         sub_df = sub_df.restructure(["loc_class", "time", "person_class"])
@@ -124,7 +200,7 @@ function ResultsPage() {
 
         console.log("grouping")
         let grp = sub_df.groupBy("cur_movement")
-        
+
         var data = [];
         grp.aggregate((g, lc) => {
             try {
@@ -161,7 +237,6 @@ function ResultsPage() {
 
         var routedata = [];
         locs.forEach(loc => {
-            console.log(data[loc], loc)
             if (data[loc].length > 0) {
                 var trace1 = {
                     x: data[loc],
@@ -254,9 +329,67 @@ function ResultsPage() {
         setPopPyramidData(data);
     }
 
+    async function drawPersonPath(sub_df) {
+        sub_df = sub_df.restructure(["person", "time", "x", "y"])
+        console.log("grouping")
+        let grp = sub_df.groupBy("person")
+        var data = [];
+        let _selected = stagedPeople.map((e) => parseInt(e.split(' ')[0]))
+        console.log(_selected, stagedPeople)
+        grp.aggregate((g, p) => {
+            try {
+                p = p['person']
+                if (_selected.indexOf(p) != -1) {
+                    var trace1 = {
+                        x: g.select('x').toArray().map((e) => e[0]),
+                        y: g.select('y').toArray().map((e) => e[0]),
+                        name: p,
+                        mode: 'line',
+                    };
+                    data.push(trace1);
+                }
+            } catch (error) {
+
+            }
+        });
+        setPersonPathData(data);
+    }
+
+
+
+    const handlePeopleCheckChange = (event) => {
+        setPeopleCheckedState({ ...peopleCheckedState, [event.target.name]: event.target.checked });
+    };
+
+    const handleAnalyzePeopleClick = (e) => {
+
+        let _selectedPeople = [];
+        people.forEach(element => {
+            if (peopleCheckedState[element]) {
+                _selectedPeople.push(element)
+            }
+        });
+        setSelectedPeople(_selectedPeople)
+
+        let map = {}
+        for (let i = 0; i < people.length; i++) {
+            map[i] = false;
+        }
+        for (let i = 0; i < _selectedPeople.length; i++) {
+            map[people.indexOf(_selectedPeople[i])] = true;
+            console.log("selected person class " + _selectedPeople[i])
+        }
+        let sub_df = loadedPersonDf.where(row => map[row.get('person_class')] == true)
+        setProcessedPersonDf(sub_df)
+        let sub_df2 = loadedDf.where(row => map[row.get('person_class')] == true)
+        setProcessedDf(sub_df2)
+    }
+
+    // file loading
+
     function loadfile(file) {
         return new Promise((resolve, reject) => {
-            console.log("Loading CSV!");
+            console.log("Loading - " + file);
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const data = evt.target.result;
@@ -285,6 +418,11 @@ function ResultsPage() {
 
             };
             reader.readAsText(file);
+            // console.log(file)
+            // DataFrame.fromCSV("http://localhost:3000/data/"+file.webkitRelativePath).then(df => {
+            //     console.log(df)
+            //     resolve(df)
+            // });
         });
 
     }
@@ -362,6 +500,7 @@ function ResultsPage() {
 
         var day_log_files = []
         var person_info_log_files = []
+        var cov_info_log_files = []
         const to_ignore = ["locs.txt", "people.txt", "movement.txt"]
 
         for (let i = 0; i < files.length; i++) {
@@ -372,18 +511,36 @@ function ResultsPage() {
                 person_info_log_files.push(files[i])
                 continue
             }
+            if (files[i].name.search("cov_info") != -1) {
+                cov_info_log_files.push(files[i])
+                continue
+            }
             day_log_files.push(files[i]);
         }
+        var _days = []
+        for (let i = 0; i < day_log_files.length; i++) {
+            _days.push(i);
+        }
+
         console.log(day_log_files, person_info_log_files);
+        setDays(_days)
         setPersonInfoLogs(person_info_log_files)
+        setCovInfoLogs(cov_info_log_files)
         setDayLogs(day_log_files);
         setLoadedDf([])
         setLoadedPersonDf([])
     }
-    const handleLogChange = async (event) => {
-        setSelectLog(event.target.value);
+    const handleDayChange = function (event) {
+        console.log(event.target)
+        setSelectedDay(event.target.value);
+        loadLog(padZeros(event.target.value.toString(), 5) + '.csv')
+        loadPersonLog(padZeros(event.target.value.toString(), 5) + '_person_info.csv')
+    }
+
+    const loadLog = async (filename) => {
+        console.log("Loading file " + filename);
         day_logs.forEach(element => {
-            if (element.name == event.target.value) {
+            if (element.name == filename) {
                 let promise = loadfile(element)
                 promise.then(_df => {
                     _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
@@ -391,6 +548,7 @@ function ResultsPage() {
                     _df = _df.dropMissingValues();
                     console.log("Dropping missing values: DONE")
                     setLoadedDf(_df);
+                    setProcessedDf(_df);
                     // let _days = []
                     // for (let d = 0; d <= Math.floor(_df.stat.max('time') / 1440); d++) {
                     //     _days.push(d);
@@ -404,10 +562,10 @@ function ResultsPage() {
         });
 
     };
-    const handlePersonLogChange = async (event) => {
-        setSelectedPersonLog(event.target.value);
+    const loadPersonLog = async (filename) => {
+        console.log("Loading file " + filename);
         person_info_logs.forEach(element => {
-            if (element.name == event.target.value) {
+            if (element.name == filename) {
                 loadfile(element).then(_df => {
                     let cast = []
                     _df.listColumns().forEach((e) => {
@@ -422,6 +580,7 @@ function ResultsPage() {
                     _df = _df.dropMissingValues();
                     console.log("Dropping missing values: DONE")
                     setLoadedPersonDf(_df);
+                    setProcessedPersonDf(_df);
                     // setLoadprogress(0);
                 }, (error) => { });
 
@@ -429,38 +588,53 @@ function ResultsPage() {
         });
 
     };
-    const handlePieLegendClick = (data) => {
-        // console.log(data)
-        // let isFound = false;
-        // let _selectedPeople = [];
-        // for (let i = 0; i < selectedPeople.length; i++) {
-        //     if (selectedPeople[i] == data.label) {
-        //         isFound = true;
-        //     } else {
-        //         _selectedPeople.push(selectedPeople[i])
-        //     }
-        // }
-        // if (isFound == false) {
-        //     _selectedPeople.push(data.label);
-        // }
-        // setSelectedPeople(_selectedPeople)
-        // console.log(_selectedPeople)
-        // return false;
-    }
-    const handlePeopleCheckChange = (event) => {
-        setPeopleCheckedState({ ...peopleCheckedState, [event.target.name]: event.target.checked });
-    };
-    const handleAnalyzePeopleClick = (e) => {
 
-        let _selectedPeople = [];
-        people.forEach(element => {
-            if (peopleCheckedState[element]) {
-                _selectedPeople.push(element)
+
+    // Daily personal mobility data analysis
+
+    const handleUnstagedClick = function (event) {
+        const { options } = event.target;
+        const value = [];
+        for (let i = 0, l = options.length; i < l; i += 1) {
+            if (options[i].selected) {
+                value.push(options[i].value);
             }
-        });
-        setSelectedPeople(_selectedPeople)
+        }
+        setSelectedUnstagedPeople(value);
     }
-
+    const handleStagedClick = function (event) {
+        const { options } = event.target;
+        const value = [];
+        for (let i = 0, l = options.length; i < l; i += 1) {
+            if (options[i].selected) {
+                value.push(options[i].value);
+            }
+        }
+        setSelectedStagedPeople(value);
+    }
+    const handleAddtoStageClick = function (event) {
+        var _unstagedPeople = []; unstagedPeople.forEach((e => _unstagedPeople.push(e)));
+        var _stagedPeople = []; stagedPeople.forEach((e => _stagedPeople.push(e)));
+        selectedUnstagedPeople.forEach(element => {
+            _stagedPeople.push(element)
+            _unstagedPeople.splice(_unstagedPeople.indexOf(element),1)
+            
+        });
+        setUnstagedPeople(_unstagedPeople)
+        setStagedPeople(_stagedPeople)
+        setSelectedUnstagedPeople([])
+    }
+    const handleAddtoUnstageClick = function (event) {
+        var _unstagedPeople = []; unstagedPeople.forEach((e => _unstagedPeople.push(e)));
+        var _stagedPeople = []; stagedPeople.forEach((e => _stagedPeople.push(e)));
+        selectedStagedPeople.forEach(element => {
+            _stagedPeople.splice(_stagedPeople.indexOf(element),1)
+            _unstagedPeople.push(element)
+        });
+        setUnstagedPeople(_unstagedPeople)
+        setStagedPeople(_stagedPeople)
+        setSelectedStagedPeople([])
+    }
     return (
         <div>
             <div className="results-page">
@@ -470,8 +644,7 @@ function ResultsPage() {
                 <div>
                     <h4>Select log location</h4>
                     <input directory="" webkitdirectory="" type="file" onChange={(event) => handleSelectDir(event)} />
-                </div>
-                <div>
+
                     <FormGroup row style={{ maxWidth: 500, padding: 30 }}>
                         {people.map((p) => {
                             return (
@@ -485,26 +658,76 @@ function ResultsPage() {
                         <Button variant="contained" color="primary" onClick={handleAnalyzePeopleClick}>Analyze only selected people</Button>
                     </FormGroup>
                 </div>
+                <FormControl variant="outlined" style={{ padding: 20, width: 200 }}>
+                    <InputLabel id="select-day">Selected Day</InputLabel>
+                    <Select
+                        labelId="select-day-label"
+                        id="select-day"
+                        value={selectedDay}
+                        onChange={handleDayChange}
+                        label="Selected Day"
+                    >
+                        {days.map((e) => {
+                            return (<MenuItem value={e} key={e}>{e}</MenuItem>);
+                        })}
+
+                    </Select>
+                </FormControl>
 
                 <div>
-                    <h4>Daily mobility data analysis</h4>
-                    <div style={{ padding: 5 }}>
-                        <FormControl variant="outlined" style={{ padding: 20, width: 200 }}>
-                            <InputLabel id="select-log">Selected Log</InputLabel>
-                            <Select
-                                labelId="select-log-label"
-                                id="select-log"
-                                value={selectedLog}
-                                onChange={handleLogChange}
-                                label="Selected Log"
-                            >
-                                {day_logs.map((e) => {
-                                    return (<MenuItem value={e.name} key={e.name}>{e.name}</MenuItem>);
-                                })}
+                    <h4>Person info analysis</h4>
+                    <Plot
+                        data={peoplePieData}
+                        layout={{
+                            title: 'Distribution of people',
+                        }}
+                    // onLegendClick={handlePieLegendClick}
+                    />
+                    <Plot
+                        data={popPyramidData}
+                        layout={{
+                            title: 'Population pyramid',
+                            xaxis: {
 
-                            </Select>
-                        </FormControl>
-                    </div>
+                                type: 'linear',
+                                title: { text: 'Number' },
+                            },
+                            yaxis: {
+                                type: 'linear',
+                                range: [-5, 95],
+                                title: { text: 'Age' },
+                                autorange: true
+                            },
+                            bargap: 0.1,
+                            barmode: 'relative',
+                            autosize: true
+                        }}
+                    />
+                </div>
+                <div>
+                    <h4>COVID-19 Spread Analysis</h4>
+                    <Plot
+                        data={stateTimelineData}
+                        layout={{
+                            title: 'Variation of states of the population with time',
+                            xaxis: {
+                                title: 'Time (days)',
+                                showticklabels: true,
+                                tickangle: 'auto',
+                                exponentformat: 'e',
+                                showexponent: 'all'
+                            },
+                            yaxis: {
+                                title: 'Number of people',
+                                showticklabels: true,
+                                exponentformat: 'e',
+                                showexponent: 'all'
+                            }
+                        }}
+                    />
+                </div>
+                <div>
+                    <h4>Daily mobility data analysis</h4>
                     <Plot
                         data={locHistData}
                         layout={{
@@ -547,70 +770,6 @@ function ResultsPage() {
                             }
                         }}
                     />
-
-                    <Plot
-                        data={moveHistData}
-                        layout={{
-                            barmode: 'stack',
-                            title: 'Histogram of movement methods of people during the day',
-                            xaxis: {
-                                title: 'Time (minutes)',
-                                // titlefont: {
-                                //     family: 'Arial, sans-serif',
-                                //     size: 18,
-                                //     color: 'lightgrey'
-                                // },
-                                showticklabels: true,
-                                // tickformat: "%H:%M:%S s",
-                                tickangle: 'auto',
-                                // tickfont: {
-                                //     family: 'Old Standard TT, serif',
-                                //     size: 14,
-                                //     color: 'black'
-                                // },
-                                exponentformat: 'e',
-                                showexponent: 'all'
-                            },
-                            yaxis: {
-                                title: 'Number of people',
-                                // titlefont: {
-                                //     family: 'Arial, sans-serif',
-                                //     size: 18,
-                                //     color: 'lightgrey'
-                                // },
-                                showticklabels: true,
-                                // tickangle: 45,
-                                // tickfont: {
-                                //     family: 'Old Standard TT, serif',
-                                //     size: 14,
-                                //     color: 'black'
-                                // },
-                                exponentformat: 'e',
-                                showexponent: 'all'
-                            }
-                        }}
-                    />
-
-                </div>
-                <br></br>
-                <div>
-                    <h4>Person info analysis</h4>
-                    <FormControl variant="outlined" style={{ minWidth: 120 }}>
-                        <InputLabel id="select-personlog">Selected Person Log</InputLabel>
-                        <Select
-                            labelId="select-personlog-label"
-                            id="select-personlog"
-                            value={selectedPersonLog}
-                            onChange={handlePersonLogChange}
-                            label="Selected person log"
-                        >
-                            {person_info_logs.map((e) => {
-                                return (<MenuItem value={e.name} key={e.name}>{e.name}</MenuItem>);
-                            })}
-
-                        </Select>
-                    </FormControl>
-
                     <Plot
                         data={routeHistData}
                         layout={{
@@ -656,38 +815,137 @@ function ResultsPage() {
                             }
                         }}
                     />
+                    <br />
                     <Plot
-                        data={peoplePieData}
+                        data={moveHistData}
                         layout={{
-                            title: 'Distribution of people',
-                        }}
-                        onLegendClick={handlePieLegendClick}
-                    />
-                    <Plot
-                        data={popPyramidData}
-                        layout={{
-                            title: 'Population pyramid',
+                            barmode: 'stack',
+                            title: 'Histogram of movement methods of people during the day',
                             xaxis: {
-
-                                type: 'linear',
-                                // range: [-1200, 1200],
-                                title: { text: 'Number' },
-                                // ticktext: [1000, 700, 300, 0, 300, 700, 1000],
-                                // tickvals: [-1000, -700, -300, 0, 300, 700, 1000]
+                                title: 'Time (minutes)',
+                                // titlefont: {
+                                //     family: 'Arial, sans-serif',
+                                //     size: 18,
+                                //     color: 'lightgrey'
+                                // },
+                                showticklabels: true,
+                                // tickformat: "%H:%M:%S s",
+                                tickangle: 'auto',
+                                // tickfont: {
+                                //     family: 'Old Standard TT, serif',
+                                //     size: 14,
+                                //     color: 'black'
+                                // },
+                                exponentformat: 'e',
+                                showexponent: 'all'
                             },
                             yaxis: {
-                                type: 'linear',
-                                range: [-5, 95],
-                                title: { text: 'Age' },
-                                autorange: true
+                                title: 'Number of people',
+                                // titlefont: {
+                                //     family: 'Arial, sans-serif',
+                                //     size: 18,
+                                //     color: 'lightgrey'
+                                // },
+                                showticklabels: true,
+                                // tickangle: 45,
+                                // tickfont: {
+                                //     family: 'Old Standard TT, serif',
+                                //     size: 14,
+                                //     color: 'black'
+                                // },
+                                exponentformat: 'e',
+                                showexponent: 'all'
+                            }
+                        }}
+                    />
+
+                </div>
+                <br></br>
+
+
+                <div>
+                    <h4>Daily personal mobility data analysis</h4>
+
+                    <Grid container
+                        direction="row"
+                        justifyContent="center"
+                        alignItems="center"
+                    >
+                        <FormControl                             >
+                            <InputLabel shrink htmlFor="select-multiple-people">
+                                Select people that need to show
+                            </InputLabel>
+                            <Select
+                                multiple
+                                native
+                                value={selectedUnstagedPeople}
+                                onChange={handleUnstagedClick}
+
+                                inputProps={{
+                                    id: 'select-multiple-native',
+                                }}
+                            >
+                                {unstagedPeople.map((element) => (
+                                    <option key={element} value={element}>
+                                        {element}
+                                    </option>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Grid>
+                            <Grid
+                                container
+                                direction="column"
+                                justifyContent="center"
+                                alignItems="center"
+                            >
+
+                                <Button variant="contained" color="primary" onClick={handleAddtoStageClick}>{">>"}</Button>
+                                <Button variant="contained" color="primary" onClick={handleAddtoUnstageClick}>{"<<"}</Button>
+                            </Grid>
+                        </Grid>
+                        <FormControl >
+                            <InputLabel shrink htmlFor="select-multiple-people">
+                                Selected people
+                            </InputLabel>
+                            <Select
+                                multiple
+                                native
+                                value={selectedStagedPeople}
+                                onChange={handleStagedClick}
+
+                                inputProps={{
+                                    id: 'select-multiple-native',
+                                }}
+                            >
+                                {stagedPeople.map((element) => (
+                                    <option key={element} value={element}>
+                                        {element}
+                                    </option>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    <Plot
+                        data={personPathData}
+                        layout={{
+                            barmode: 'stack',
+                            title: 'Path took by the selected person',
+                            xaxis: {
+                                showticklabels: true,
+                                tickangle: 'auto',
+                                exponentformat: 'e',
+                                showexponent: 'all'
                             },
-                            bargap: 0.1,
-                            barmode: 'relative',
-                            autosize: true
+                            yaxis: {
+                                showticklabels: true,
+                                exponentformat: 'e',
+                                showexponent: 'all'
+                            }
                         }}
                     />
                 </div>
-
 
             </div>
             <br></br>

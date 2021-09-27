@@ -1,3 +1,4 @@
+
 import argparse
 import sys
 
@@ -11,13 +12,7 @@ from backend.python.location.Residential.Home import Home
 from backend.python.main import main
 from backend.python.const import work_map
 from backend.python.point.BusDriver import BusDriver
-from backend.python.point.CommercialWorker import CommercialWorker
-from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
-from backend.python.point.GarmentAdmin import GarmentAdmin
-from backend.python.point.GarmentWorker import GarmentWorker
-from backend.python.point.SchoolBusDriver import SchoolBusDriver
 from backend.python.point.Student import Student
-from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
 from backend.python.transport.SchoolBus import SchoolBus
@@ -31,16 +26,17 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 
+
 def initialize2():
     # initialize people
     people = []
     # people += [GarmentWorker() for _ in range(100)]
     # people += [GarmentAdmin() for _ in range(10)]
     # people += [CommercialWorker() for _ in range(10)]
-    people += [Student() for _ in range(100)]
+    people += [Student() for _ in range(2)]
 
     # people += [TuktukDriver() for _ in range(5)]
-    people += [BusDriver() for _ in range(10)]
+    # people += [BusDriver() for _ in range(10)]
     # people += [CommercialZoneBusDriver() for _ in range(10)]
     # people += [SchoolBusDriver() for _ in range(10)]
     for _ in range(0):
@@ -48,9 +44,9 @@ def initialize2():
         people[idx].set_infected(0, people[idx], args.common_p)
 
     # initialize location tree
-    root = UrbanBlock(Shape.CIRCLE.value, 0, 0, "UB", r=100)
+    root = Home(Shape.CIRCLE.value, 0, 0, "UB", r=10)
     root.add_sub_location(Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3))
-    loc_classes = separate_into_classes(root)
+
 
     # set random routes for each person and set their main transportation method
     walk = Walk(Mobility.RANDOM.value)
@@ -58,16 +54,12 @@ def initialize2():
     combus = CommercialZoneBus(Mobility.RANDOM.value)
     schoolbus = SchoolBus(Mobility.RANDOM.value)
     tuktuk = Tuktuk(Mobility.RANDOM.value)
-    main_trans = [bus]
+    main_trans = [walk]
 
     for person in people:
-
         if person.main_trans is None:
             person.main_trans = get_random_element(main_trans)
-        person.set_home_loc(get_random_element(loc_classes[Home]))
-        person.home_weekend_loc = person.find_closest('Home', person.home_loc.parent_location, find_from_level=2)
-        person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc, find_from_level=-1)
-
+        person.set_home_loc(root)
     return people, root
 
 

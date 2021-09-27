@@ -39,6 +39,7 @@ from backend.python.point.GarmentWorker import GarmentWorker
 from backend.python.point.Person import Person
 from backend.python.point.SchoolBusDriver import SchoolBusDriver
 from backend.python.point.Student import Student
+from backend.python.point.Transporter import Transporter
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.Car import Car
@@ -71,8 +72,8 @@ def initialize():
     people += [GarmentAdmin() for _ in range(int(0.03 * args.n))]
     people += [Student() for _ in range(int(0.3 * args.n))]
 
-    people += [BusDriver() for _ in range(int(0.25 * args.n))]
-    # people += [TuktukDriver() for _ in range(int(0.05 * args.n))]
+    people += [BusDriver() for _ in range(int(0.15 * args.n))]
+    people += [TuktukDriver() for _ in range(int(0.05 * args.n))]
     # people += [CommercialZoneBusDriver() for _ in range(int(0.03 * args.n))]
     # people += [SchoolBusDriver() for _ in range(int(0.02 * args.n))]
 
@@ -151,17 +152,25 @@ def main(initializer, args):
     gather_criteria = [lambda x: isinstance(x, Student),
                        lambda x: isinstance(x, CommercialWorker),
                        lambda x: 14 < x.age < 45]
-    gather_events = [GatherEvent(np.random.randint(0, 7), Time.get_random_time_between(0, 16, 0, 18, 0),
-                                 Time.get_duration(2),
-                                 get_random_element(gather_places), np.random.randint(int(args.n * 0.10)),
-                                 get_random_element(gather_criteria)) for _ in range(n_events)]
+    gather_events = []
+    for ge in range(n_events):
+        gathering_place = get_random_element(gather_places)
+        if gathering_place is None:
+            continue
+        day = np.random.randint(0, 7)
+        start_time = Time.get_random_time_between(0, 16, 0, 18, 0)
+        duration = Time.get_duration(2)
+        gather_events.append(GatherEvent(day, start_time, duration, gathering_place,
+                                         np.random.randint(int(args.n * 0.10)),
+                                         get_random_element(gather_criteria)))
 
     # add test centers to medical zones
     test_centers = []
     classes = separate_into_classes(root)
-    for mz in classes[MedicalZone]:
-        test_center = TestCenter(mz.x, mz.y, mz.radius)
-        test_centers.append(test_center)
+    if MedicalZone in classes.keys():
+        for mz in classes[MedicalZone]:
+            test_center = TestCenter(mz.x, mz.y, mz.radius)
+            test_centers.append(test_center)
 
     # find cemeteries
     cemetery = classes[Cemetery]
@@ -228,7 +237,7 @@ def main(initializer, args):
                     )
                 df_person = pd.DataFrame(df_person)
                 pd.DataFrame.to_csv(df_person,
-                                    f"../../app/src/data/{test_name}/{int(t // Time.DAY):05d}_person_info.csv")
+                                    f"../../app/src/data/{test_name}/{int(t // Time.DAY) - 1:05d}_person_info.csv")
                 pd.DataFrame.to_csv(df_detailed_person,
                                     f"../../app/src/data/{test_name}/{int(t // Time.DAY) - 1:05d}.csv")
                 pd.DataFrame.to_csv(df_detailed_covid,
@@ -290,6 +299,21 @@ def main(initializer, args):
         #     if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
         #         break
 
+        # =================================== integrity check ======================================================
+        for p in people:
+            if p.is_dead():
+                assert isinstance(p.current_loc, Cemetery)  # Dead not in cemetery
+            if p.latched_to is None:
+                next_loc = MovementEngine.find_next_location(p)
+                if p.current_loc.depth >= next_loc.depth:  # parent transporting
+                    trans_loc = p.current_loc.parent_location
+                else:  # current transporting
+                    trans_loc = p.current_loc
+                if trans_loc.override_transport is not None and not isinstance(p, Transporter):
+                    if trans_loc.override_transport.override_level <= p.main_trans.override_level:
+                        assert p.current_trans == trans_loc.override_transport
+
+
         # ==================================== plotting ==============================================================
 
         # record in daily report
@@ -340,7 +364,7 @@ def main(initializer, args):
 if __name__ == "__main__":
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-    parser.add_argument('-n', help='target population', default=100)
+    parser.add_argument('-n', help='target population', default=10000)
     parser.add_argument('-i', help='initial infected', type=int, default=10)
 
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)

@@ -144,17 +144,16 @@ class Person:
     def reset_day(self, t):
         from backend.python.point.Transporter import Transporter
         if self.get_current_location() != self.home_loc and self.get_current_location() != self.home_weekend_loc and \
-                not self.get_current_location().quarantined and not isinstance(self, Transporter):
+                not self.get_current_location().quarantined and not isinstance(self, Transporter) and not self.is_dead():
             Logger.log(
                 f"{self.ID} {self.__class__.__name__} not at home when day resets. (Now at {self.get_current_location().name} "
                 f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])} next target {self.get_next_target().loc.name}) "
-                f"CTarget {self.current_target_idx}/{len(self.route)} "
+                f"CTarget {self.current_target_idx}/{len(self.route)-1} "
                 f"Route {list(map(str, self.route))}. "
                 f"{self.__repr__()}"
 
                 , 'c')
             self.print()
-            return False
 
         self.is_day_finished = False
         self.current_target_idx = 0
@@ -205,7 +204,9 @@ class Person:
                     break
             cur = cur.parent_location
         if len(possible_targets) == 0:
-            raise Exception(f"Could not find {target} in the tree!!!")
+            # raise Exception(f"Could not find {target} in the tree!!!")
+            Logger.log(f"Could not find {target} in the tree!!!",'c')
+            return self.home_loc
 
         if find_from_level == -1:
             level = int(np.floor(np.random.exponential()))

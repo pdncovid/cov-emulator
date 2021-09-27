@@ -59,8 +59,9 @@ class TransmissionEngine:
 
             d = np.sqrt(np.power(x[close_points_idx] - x[i], 2) + np.power(y[close_points_idx] - y[i], 2))
 
-            close_points_idx = close_points_idx[np.logical_and(d < r, d > social_dist)]
-            d = d[d < r]
+            select_from_close = np.logical_and(d < r, d > social_dist[close_points_idx])
+            close_points_idx = close_points_idx[select_from_close]
+            d = d[select_from_close]
 
             contacts[close_points_idx] += 1
             sourceid[close_points_idx[d < distance[close_points_idx]]] = i

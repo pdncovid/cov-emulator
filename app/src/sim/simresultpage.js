@@ -51,6 +51,9 @@ function ResultsPage() {
     const [routeHistData, setRouteHistData] = useState([]);
     const [popPyramidData, setPopPyramidData] = useState([]);
     const [personPathData, setPersonPathData] = useState([]);
+    const [personPathData2, setPersonPathData2] = useState([]);
+    const [personPathLayout, setPersonPathLayout] = useState([]);
+    const [personPathFrames, setPersonPathFrames] = useState([]);
     const [stateTimelineData, setStateTimelineData] = useState([]);
 
 
@@ -130,7 +133,7 @@ function ResultsPage() {
                 // _df = _df.dropMissingValues();
                 // console.log("Dropping missing values: DONE")
 
-                
+
                 // if (cov_df == null) {
                 //     cov_df = _df;
                 // } else {
@@ -145,15 +148,15 @@ function ResultsPage() {
     }, [cov_info_logs])
 
     async function drawCovidStateTimeline(df) {
-        let _x = df.select("time").toArray().map((e) => e[0]/1440)
+        let _x = df.select("time").toArray().map((e) => e[0] / 1440)
         df.listColumns().forEach(col => {
             if (col == "time" || col == "") {
             } else {
                 var is_found = false;
                 stateTimelineData.forEach(trace => {
                     if (trace.name == col) {
-                        trace.x=trace.x.concat(_x)
-                        trace.y=trace.y.concat(df.select(col).toArray().map((e) => e[0]))
+                        trace.x = trace.x.concat(_x)
+                        trace.y = trace.y.concat(df.select(col).toArray().map((e) => e[0]))
                         is_found = true;
                     }
                 });
@@ -334,25 +337,109 @@ function ResultsPage() {
         console.log("grouping")
         let grp = sub_df.groupBy("person")
         var data = [];
+        var data2 = [];
         let _selected = stagedPeople.map((e) => parseInt(e.split(' ')[0]))
-        console.log(_selected, stagedPeople)
+        // console.log(_selected, stagedPeople)
+        var t;
         grp.aggregate((g, p) => {
             try {
                 p = p['person']
+                t = g.select('x').toArray().map((d, i) => i)
                 if (_selected.indexOf(p) != -1) {
                     var trace1 = {
                         x: g.select('x').toArray().map((e) => e[0]),
                         y: g.select('y').toArray().map((e) => e[0]),
                         name: p,
                         mode: 'line',
+                        id: t
                     };
                     data.push(trace1);
+                    // data2.push({x:trace1["x"],y:[],id:t,mode:'line'})
+                    data2.push({
+                        ...trace1,
+                        transforms: [{
+                            type: 'filter',
+                            operation: '<=',
+                            target: t,
+                            value: 0.0
+                        },
+                        {
+                            type: 'filter',
+                            operation: '>',
+                            target: t,
+                            value: 0.0
+                        }]
+                    })
                 }
             } catch (error) {
 
             }
         });
         setPersonPathData(data);
+        setPersonPathData2(data2);
+        setPersonPathLayout({
+            // xaxis: { autorange: false, range: [0, 1] },
+            // yaxis: { autorange: false, range: [-1, 2] },
+
+            updatemenus: [{
+                type: 'buttons',
+                xanchor: 'left',
+                yanchor: 'top',
+                direction: 'right',
+                x: 0,
+                y: 0,
+                pad: { t: 60 },
+                showactive: false,
+                buttons: [{
+                    label: 'Play',
+                    method: 'animate',
+                    args: [null, {
+                        transition: { duration: 0 },
+                        frame: { duration: 20, redraw: false },
+                        mode: 'immediate',
+                        fromcurrent: true,
+                    }]
+                }, {
+                    label: 'Pause',
+                    method: 'animate',
+                    args: [[null], {
+                        frame: { duration: 0, redraw: false },
+                        mode: 'immediate',
+                    }]
+                }]
+            }],
+            sliders: [{
+                currentvalue: {
+                    prefix: 't = ',
+                    xanchor: 'right'
+                },
+                pad: { l: 130, t: 30 },
+                transition: {
+                    duration: 0,
+                },
+                steps: t.map(t => ({
+                    label: t,
+                    method: 'animate',
+                    args: [[t], {
+                        frame: { duration: 0, redraw: false },
+                        mode: 'immediate',
+                    }]
+                }))
+            }]
+        }
+
+        )
+
+        // setPersonPathFrames(t.map((t, i) => ({
+        //     name: t,
+        //     data: data.map((e) => e['y'].slice(0, i))
+        // })))
+
+        setPersonPathFrames(t.map(t => ({
+            name: t,
+            data: data2.map((e) => ({ 'transforms[0].value': t, 'transforms[1].value': Math.max(0, t - 10) }))
+        })))
+
     }
 
 
@@ -617,8 +704,8 @@ function ResultsPage() {
         var _stagedPeople = []; stagedPeople.forEach((e => _stagedPeople.push(e)));
         selectedUnstagedPeople.forEach(element => {
             _stagedPeople.push(element)
-            _unstagedPeople.splice(_unstagedPeople.indexOf(element),1)
-            
+            _unstagedPeople.splice(_unstagedPeople.indexOf(element), 1)
+
         });
         setUnstagedPeople(_unstagedPeople)
         setStagedPeople(_stagedPeople)
@@ -628,7 +715,7 @@ function ResultsPage() {
         var _unstagedPeople = []; unstagedPeople.forEach((e => _unstagedPeople.push(e)));
         var _stagedPeople = []; stagedPeople.forEach((e => _stagedPeople.push(e)));
         selectedStagedPeople.forEach(element => {
-            _stagedPeople.splice(_stagedPeople.indexOf(element),1)
+            _stagedPeople.splice(_stagedPeople.indexOf(element), 1)
             _unstagedPeople.push(element)
         });
         setUnstagedPeople(_unstagedPeople)
@@ -945,6 +1032,13 @@ function ResultsPage() {
                             }
                         }}
                     />
+
+                    <Plot
+                        data={personPathData2}
+                        layout={personPathLayout}
+                        frames={personPathFrames}
+
+                    />
                 </div>
 
             </div>
@@ -955,4 +1049,6 @@ function ResultsPage() {
         </div>
     );
 }
+
+
 export default ResultsPage;

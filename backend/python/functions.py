@@ -75,6 +75,8 @@ def find_in_subtree(c, tar, skip):
 
 
 def get_random_element(arr):
+    if len(arr)==0:
+        return
     return arr[np.random.randint(0, len(arr))]
 
 

@@ -11,10 +11,11 @@ class MovementEngine:
 
         is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
 
-        new_v = _p.all_velocities + np.random.random((len(_p.all_velocities), 2))
+        # new_v = 0.5*_p.all_velocities + (_p.all_velocities*0.25+1)*np.random.random((len(_p.all_velocities), 2))
+        new_v = np.expand_dims(_p.all_current_loc_vcap, -1) *(np.random.random((len(_p.all_velocities), 2))*2 - 1)
         # v might be too small
         new_v = np.sign(new_v) * np.clip(np.abs(new_v),
-                                         np.expand_dims(_p.all_current_loc_vcap, -1) * 0.5,
+                                         np.expand_dims(_p.all_current_loc_vcap, -1) * 0.15,
                                          np.expand_dims(_p.all_current_loc_vcap, -1))
         _p.all_velocities = new_v
 
@@ -23,7 +24,7 @@ class MovementEngine:
         is_outside = np.sum((new_xy - _p.all_current_loc_positions) ** 2, 1) > _p.all_current_loc_radii ** 2
         is_outside = is_outside * is_in_loc_move[:, 0]
         _p.all_velocities[is_outside] = -(_p.all_velocities[is_outside] + 1) / 2
-        new_xy[is_outside] = _p.all_positions[is_outside]
+        new_xy[is_outside] = (np.random.random(_p.all_positions.shape)*(2**0.5*np.expand_dims(_p.all_current_loc_radii, -1) ) + _p.all_current_loc_positions)[is_outside]
 
         # movement to other location
         new_xy_inter_loc = np.where(
@@ -171,6 +172,8 @@ class MovementEngine:
         if moving_loc.override_transport is not None and not isinstance(p, Transporter):
             if moving_loc.override_transport.override_level <= p.main_trans.override_level:
                 trans = moving_loc.override_transport
+            else:
+                pass
         return trans
 
     # @staticmethod

@@ -368,7 +368,7 @@ class Location:
                         Logger.log(f"Person {p.ID} will be removed from current location {self} "
                                    f"and it will be added to parent location {self.parent_location}"
                                    f"to reach {next_location}.", 'c')
-                        self.parent_location.enter_person(p, next_location)
+                        self.parent_location.enter_person(p)
 
                         # todo bug: if p is in home, when cap is full current_loc jump to self.parent
                         return  # don't add to this location because capacity reached

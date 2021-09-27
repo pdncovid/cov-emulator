@@ -18,6 +18,10 @@ class RoutePlanningEngine:
     df_loc_o = None
     df_loc_p_1 = None
     df_loc_o_1 = None
+    df_p = None
+    df_o = None
+
+    loaded_person = None
 
     loaded_day_of_week = -1
     loaded_containment = -1
@@ -113,15 +117,15 @@ class RoutePlanningEngine:
         p1, p2 = RoutePlanningEngine.process_loc_p(day_of_week, containment)
         o1, o2 = RoutePlanningEngine.process_loc_o(day_of_week, containment)
         if RoutePlanningEngine.df_loc_p_1 is None:
-            RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p1)
+            RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p1).set_index('location').groupby('person')
         if RoutePlanningEngine.df_loc_o_1 is None:
-            RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o1)
+            RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o1).set_index('location').groupby('person')
 
         RoutePlanningEngine.df_loc_p = RoutePlanningEngine.df_loc_p_1
-        RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p2)
+        RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p2).set_index('location').groupby('person')
 
         RoutePlanningEngine.df_loc_o = RoutePlanningEngine.df_loc_o_1
-        RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o2)
+        RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o2).set_index('location').groupby('person')
 
         RoutePlanningEngine.loaded_day_of_week = day_of_week
         RoutePlanningEngine.loaded_containment = containment
@@ -129,7 +133,7 @@ class RoutePlanningEngine:
     @staticmethod
     def set_route(p, t):
 
-        if p.state == State.DEAD.value:
+        if p.is_dead():
             return
         from backend.python.point.Transporter import Transporter
 
@@ -198,8 +202,8 @@ class RoutePlanningEngine:
         new_route += [route[-1]]
         if new_route[0].loc != p.home_loc:
             new_route = [route[0]] + new_route
-        for i in range(len(new_route)-1):
-            if new_route[i].leaving_time > new_route[i+1].leaving_time:
+        for i in range(len(new_route) - 1):
+            if new_route[i].leaving_time > new_route[i + 1].leaving_time:
                 raise Exception()
         return new_route
 
@@ -235,36 +239,37 @@ class RoutePlanningEngine:
         day = t // Time.DAY
 
         if day > Time.get_time() // Time.DAY:
-            df_p = RoutePlanningEngine.df_loc_p_1
-            df_o = RoutePlanningEngine.df_loc_o_1
+            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p_1.get_group(p.__class__.__name__)
+            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o_1.get_group(p.__class__.__name__)
+
         else:
-            df_p = RoutePlanningEngine.df_loc_p
-            df_o = RoutePlanningEngine.df_loc_o
+            if RoutePlanningEngine.loaded_person != p.__class__.__name__ or len(route_so_far) == 0:
+                RoutePlanningEngine.loaded_person = p.__class__.__name__
+                RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(p.__class__.__name__)
+                RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(p.__class__.__name__)
         t = Time.i_to_minutes(t) % 1440
         t = str(t)
         if len(route_so_far) > 0:
             loc_name = route_so_far[-1].loc.__class__.__name__
             if route_so_far[-1].loc == p.home_loc:
                 loc_name = '_home'
-            if route_so_far[-1].loc == p.home_weekend_loc:
+            elif route_so_far[-1].loc == p.home_weekend_loc:
                 loc_name = '_w_home'
-            if route_so_far[-1].loc == p.work_loc:
+            elif route_so_far[-1].loc == p.work_loc:
                 loc_name = '_work'
 
             last_t = Time.i_to_minutes(route_so_far[-2].leaving_time) % 1440 if len(route_so_far) > 1 else 0
             dt = str((int(t) - int(last_t)) % 1440)
 
-            p_of_occupancy = df_o[df_o['person'] == p.__class__.__name__][[dt, 'location']]
-            p_of_staying = p_of_occupancy.loc[p_of_occupancy['location'] == loc_name][dt].values[0]
+            p_of_staying = RoutePlanningEngine.df_o.loc[loc_name][dt]
 
             if p_of_staying >= 1 - np.random.exponential(0.1):
                 return [route_so_far[-1].loc]
 
-        p_of_visiting = df_p[df_p['person'] == p.__class__.__name__][[t, 'location']]
-        idx = get_idx_most_likely(p_of_visiting[t].values, method=0, scale=0.2)
+        idx = get_idx_most_likely(RoutePlanningEngine.df_p[t].values, method=0, scale=0.2)
         if idx == -1:
             return [p.home_loc]
-        location = p_of_visiting.iloc[idx, 1]
+        location = RoutePlanningEngine.df_p.index[idx]
         if location == '_home':
             return [p.home_loc]
         if location == '_work':

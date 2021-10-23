@@ -23,16 +23,6 @@ class Time:
         return Time.t
 
     @staticmethod
-    def get_current_time(route, time):
-        # todo add the time to travel between two locations as well
-        for i in range(len(route)):
-            if route[i].leaving_time != -1:
-                time = route[i].leaving_time
-            else:
-                time += route[i].duration_time
-        return time
-
-    @staticmethod
     def get_duration(hours: float):
         return hours * (60 / Time._scale)
 

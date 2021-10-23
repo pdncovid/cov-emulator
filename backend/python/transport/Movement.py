@@ -21,6 +21,7 @@ class Movement(metaclass=Singleton):
     all_instances = []
 
     def __init__(self, velocity_cap: float, mobility_pattern):
+        self.class_name = self.__class__.__name__
         self.ID = Movement._id
         Movement._id += 1
         self.vcap = velocity_cap

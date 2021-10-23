@@ -28,6 +28,9 @@ class RoutePlanningEngine:
 
     weekday_shift = 4  # start day of a week is Friday
 
+    ending_hours = [21, 0, 22, 0]
+    _route_process_delta = Time.get_duration(0.5)
+
     # @staticmethod
     # def get_alternate_route(point):
     #     from backend.python.location.Medical.MedicalZone import MedicalZone
@@ -138,7 +141,7 @@ class RoutePlanningEngine:
         from backend.python.point.Transporter import Transporter
 
         move2first = True
-        ending_time = Time.get_random_time_between(t, 21, 0, 22, 0)
+        ending_time = Time.get_random_time_between(t, *RoutePlanningEngine.ending_hours)
 
         if isinstance(p, Transporter):
             route = p.get_random_route(t, end_at=ending_time)
@@ -146,9 +149,8 @@ class RoutePlanningEngine:
             route = p.get_random_route(t, end_at=ending_time)
         if route[-1].loc != p.home_loc and route[-1].loc != p.home_weekend_loc:
             day = t // Time.DAY
-            cls_or_obj = RoutePlanningEngine.get_loc_for_p_at_t(route, p,
-                                                                (day + 1) * Time.DAY + Time.get_time_from_datetime(1,
-                                                                                                                   0))
+            cls_or_obj = RoutePlanningEngine. \
+                get_loc_for_p_at_t(route, p, (day + 1) * Time.DAY + Time.get_time_from_datetime(1, 0))
             target = get_random_element(cls_or_obj)
             route = p.get_random_route_through(route, [target], 1)
 
@@ -287,7 +289,7 @@ class RoutePlanningEngine:
         from backend.python.point.Transporter import Transporter
         if isinstance(p, Transporter):
             return Time.get_duration(0.1)
-        return Time.get_duration(0.5)
+        return RoutePlanningEngine._route_process_delta
 
     @staticmethod
     def convert_route_to_occupancy_array(route, loc_map, dt):

@@ -19,9 +19,14 @@ import Button from '@material-ui/core/Button';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import { ConsoleLog } from "react-console-log";
 
+import randomColor from "randomcolor";
+
 import DataFrame from 'dataframe-js';
+import axios from 'axios'
 
 function ResultsPage() {
+
+    const api = "http://localhost:5000"
 
     const [initialLoad, setInitialLoad] = useState(true);
     const [loadprogress, setLoadprogress] = useState(0);
@@ -33,10 +38,17 @@ function ResultsPage() {
     const [selectedPeople, setSelectedPeople] = useState([]);
     const [peopleCheckedState, setPeopleCheckedState] = React.useState({});
 
+    const [dirs, setDirs] = useState([]);
+    const [selectedLogDir, setSelectedLogDir] = useState('');
     const [days, setDays] = useState([]);
     const [selectedDay, setSelectedDay] = useState('');
     const [day_logs, setDayLogs] = useState([]);
     const [person_info_logs, setPersonInfoLogs] = useState([]);
+    const [location_info_logs, setLocationInfoLogs] = useState([]);
+
+    const [selectedGroup, setSelectedGroup] = useState('');
+    const [groupOptions, setGroupOptions] = useState([]);
+
     const [cov_info_logs, setCovInfoLogs] = useState([]);
 
     const [unstagedPeople, setUnstagedPeople] = useState([]);
@@ -46,404 +58,160 @@ function ResultsPage() {
 
 
     const [locHistData, setLocHistData] = useState([]);
-    const [moveHistData, setMoveHistData] = useState([]);
-    const [peoplePieData, setPeoplePieData] = useState([]);
     const [routeHistData, setRouteHistData] = useState([]);
+    const [moveHistData, setMoveHistData] = useState([]);
+
+    const [peoplePieData, setPeoplePieData] = useState([]);
     const [popPyramidData, setPopPyramidData] = useState([]);
-    const [personPathData, setPersonPathData] = useState([]);
-    const [personPathData2, setPersonPathData2] = useState([]);
-    const [personPathLayout, setPersonPathLayout] = useState([]);
-    const [personPathFrames, setPersonPathFrames] = useState([]);
+    const [locTreeData, setLocTreeData] = useState([]);
+
     const [stateTimelineData, setStateTimelineData] = useState([]);
+    const [infectionGraphData, setInfectionGraphData] = useState([]);
+    const [contactHistData, setContactHistData] = useState([]);
+
+    const [personPathData, setPersonPathData] = useState([]);
+    const [personPathLayout, setPersonPathLayout] = useState([]);
+    const [personPathData2, setPersonPathData2] = useState([]);
+    const [personPathLayout2, setPersonPathLayout2] = useState([]);
+    const [personPathFrames, setPersonPathFrames] = useState([]);
 
 
-
-    const [loadedDf, setLoadedDf] = useState([]);
-    const [loadedPersonDf, setLoadedPersonDf] = useState([]);
+    // const [loadedDf, setLoadedDf] = useState([]);
+    // const [loadedPersonDf, setLoadedPersonDf] = useState([]);
+    const [loadedLocationDf, setLoadedLocationDf] = useState([]);
 
     const [processedDf, setProcessedDf] = useState([]);
     const [processedPersonDf, setProcessedPersonDf] = useState([]);
+    const [locClassColors, setLocClassColors] = useState({});
+
 
     useEffect(() => {
+        refreshDirs();
     }, [initialLoad])
 
-    //processLocHist
+    // plotActualLocationHist
     useEffect(() => {
-        try {
-            processedDf.select("loc_class")
-        } catch {
-            return;
-        }
-        var sub_df = processedDf;
-        processLocHist(sub_df)
-        processMoveHist(sub_df)
+        plotActualLocationHist();
+        processRouteHist();
+        processPieChart()
+        processPopPyramid()
+        processMoveHist()
 
-    }, [processedDf])
+        plotLocationTree()
+    }, [selectedDay])
 
-    //processRouteHist
-    //processPieChart
     useEffect(() => {
-        try {
-            processedPersonDf.select("person")
-        } catch {
-            return;
-        }
-        var sub_df = processedPersonDf;
-        processRouteHist(sub_df)
-        processPieChart(sub_df)
-        processPopPyramid(sub_df)
-    }, [processedPersonDf])
-
-    //set selected people ids
-    useEffect(() => {
-        try {
-            processedPersonDf.select("person")
-        } catch {
-            return;
-        }
-        let person_class = processedPersonDf.select('person_class').toArray().map((e) => people[e[0]])
-        let person_id = processedPersonDf.select('person').toArray().map((e) => e[0])
-        var arr = [];
-        person_id.forEach((e, i) => {
-            arr.push(e + " " + person_class[i])
-        });
-        setUnstagedPeople(arr);
-        setStagedPeople([]);
-        setSelectedUnstagedPeople([])
-        setSelectedStagedPeople([])
-    }, [processedPersonDf])
+        plotInfectionGraph();
+        drawCovidStateTimeline();
+    }, [selectedLogDir])
 
     //draw person path
     useEffect(() => {
-        try {
-            processedDf.select("loc_class")
-        } catch {
-            return;
-        }
-        drawPersonPath(processedDf)
+        drawPersonPath()
     }, [stagedPeople])
 
-    useEffect(() => {
-        var cov_df = null;
-        cov_info_logs.forEach(file => {
-            console.log("loading " + file.name);
-            loadfile(file).then(_df => {
-                _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
-                // console.log("Dropping missing values")
-                // _df = _df.dropMissingValues();
-                // console.log("Dropping missing values: DONE")
 
-
-                // if (cov_df == null) {
-                //     cov_df = _df;
-                // } else {
-                //     cov_df = cov_df.join(_df, _df.listColumns(), 'outer')
-                // }
-                drawCovidStateTimeline(_df)
-            }, (error) => { });
-
-        });
-
-        // console.log(cov_df) // not initialized!!!
-    }, [cov_info_logs])
-
-    async function drawCovidStateTimeline(df) {
-        let _x = df.select("time").toArray().map((e) => e[0] / 1440)
-        df.listColumns().forEach(col => {
-            if (col == "time" || col == "") {
-            } else {
-                var is_found = false;
-                stateTimelineData.forEach(trace => {
-                    if (trace.name == col) {
-                        trace.x = trace.x.concat(_x)
-                        trace.y = trace.y.concat(df.select(col).toArray().map((e) => e[0]))
-                        is_found = true;
-                    }
-                });
-                if (is_found == false) {
-                    var trace1 = {
-                        x: _x,
-                        y: df.select(col).toArray().map((e) => e[0]),
-                        name: col,
-                        mode: 'line',
-                    };
-                    stateTimelineData.push(trace1)
-                }
-            }
-        });
-        console.log(stateTimelineData)
-        setStateTimelineData([...stateTimelineData]);
+    function refreshDirs() {
+        axios.get(api + '/flask/dirs').then(response => {
+            setDirs(response.data.message.split(','))
+        }).catch(error => {
+            console.log(error)
+        })
     }
 
-    async function processLocHist(sub_df) {
-        sub_df = sub_df.restructure(["loc_class", "time", "person_class"])
+    const handleSelectDir = function (event) {
+        // const files = event.target.files;
+        // console.log(event.target)
+        let _selectedLogDir = event.target.value
+        setSelectedLogDir(_selectedLogDir);
+        // setLoadedDf([])
+        // setLoadedPersonDf([])
+        setProcessedDf([])
+        setProcessedPersonDf([])
 
-        console.log("grouping")
-        let grp = sub_df.groupBy("loc_class")
-        var data = [];
-        grp.aggregate((g, lc) => {
-            try {
-                lc = lc['loc_class']
-                console.log("Agg time in " + locs[lc])
+        // Loading Locations
+        axios.post(api + "/flask/textfile", { dir: _selectedLogDir, filename: 'locs.txt' })
+            .then(function (response) {
+                //handle success
+                const data = response.data.data;
+                var locs_str = data.split("\n");
 
-                var trace1 = {
-                    x: g.select('time').toArray().map((e) => e[0] % 1440),
-                    name: locs[lc],
-                    type: "histogram",
-                };
-                data.push(trace1);
-            } catch (error) {
-
-            }
-        });
-        setLocHistData(data);
-    }
-    async function processMoveHist(sub_df) {
-        sub_df = sub_df.restructure(["cur_movement", "time", "person_class"])
-
-        console.log("grouping")
-        let grp = sub_df.groupBy("cur_movement")
-
-        var data = [];
-        grp.aggregate((g, lc) => {
-            try {
-                lc = lc['cur_movement']
-                console.log("Agg time in " + movement[lc])
-
-                var trace1 = {
-                    x: g.select('time').toArray().map((e) => e[0] % 1440),
-                    name: movement[lc],
-                    type: "histogram",
-                };
-                data.push(trace1);
-            } catch (error) {
-
-            }
-        });
-        setMoveHistData(data);
-    }
-    async function processRouteHist(sub_df) {
-        sub_df = sub_df.restructure(["person", "route", "person_class"])
-
-        // sub_df = sub_df.map(row => row.set('route', row.get('route')))
-
-        let data = {}
-        locs.forEach(element => {
-            data[element] = []
-        });
-        sub_df.select('route').toArray().forEach((e) => {
-            let locations = e[0].split(' ').map((e) => parseInt(e));
-            locations.forEach((loc, t) => {
-                data[locs[loc]].push(t);
+                let _LCC = {};
+                var r = () => Math.random() * 256 >> 0;
+                locs_str.forEach((i, e) => {
+                    var _rc = `rgba(${r()}, ${r()}, ${r()}, 0.3)`;
+                    _LCC[i] = _rc;
+                    _LCC[e] = _rc;
+                })
+                setLocClassColors(_LCC)
+                setLocs(locs_str);
+                console.log(locs_str, _LCC);
+            })
+            .catch(function (response) {
+                //handle error
+                console.log(response);
             });
+
+        // Loading People
+        axios.post(api + "/flask/textfile", { dir: _selectedLogDir, filename: 'people.txt' })
+            .then(function (response) {
+                //handle success
+                const data = response.data.data;
+                var people_str = data.split("\n").map((e) => strip_text(e));
+                people_str.forEach(element => {
+                    peopleCheckedState[element] = true;
+                });
+                setPeople(people_str);
+                setSelectedPeople(people_str);
+                console.log(people_str);
+            })
+            .catch(function (response) {
+                //handle error
+                console.log(response);
+            });
+
+        // Loading Movement
+        axios.post(api + "/flask/textfile", { dir: _selectedLogDir, filename: 'movement.txt' })
+            .then(function (response) {
+                //handle success
+                const data = response.data.data;
+                var movement_str = data.split("\n");
+                setMovement(movement_str);
+                console.log(movement_str);
+            })
+            .catch(function (response) {
+                //handle error
+                console.log(response);
+            });
+
+        // loading number of days
+        axios.post(api + '/flask/n_days', { dir: _selectedLogDir }).then(response => {
+            let _days = response.data.message.split(',')
+            setDays(_days)
+
+            setPersonInfoLogs(_days.map((e) => padZeros(e, 5) + '_person_info.csv'))
+            setLocationInfoLogs(_days.map((e) => padZeros(e, 5) + '_location_info.csv'))
+            setCovInfoLogs(_days.map((e) => padZeros(e, 5) + '_cov_info.csv'))
+            setDayLogs(_days.map((e) => padZeros(e, 5) + '.csv'));
+        }).catch(error => {
+            console.log(error)
         })
 
-        var routedata = [];
-        locs.forEach(loc => {
-            if (data[loc].length > 0) {
-                var trace1 = {
-                    x: data[loc],
-                    name: loc,
-                    type: "histogram",
-                    xbins: { size: 1, },
-                    nbinsx: 288,
-                };
-
-                routedata.push(trace1);
-            }
-        })
-        setRouteHistData(routedata);
-
-
-
-
+        // loading grouping options
+        axios.post(api + '/flask/possible_groups', { dir: _selectedLogDir }).then(response => {
+            setGroupOptions(response.data.data)
+        }).catch(err => { console.log(err) })
 
     }
-    async function processPieChart(sub_df) {
-        console.log("loading data for pie chart of people")
-        var pieData = [];
-        var pieLabels = [];
-
-        sub_df = sub_df.restructure(["person_class", "person"])
-
-        console.log("Grouping")
-        var grp = sub_df.groupBy("person_class")
-        grp.aggregate((g, pc) => {
-            try {
-                pc = pc['person_class']
-                console.log("Agg count in " + pc + " " + people[pc])
-                pieLabels.push(people[pc])
-                try {
-                    pieData.push(g.count())
-
-                } catch (error) {
-                    pieData.push(0)
-                }
-            } catch (error) {
-
-            }
-        });
-        console.log(pieData, pieLabels)
-        setPeoplePieData([{ type: 'pie', values: pieData, labels: pieLabels }]);
-
-
-    }
-    async function processPopPyramid(sub_df) {
-        sub_df = sub_df.restructure(["person_class", "gender", "age"])
-
-        let m_bins = hist(sub_df.where(row => row.get('gender') == 1).select('age').toArray().map((e) => e[0]), 10, 10);
-        let f_bins = hist(sub_df.where(row => row.get('gender') == 0).select('age').toArray().map((e) => e[0]), 10, 10);
-        console.log(f_bins)
-        let trace1 = {
-            uid: '9f2de8e2-01e2-44cf-9597-d8c9d17a223a',
-            meta: {
-                columnNames: {
-                    x: 'Men, x',
-                    y: 'Men, y; Women, y'
-                }
-            },
-            name: 'Men',
-            type: 'bar',
-            x: m_bins.map((e) => e.count),
-            y: m_bins.map((e) => e.minNum),
-            marker: { color: 'powderblue' },
-            hoverinfo: 'x',
-            orientation: 'h'
-        };
-        let trace2 = {
-            uid: '31653fd0-228e-4932-88af-340740cd1dea',
-            meta: {
-                columnNames: {
-                    x: 'Women, x',
-                    y: 'Men, y; Women, y',
-                    text: 'text'
-                }
-            },
-            name: 'Women',
-            type: 'bar',
-            x: f_bins.map((e) => -e.count),
-            y: f_bins.map((e) => e.minNum),
-            marker: { color: 'seagreen' },
-            text: f_bins.map((e) => e.count),
-            hoverinfo: 'text',
-            orientation: 'h'
-        };
-        let data = [trace1, trace2];
-        setPopPyramidData(data);
-    }
-
-    async function drawPersonPath(sub_df) {
-        sub_df = sub_df.restructure(["person", "time", "x", "y"])
-        console.log("grouping")
-        let grp = sub_df.groupBy("person")
-        var data = [];
-        var data2 = [];
-        let _selected = stagedPeople.map((e) => parseInt(e.split(' ')[0]))
-        // console.log(_selected, stagedPeople)
-        var t;
-        grp.aggregate((g, p) => {
-            try {
-                p = p['person']
-                t = g.select('x').toArray().map((d, i) => i)
-                if (_selected.indexOf(p) != -1) {
-                    var trace1 = {
-                        x: g.select('x').toArray().map((e) => e[0]),
-                        y: g.select('y').toArray().map((e) => e[0]),
-                        name: p,
-                        mode: 'line',
-                        id: t
-                    };
-                    data.push(trace1);
-                    // data2.push({x:trace1["x"],y:[],id:t,mode:'line'})
-                    data2.push({
-                        ...trace1,
-                        transforms: [{
-                            type: 'filter',
-                            operation: '<=',
-                            target: t,
-                            value: 0.0
-                        },
-                        {
-                            type: 'filter',
-                            operation: '>',
-                            target: t,
-                            value: 0.0
-                        }]
-                    })
-                }
-            } catch (error) {
-
-            }
-        });
-        setPersonPathData(data);
-        setPersonPathData2(data2);
-        setPersonPathLayout({
-            // xaxis: { autorange: false, range: [0, 1] },
-            // yaxis: { autorange: false, range: [-1, 2] },
-
-            updatemenus: [{
-                type: 'buttons',
-                xanchor: 'left',
-                yanchor: 'top',
-                direction: 'right',
-                x: 0,
-                y: 0,
-                pad: { t: 60 },
-                showactive: false,
-                buttons: [{
-                    label: 'Play',
-                    method: 'animate',
-                    args: [null, {
-                        transition: { duration: 0 },
-                        frame: { duration: 20, redraw: false },
-                        mode: 'immediate',
-                        fromcurrent: true,
-                    }]
-                }, {
-                    label: 'Pause',
-                    method: 'animate',
-                    args: [[null], {
-                        frame: { duration: 0, redraw: false },
-                        mode: 'immediate',
-                    }]
-                }]
-            }],
-            sliders: [{
-                currentvalue: {
-                    prefix: 't = ',
-                    xanchor: 'right'
-                },
-                pad: { l: 130, t: 30 },
-                transition: {
-                    duration: 0,
-                },
-                steps: t.map(t => ({
-                    label: t,
-                    method: 'animate',
-                    args: [[t], {
-                        frame: { duration: 0, redraw: false },
-                        mode: 'immediate',
-                    }]
-                }))
-            }]
-        }
-
-        )
-
-        // setPersonPathFrames(t.map((t, i) => ({
-        //     name: t,
-        //     data: data.map((e) => e['y'].slice(0, i))
-        // })))
-
-        setPersonPathFrames(t.map(t => ({
-            name: t,
-            data: data2.map((e) => ({ 'transforms[0].value': t, 'transforms[1].value': Math.max(0, t - 10) }))
-        })))
-
+    const handleDayChange = function (event) {
+        setSelectedDay(event.target.value);
+        // loadLog(padZeros(event.target.value.toString(), 5) + '.csv')
+        // loadPersonLog(padZeros(event.target.value.toString(), 5) + '_person_info.csv')
+        // loadLocationLog(padZeros(event.target.value.toString(), 5) + '_location_info.csv')
     }
 
 
-
+    // select people classes and filter
     const handlePeopleCheckChange = (event) => {
         setPeopleCheckedState({ ...peopleCheckedState, [event.target.name]: event.target.checked });
     };
@@ -457,228 +225,714 @@ function ResultsPage() {
             }
         });
         setSelectedPeople(_selectedPeople)
+        axios.post(api + "/flask/setpeopleclasses", { dir: selectedLogDir, classes: _selectedPeople.join(',') })
+            .then(function (response) {
+                //handle success
+                plotActualLocationHist();
+                processRouteHist();
+                processPieChart()
+                processPopPyramid()
+                processMoveHist()
 
-        let map = {}
-        for (let i = 0; i < people.length; i++) {
-            map[i] = false;
-        }
-        for (let i = 0; i < _selectedPeople.length; i++) {
-            map[people.indexOf(_selectedPeople[i])] = true;
-            console.log("selected person class " + _selectedPeople[i])
-        }
-        let sub_df = loadedPersonDf.where(row => map[row.get('person_class')] == true)
-        setProcessedPersonDf(sub_df)
-        let sub_df2 = loadedDf.where(row => map[row.get('person_class')] == true)
-        setProcessedDf(sub_df2)
+                plotLocationTree()
+                plotInfectionGraph();
+                drawCovidStateTimeline();
+            })
+            .catch(function (response) {
+                //handle error
+                console.log(response);
+            });
     }
 
-    // file loading
+    // // file loading
+    // function loadfile(logDir, day, type) {
+    //     return new Promise((resolve, reject) => {
+    //         axios.post(api + "/flask/csvfile", { dir: logDir, d: day.toString(), type: type })
+    //             .then(function (response) {
+    //                 //handle success
+    //                 const data = response.data.data;
+    //                 csv2JSONarr(data, (pr) => {
+    //                     // setTimeout(() => {
+    //                     // setLoadprogress(pr);
+    //                     // }, 100);
 
-    function loadfile(file) {
-        return new Promise((resolve, reject) => {
-            console.log("Loading - " + file);
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                const data = evt.target.result;
-                // setTimeout(() => {
-                csv2JSONarr(data, (pr) => {
-                    // setTimeout(() => {
-                    // setLoadprogress(pr);
-                    // }, 100);
+    //                 }).then((json_data) => {
+    //                     var _df = new DataFrame(json_data)
+    //                     // console.log("Loading COMPLETE!");
+    //                     resolve(_df)
+    //                 });
 
-                }).then((json_data) => {
-                    var _df = new DataFrame(json_data)
-                    console.log("Loading COMPLETE!");
-                    resolve(_df)
-                });
-                // }, 10);
+    //             })
+    //             .catch(function (response) {
+    //                 //handle error
+    //                 console.log(response);
+    //                 reject();
+    //             });
+    //     });
+    // }
+    // const loadLog = async (filename) => {
 
-                // let int_cols = ["person", "location", "person_class", "loc_class", "cur_movement", "cur_tar_idx", "route_len", "time"];
-                // int_cols.forEach(element => {
-                //     _df = _df.astype({
-                //         column: element,
-                //         dtype: "int32"
-                //     })
-                // });
+    //     loadfile(selectedLogDir, filename).then(_df => {
+    //         _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
+    //         console.log("Dropping missing values")
+    //         _df = _df.dropMissingValues();
+    //         // console.log("Dropping missing values: DONE")
+    //         // setLoadedDf(_df);
+    //         setProcessedDf(_df);
+    //         // let _days = []
+    //         // for (let d = 0; d <= Math.floor(_df.stat.max('time') / 1440); d++) {
+    //         //     _days.push(d);
+    //         // }
+    //         // setDays(_days);
+    //         // setSelectDay(0);
+    //         // setLoadprogress(0);
+    //     }, (error) => { });
 
+    // };
+    // const loadPersonLog = async (filename) => {
+    //     console.log("Loading file " + filename);
+    //     loadfile(selectedLogDir, filename).then(_df => {
+    //         let cast = []
+    //         _df.listColumns().forEach((e) => {
+    //             if (e == "route" || e == "character_vector") {
+    //                 cast.push(String)
+    //             } else {
+    //                 cast.push(Number)
+    //             }
+    //         })
+    //         _df = _df.castAll(cast)
+    //         console.log("Dropping missing values")
+    //         _df = _df.dropMissingValues();
+    //         // console.log("Dropping missing values: DONE")
+    //         // setLoadedPersonDf(_df);
+    //         setProcessedPersonDf(_df);
+    //         // setLoadprogress(0);
+    //     }, (error) => { });
+    // };
+    // const loadLocationLog = async (filename) => {
+    //     console.log("Loading file " + filename);
+    //     loadfile(selectedLogDir, filename).then(_df => {
+    //         let cast = []
+    //         _df.listColumns().forEach((e) => {
+    //             if (e == "exit" || e == "children_ids" || e == "name") {
+    //                 cast.push(String)
+    //             } else {
+    //                 cast.push(Number)
+    //             }
+    //         })
+    //         _df = _df.castAll(cast)
+    //         console.log("Dropping missing values")
+    //         _df = _df.dropMissingValues();
 
+    //         setLoadedLocationDf(_df);
+    //     }, (error) => { });
+    // };
+
+    // draw covid data timeline
+
+    async function drawCovidStateTimeline() {
+        // loading number of days
+        axios.post(api + '/flask/n_days', { dir: selectedLogDir }).then(response => {
+            let _days = response.data.message.split(',')
+            for (let day = 0; day < _days.length; day++) {
+                axios.post(api + "/flask/csvfile", { dir: selectedLogDir, d: day.toString(), type: '_cov_info' })
+                    .then(function (response) {
+                        //handle success
+                        const data = response.data.data;
+                        csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                            var _df = new DataFrame(json_data)
+                            _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
+                            let _x = _df.select("time").toArray().map((e) => e[0] / 1440)
+                            _df.listColumns().forEach(col => {
+                                if (col == "time" || col == "") {
+                                } else {
+                                    var is_found = false;
+                                    stateTimelineData.forEach(trace => {
+                                        if (trace.name == col) {
+                                            trace.x = trace.x.concat(_x)
+                                            trace.y = trace.y.concat(_df.select(col).toArray().map((e) => e[0]))
+                                            is_found = true;
+                                        }
+                                    });
+                                    if (is_found == false) {
+                                        var trace1 = {
+                                            x: _x,
+                                            y: _df.select(col).toArray().map((e) => e[0]),
+                                            name: col,
+                                            mode: 'line',
+                                        };
+                                        stateTimelineData.push(trace1)
+                                    }
+                                }
+                            });
+                            setStateTimelineData([...stateTimelineData]);
+                        });
+                    });
 
             };
-            reader.readAsText(file);
-            // console.log(file)
-            // DataFrame.fromCSV("http://localhost:3000/data/"+file.webkitRelativePath).then(df => {
-            //     console.log(df)
-            //     resolve(df)
-            // });
-        });
+        }).catch(error => {
+            console.log(error)
+        })
+
+
+
+
 
     }
 
-    const handleSelectDir = function (event) {
-        const files = event.target.files;
-        console.log(files);
+    // show actual places visited during the day histogram
+    async function plotActualLocationHist() {
+        axios.post(api + "/flask/ActualLocationHist", { dir: selectedLogDir, day: selectedDay.toString(), groupBy: 'current_location_class' })
+            .then(function (response) {
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var _df = new DataFrame(json_data)
+                    console.log(_df)
+                    _df = _df.withColumn('timesteps', row => row.get('timesteps').split('|').map(e => parseInt(e)));
+                    let gData = [];
+                    _df.map((row) => {
+                        try {
+                            var trace1 = {
+                                x: row.get('timesteps'),
+                                name: row.get('group'),
+                                type: "histogram",
+                            };
+                            gData.push(trace1);
+                            setLocHistData(gData);
+                        } catch (err) {
+                            console.log(err)
+                        }
 
-        // Loading Locations
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (file.name == "locs.txt") {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const data = evt.target.result;
-                    var locs_str = data.split("\n");
-                    // var locs_dic = {}
-                    // for (let j = 0; j < locs_str.length; j++) {
-                    //     locs_dic[locs_str[j]] = j;
-                    // }
-                    setLocs(locs_str);
-                    console.log(locs_str);
+                    })
 
-                };
-                reader.readAsText(file);
-                break;
-            }
-        }
 
-        // Loading People
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (file.name == "people.txt") {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const data = evt.target.result;
-                    var people_str = data.split("\n").map((e) => strip_text(e));
-                    // var people_dic = {}
-                    // for (let j = 0; j < people_str.length; j++) {
-                    //     people_dic[people_str[j]] = j;
-                    // }
-                    people_str.forEach(element => {
-                        peopleCheckedState[element] = true;
+
+                });
+
+            })
+            .catch(function (response) {
+                console.log(response);
+            });
+
+        // sub_df = sub_df.restructure(["current_location_class", "time", "person_class"])
+        // let grp = sub_df.groupBy("current_location_class")
+        // var data = [];
+        // grp.aggregate((g, lc) => {
+        //     try {
+        //         lc = lc['current_location_class']
+        //         console.log("Agg time in " + locs[lc])
+
+        //         var trace1 = {
+        //             x: g.select('time').toArray().map((e) => e[0] % 1440),
+        //             name: locs[lc],
+        //             type: "histogram",
+        //         };
+        //         data.push(trace1);
+        //     } catch (error) {
+
+        //     }
+        // });
+        // setLocHistData(data);
+    }
+
+
+    // show initialized route histogram for the given day
+    async function processRouteHist() {
+        axios.post(api + "/flask/csvfile", {
+            dir: selectedLogDir, d: selectedDay.toString(),
+            type: '_person_info', columns: "person|route"
+        })
+            .then(function (response) {
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var sub_df = new DataFrame(json_data)
+                    let data = {}
+                    locs.forEach(element => {
+                        data[element] = []
                     });
-                    setPeople(people_str);
-                    setSelectedPeople(people_str);
-                    console.log(people_str);
+                    sub_df.select('route').toArray().forEach((e) => {
+                        let locations = e[0].split(' ').map((e) => parseInt(e));
+                        locations.forEach((loc, t) => {
+                            data[locs[loc]].push(t);
+                        });
+                    })
 
-                };
-                reader.readAsText(file);
-                break;
-            }
-        }
+                    var routedata = [];
+                    locs.forEach(loc => {
+                        if (data[loc].length > 0) {
+                            var trace1 = {
+                                x: data[loc],
+                                name: loc,
+                                type: "histogram",
+                                xbins: { size: 1, },
+                                nbinsx: 288,
+                            };
 
-        // Loading Movement
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (file.name == "movement.txt") {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const data = evt.target.result;
-                    var movement_str = data.split("\n");
-                    // var movement_dic = {}
-                    // for (let j = 0; j < movement_str.length; j++) {
-                    //     movement_dic[movement_str[j]] = j;
-                    // }
-                    setMovement(movement_str);
-                    console.log(movement_str);
-
-                };
-                reader.readAsText(file);
-                break;
-            }
-        }
-
-        var day_log_files = []
-        var person_info_log_files = []
-        var cov_info_log_files = []
-        const to_ignore = ["locs.txt", "people.txt", "movement.txt"]
-
-        for (let i = 0; i < files.length; i++) {
-            if (to_ignore.indexOf(files[i].name) != -1) {
-                continue
-            }
-            if (files[i].name.search("person_info") != -1) {
-                person_info_log_files.push(files[i])
-                continue
-            }
-            if (files[i].name.search("cov_info") != -1) {
-                cov_info_log_files.push(files[i])
-                continue
-            }
-            day_log_files.push(files[i]);
-        }
-        var _days = []
-        for (let i = 0; i < day_log_files.length; i++) {
-            _days.push(i);
-        }
-
-        console.log(day_log_files, person_info_log_files);
-        setDays(_days)
-        setPersonInfoLogs(person_info_log_files)
-        setCovInfoLogs(cov_info_log_files)
-        setDayLogs(day_log_files);
-        setLoadedDf([])
-        setLoadedPersonDf([])
-    }
-    const handleDayChange = function (event) {
-        console.log(event.target)
-        setSelectedDay(event.target.value);
-        loadLog(padZeros(event.target.value.toString(), 5) + '.csv')
-        loadPersonLog(padZeros(event.target.value.toString(), 5) + '_person_info.csv')
-    }
-
-    const loadLog = async (filename) => {
-        console.log("Loading file " + filename);
-        day_logs.forEach(element => {
-            if (element.name == filename) {
-                let promise = loadfile(element)
-                promise.then(_df => {
-                    _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
-                    console.log("Dropping missing values")
-                    _df = _df.dropMissingValues();
-                    console.log("Dropping missing values: DONE")
-                    setLoadedDf(_df);
-                    setProcessedDf(_df);
-                    // let _days = []
-                    // for (let d = 0; d <= Math.floor(_df.stat.max('time') / 1440); d++) {
-                    //     _days.push(d);
-                    // }
-                    // setDays(_days);
-                    // setSelectDay(0);
-                    // setLoadprogress(0);
-                }, (error) => { });
-
-            }
-        });
-
-    };
-    const loadPersonLog = async (filename) => {
-        console.log("Loading file " + filename);
-        person_info_logs.forEach(element => {
-            if (element.name == filename) {
-                loadfile(element).then(_df => {
-                    let cast = []
-                    _df.listColumns().forEach((e) => {
-                        if (e == "route" || e == "character_vector") {
-                            cast.push(String)
-                        } else {
-                            cast.push(Number)
+                            routedata.push(trace1);
                         }
                     })
-                    _df = _df.castAll(cast)
-                    console.log("Dropping missing values")
-                    _df = _df.dropMissingValues();
-                    console.log("Dropping missing values: DONE")
-                    setLoadedPersonDf(_df);
-                    setProcessedPersonDf(_df);
-                    // setLoadprogress(0);
-                }, (error) => { });
+                    setRouteHistData(routedata);
+                });
 
-            }
-        });
+            })
+            .catch(function (response) {
+                console.log(response);
+            });
 
-    };
+        // sub_df = sub_df.restructure(["person", "route", "person_class"])
+    }
+
+    // show hostogram of movement methods  used in the day
+    async function processMoveHist() {
+        axios.post(api + "/flask/csvfile", {
+            dir: selectedLogDir, d: selectedDay.toString(),
+            type: '', columns: "current_movement_class|time|person_class"
+        })
+            .then(function (response) {
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var sub_df = new DataFrame(json_data).castAll(Array(4).fill(Number))
+                    let grp = sub_df.groupBy("current_movement_class")
+
+                    var data = [];
+                    grp.aggregate((g, lc) => {
+                        try {
+                            lc = lc['current_movement_class']
+                            var trace1 = {
+                                x: g.select('time').toArray().map((e) => e[0] % 1440),
+                                name: movement[lc],
+                                type: "histogram",
+                            };
+                            data.push(trace1);
+                        } catch (error) {
+
+                        }
+                    });
+                    setMoveHistData(data);
+                })
+            })
+
+    }
+
+    // show the population pie chart
+    async function processPieChart() {
+        console.log("loading data for pie chart of people")
 
 
-    // Daily personal mobility data analysis
+        axios.post(api + "/flask/csvfile", {
+            dir: selectedLogDir, d: selectedDay.toString(),
+            type: '_person_info', columns: "person|person_class"
+        })
+            .then(function (response) {
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var sub_df = new DataFrame(json_data).castAll(Array(3).fill(Number))
 
+                    // setting people pie chart data
+                    var grp = sub_df.groupBy("person_class")
+                    var pieData = [];
+                    var pieLabels = [];
+                    grp.aggregate((g, pc) => {
+                        try {
+                            pc = pc['person_class']
+                            pieLabels.push(people[pc])
+                            try {
+                                pieData.push(g.count())
+
+                            } catch (error) {
+                                pieData.push(0)
+                            }
+                        } catch (error) {
+
+                        }
+                    });
+                    setPeoplePieData([{ type: 'pie', values: pieData, labels: pieLabels }]);
+
+                    //set person list for the person path name list
+                    let person_class = sub_df.toArray('person_class').map((e) => people[e])
+                    let person_id = sub_df.toArray('person')
+                    var arr = [];
+                    person_id.forEach((e, i) => {
+                        arr.push(e + " " + person_class[i])
+                    });
+                    setUnstagedPeople(arr);
+                    setStagedPeople([]);
+                    setSelectedUnstagedPeople([])
+                    setSelectedStagedPeople([])
+                })
+            })
+    }
+
+    // show population pyramid
+    async function processPopPyramid() {
+        axios.post(api + "/flask/csvfile", {
+            dir: selectedLogDir, d: selectedDay.toString(),
+            type: '_person_info', columns: "person_class|gender|age"
+        })
+            .then(function (response) {
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var sub_df = new DataFrame(json_data).castAll(Array(4).fill(Number))
+
+                    let m_bins = hist(sub_df.where(row => row.get('gender') == 1).toArray('age'), 10, 10);
+                    let f_bins = hist(sub_df.where(row => row.get('gender') == 0).toArray('age'), 10, 10);
+
+                    let trace1 = {
+                        uid: '9f2de8e2-01e2-44cf-9597-d8c9d17a223a',
+                        meta: {
+                            columnNames: {
+                                x: 'Men, x',
+                                y: 'Men, y; Women, y'
+                            }
+                        },
+                        name: 'Men',
+                        type: 'bar',
+                        x: m_bins.map((e) => e.count),
+                        y: m_bins.map((e) => e.minNum),
+                        marker: { color: 'powderblue' },
+                        hoverinfo: 'x',
+                        orientation: 'h'
+                    };
+                    let trace2 = {
+                        uid: '31653fd0-228e-4932-88af-340740cd1dea',
+                        meta: {
+                            columnNames: {
+                                x: 'Women, x',
+                                y: 'Men, y; Women, y',
+                                text: 'text'
+                            }
+                        },
+                        name: 'Women',
+                        type: 'bar',
+                        x: f_bins.map((e) => -e.count),
+                        y: f_bins.map((e) => e.minNum),
+                        marker: { color: 'seagreen' },
+                        text: f_bins.map((e) => e.count),
+                        hoverinfo: 'text',
+                        orientation: 'h'
+                    };
+                    let data = [trace1, trace2];
+                    setPopPyramidData(data);
+                })
+            })
+    }
+
+    // draw sunburst location graph
+    async function plotLocationTree() {
+
+        axios.post(api + "/flask/csvfile", {
+            dir: selectedLogDir, d: selectedDay.toString(),
+            type: '_location_info', columns: "parent_id|children_ids|id|name"
+        })
+            .then(function (response) {
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var sub_df = new DataFrame(json_data)//.castAll(Array(5).fill(Number))
+                    var data = [
+                        {
+                            type: "treemap", //sunburst
+                            ids: sub_df.toArray('id'),
+                            labels: sub_df.toArray('name'),
+                            parents: sub_df.toArray('parent_id').map((e) => {
+                                if (e == -1) {
+                                    return ""
+                                } else {
+                                    return e
+                                }
+                            })
+                        }
+                    ];
+
+                    setLocTreeData(data);
+
+                })
+            })
+
+
+    }
+    // draw infection graph
+    async function plotInfectionGraph() {
+        axios.post(api + "/flask/infectiontree", { dir: selectedLogDir })
+            .then(function (response) {
+                const data = response.data.data;
+                console.log(data)
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var sub_df = new DataFrame(json_data)
+                    console.log(sub_df)
+                    setInfectionGraphData([
+                        {
+                            type: "sunburst", //sunburst
+                            ids: sub_df.toArray('id'),
+                            labels: sub_df.toArray('id'),
+                            parents: sub_df.toArray('parent'),
+                            value: sub_df.toArray('time')
+                        }
+                    ]);
+
+
+                });
+
+            })
+            .catch(function (response) {
+                console.log(response);
+            });
+
+
+    }
+
+    // plot number of contacts grouped
+    function plotNumberOfContacts() {
+        // axios.post(api + "/flask/n_contacts", { dir: selectedLogDir, group_by: selectedGroup })
+        //     .then(function (response) {
+        //         const data = response.data.n_contacts;
+        //         console.log(data)
+        //         csv2JSONarr(data, (pr) => { }).then((json_data) => {
+        //             var _df = new DataFrame(json_data)
+        //             let plotData = [{
+        //                 type: 'bar',
+        //                 x: _df.toArray('group'),
+        //                 y: _df.toArray('n_contacts'),
+        //             }]
+
+        //             setContactHistData(plotData)
+
+        //         });
+
+        //     })
+        //     .catch(function (response) {
+        //         console.log(response);
+        //     });
+
+        axios.post(api + "/flask/contacts", { dir: selectedLogDir, group_by: selectedGroup })
+            .then(function (response) {
+                const data = response.data.contacts;
+                console.log(data)
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var _df = new DataFrame(json_data)
+                    let plotData = [{
+                        type: 'surface',
+                        z: _df.toArray(),
+                        contours: {
+                            z: {
+                                show: true,
+                                usecolormap: true,
+                                highlightcolor: "#42f462",
+                                project: { z: true }
+                            }
+                        }
+                    }]
+
+                    setContactHistData(plotData)
+
+                });
+
+            })
+            .catch(function (response) {
+                console.log(response);
+            });
+    }
+
+    // draw paths and animation of person moving on coordinate plane
+    async function drawPersonPath() {
+        let _selected = stagedPeople.map((e) => parseInt(e.split(' ')[0]))
+        axios.post(api + '/flask/peoplepath', { dir: selectedLogDir, day: selectedDay, people: _selected.join(',') }).
+            then(response => {
+                csv2JSONarr(response.data.data, (pr) => { }).then((json_data) => {
+                    var sub_df = new DataFrame(json_data)
+                    let cast = []
+                    sub_df.listColumns().forEach((e) => {
+                        cast.push(Number)
+                    })
+                    sub_df = sub_df.castAll(cast)
+                    console.log(sub_df)
+                    let grp = sub_df.groupBy("person")
+                    var data1 = [];
+                    var data2 = [];
+
+                    var t;
+                    grp.aggregate((g, p) => {
+                        try {
+                            p = p['person']
+                            t = g.select('x').toArray().map((d, i) => i)
+                            if (_selected.indexOf(p) != -1) {
+                                var trace1 = {
+                                    x: g.select('x').toArray().map((e) => e[0]),
+                                    y: g.select('y').toArray().map((e) => e[0]),
+                                    name: p,
+                                    mode: 'line',
+                                    id: t
+                                };
+                                data1.push(trace1);
+                                // data2.push({x:trace1["x"],y:[],id:t,mode:'line'})
+                                data2.push({
+                                    ...trace1,
+                                    transforms: [{
+                                        type: 'filter',
+                                        operation: '<=',
+                                        target: t,
+                                        value: 0.0
+                                    },
+                                    {
+                                        type: 'filter',
+                                        operation: '>',
+                                        target: t,
+                                        value: 0.0
+                                    }]
+                                })
+                            }
+                        } catch (error) {
+
+                        }
+                    });
+                    setPersonPathData(data1);
+                    setPersonPathData2(data2);
+
+                    getEnvMapShapes(t)
+
+                    setPersonPathFrames(t.map(t => ({
+                        name: t,
+                        data: data2.map((e) => ({ 'transforms[0].value': t, 'transforms[1].value': Math.max(0, t - 10) }))
+                    })))
+                });
+            }).catch(error => {
+                console.log(error)
+            })
+
+
+
+
+    }
+
+    // get environment map shapes and update layouts
+    async function getEnvMapShapes(t) {
+
+        axios.post(api + "/flask/locationData", { dir: selectedLogDir, day: selectedDay.toString() })
+            .then(function (response) {
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var _df = new DataFrame(json_data)
+                    console.log(_df)
+                    // _df = _df.withColumn('timesteps', row => row.get('timesteps').split('|').map(e => parseInt(e)));
+                    let shapes = [];
+                    _df.map((row) => {
+                        try {
+                            console.log(locClassColors[parseInt(row.get('class'))])
+                            var trace1 = {
+                                type: 'circle',
+                                xref: 'x',
+                                yref: 'y',
+                                fillcolor: locClassColors[parseInt(row.get('class'))],//'rgba(50, 171, 96, 0.1)',
+                                x0: row.get('x') - row.get('radius'),
+                                y0: row.get('y') - row.get('radius'),
+                                x1: parseFloat(row.get('x')) + parseFloat(row.get('radius')),
+                                y1: parseFloat(row.get('y')) + parseFloat(row.get('radius')),
+                                line: {
+                                    color: 'rgba(0, 0, 0, 0)'
+                                }
+                            };
+                            shapes.push(trace1);
+                        } catch (err) {
+                            console.log(err)
+                        }
+
+                    })
+
+                    setPersonPathLayout({
+                        barmode: 'stack',
+                        title: 'Path took by the selected person',
+                        shapes: shapes,
+                        height: 800,
+                        width: 800,
+                        xaxis: {
+                            showgrid: false, // thin lines in the background
+                            zeroline: false, // thick line at x=0
+                            visible: false,  // numbers below
+                        },
+                        yaxis: {
+                            showgrid: false, // thin lines in the background
+                            zeroline: false, // thick line at x=0
+                            visible: false,  // numbers below
+                        }
+
+                    });
+
+                    setPersonPathLayout2({
+                        shapes: shapes,
+                        height: 800,
+                        width: 800,
+                        xaxis: {
+                            showgrid: false, // thin lines in the background
+                            zeroline: false, // thick line at x=0
+                            visible: false,  // numbers below
+                        },
+                        yaxis: {
+                            showgrid: false, // thin lines in the background
+                            zeroline: false, // thick line at x=0
+                            visible: false,  // numbers below
+                        },
+                        updatemenus: [{
+                            type: 'buttons',
+                            xanchor: 'left',
+                            yanchor: 'top',
+                            direction: 'right',
+                            x: 0,
+                            y: 0,
+                            pad: { t: 60 },
+                            showactive: false,
+                            buttons: [{
+                                label: 'Play',
+                                method: 'animate',
+                                args: [null, {
+                                    transition: { duration: 0 },
+                                    frame: { duration: 20, redraw: false },
+                                    mode: 'immediate',
+                                    fromcurrent: true,
+                                }]
+                            }, {
+                                label: 'Pause',
+                                method: 'animate',
+                                args: [[null], {
+                                    frame: { duration: 0, redraw: false },
+                                    mode: 'immediate',
+                                }]
+                            }]
+                        }],
+                        sliders: [{
+                            currentvalue: {
+                                prefix: 't = ',
+                                xanchor: 'right'
+                            },
+                            pad: { l: 130, t: 30 },
+                            transition: {
+                                duration: 0,
+                            },
+                            steps: t.map(t => ({
+                                label: t,
+                                method: 'animate',
+                                args: [[t], {
+                                    frame: { duration: 0, redraw: false },
+                                    mode: 'immediate',
+                                }]
+                            }))
+                        }]
+                    });
+
+
+
+
+                });
+
+            })
+            .catch(function (response) {
+                console.log(response);
+            });
+    }
+
+    const handleSelectGroup = (e) => {
+        setSelectedGroup(e.target.value)
+    }
+
+    // Daily personal mobility path analysis
     const handleUnstagedClick = function (event) {
         const { options } = event.target;
         const value = [];
@@ -730,8 +984,23 @@ function ResultsPage() {
                 {loadprogress != 0 && <CircularProgress variant="determinate" value={loadprogress} />}
                 <div>
                     <h4>Select log location</h4>
-                    <input directory="" webkitdirectory="" type="file" onChange={(event) => handleSelectDir(event)} />
+                    {/* <input directory="" webkitdirectory="" type="file" onChange={(event) => handleSelectDir(event)} /> */}
+                    <FormControl variant="outlined" style={{ padding: 20, width: 200 }}>
+                        <InputLabel id="select-day">Selected Log</InputLabel>
+                        <Select
+                            labelId="select-log-label"
+                            id="select-log"
+                            value={selectedLogDir}
+                            onChange={handleSelectDir}
+                            label="Selected Log"
+                        >
+                            {dirs.map((e) => {
+                                return (<MenuItem value={e} key={e}>{e}</MenuItem>);
+                            })}
 
+                        </Select>
+                        <Button onClick={refreshDirs}>Refresh</Button>
+                    </FormControl>
                     <FormGroup row style={{ maxWidth: 500, padding: 30 }}>
                         {people.map((p) => {
                             return (
@@ -762,7 +1031,7 @@ function ResultsPage() {
                 </FormControl>
 
                 <div>
-                    <h4>Person info analysis</h4>
+                    <h4>Overall information</h4>
                     <Plot
                         data={peoplePieData}
                         layout={{
@@ -790,6 +1059,14 @@ function ResultsPage() {
                             autosize: true
                         }}
                     />
+                    <Plot
+                        data={locTreeData}
+                        layout={{
+                            title: 'Location Tree Structure',
+                            width: 800,
+                            height: 800
+                        }}
+                    />
                 </div>
                 <div>
                     <h4>COVID-19 Spread Analysis</h4>
@@ -812,6 +1089,32 @@ function ResultsPage() {
                             }
                         }}
                     />
+                    <Plot
+                        data={infectionGraphData}
+                        layout={{
+                            title: 'Infection tree with time',
+                        }}
+                    />
+                    <div>
+                        <Plot
+                            data={contactHistData}
+                            layout={{
+                                title: 'Number of contacts for each group',
+                            }}
+                        />
+                        <Select
+                            id="select-group"
+                            value={selectedGroup}
+                            onChange={handleSelectGroup}
+                            label="Selected Log"
+                        >
+                            {groupOptions.map((e) => {
+                                return (<MenuItem value={e} key={e}>{e}</MenuItem>);
+                            })}
+
+                        </Select>
+                        <Button onClick={plotNumberOfContacts}>Plot N Contacts</Button>
+                    </div>
                 </div>
                 <div>
                     <h4>Daily mobility data analysis</h4>
@@ -822,36 +1125,15 @@ function ResultsPage() {
                             title: 'Histogram of visited places during the day',
                             xaxis: {
                                 title: 'Time (minutes)',
-                                // titlefont: {
-                                //     family: 'Arial, sans-serif',
-                                //     size: 18,
-                                //     color: 'lightgrey'
-                                // },
                                 showticklabels: true,
                                 // tickformat: "%H:%M:%S s",
                                 tickangle: 'auto',
-                                // tickfont: {
-                                //     family: 'Old Standard TT, serif',
-                                //     size: 14,
-                                //     color: 'black'
-                                // },
                                 exponentformat: 'e',
                                 showexponent: 'all'
                             },
                             yaxis: {
                                 title: 'Number of people',
-                                // titlefont: {
-                                //     family: 'Arial, sans-serif',
-                                //     size: 18,
-                                //     color: 'lightgrey'
-                                // },
                                 showticklabels: true,
-                                // tickangle: 45,
-                                // tickfont: {
-                                //     family: 'Old Standard TT, serif',
-                                //     size: 14,
-                                //     color: 'black'
-                                // },
                                 exponentformat: 'e',
                                 showexponent: 'all'
                             }
@@ -1016,26 +1298,12 @@ function ResultsPage() {
 
                     <Plot
                         data={personPathData}
-                        layout={{
-                            barmode: 'stack',
-                            title: 'Path took by the selected person',
-                            xaxis: {
-                                showticklabels: true,
-                                tickangle: 'auto',
-                                exponentformat: 'e',
-                                showexponent: 'all'
-                            },
-                            yaxis: {
-                                showticklabels: true,
-                                exponentformat: 'e',
-                                showexponent: 'all'
-                            }
-                        }}
+                        layout={personPathLayout}
                     />
 
                     <Plot
                         data={personPathData2}
-                        layout={personPathLayout}
+                        layout={personPathLayout2}
                         frames={personPathFrames}
 
                     />

@@ -49,7 +49,7 @@ class MovementByTransporter(Movement):
                 else:
                     distance += tr.route[j].loc.get_distance_to(tr.route[j - 1].loc)
                 if tar == tr.route[j].loc:
-                    dist_by_disp[i] = distance/displacement
+                    dist_by_disp[i] = distance/(displacement+1e-10)
                     hops2reach[i] = hops
                     break
             else:

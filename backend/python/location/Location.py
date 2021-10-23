@@ -4,7 +4,7 @@ from backend.python.MovementEngine import MovementEngine
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 
-from backend.python.enums import Shape
+from backend.python.enums import Shape, ClassNameMaps
 from backend.python.functions import get_random_element
 from backend.python.Time import Time
 import numpy as np
@@ -19,6 +19,7 @@ class Location:
 
     def __init__(self, shape, x, y, name, **kwargs):
         from backend.python.const import default_infectiousness
+        self.class_name = self.__class__.__name__
         self.ID = Location._id
         Location._id += 1
         self.x = x
@@ -31,7 +32,7 @@ class Location:
         self.infectious = default_infectiousness[self.__class__] if kwargs.get(
             'infectiousness') is None else kwargs.get('infectiousness')
         self.social_distance = 0.0
-        self.hygiene_boost = 0 # TODO
+        self.hygiene_boost = 0  # TODO
 
         self.quarantined = kwargs.get('quarantined', False)
         self.quarantined_time = -1
@@ -73,25 +74,29 @@ class Location:
         return self.name
 
     def get_description_dict(self):
-        d = {'class': self.__class__.__name__, 'id': self.ID, 'x': self.x, 'y': self.y, 'shape': self.shape,
-             'depth': self.depth, 'capacity': self.capacity, 'quarantined': self.quarantined,
-             'quarantined_time': self.quarantined_time, 'exit': self.exit.__str__().replace(',', '|').replace(' ', ''),
-             'infectious': self.infectious, "name": self.name}
+        d = {
+            'class': ClassNameMaps.lc_map[self.class_name],
+            'id': self.ID, 'x': self.x, 'y': self.y,
+            'depth': self.depth, 'capacity': self.capacity,
+            'override_transport': ClassNameMaps.mc_map[
+                self.override_transport.class_name] if self.override_transport is not None else -1,
+            'infectious': self.infectious,
+            'quarantined': 1 if self.quarantined else 0,
+            'parent_id': self.parent_location.ID if self.parent_location is not None else -1,
+
+            'children_ids': ' '.join([str(ch.ID) for ch in self.locations]),
+            'quarantined_time': self.quarantined_time,
+            'exit': ' '.join([str(e) for e in self.exit]),
+            'name': self.name,
+        }
 
         if self.shape == Shape.CIRCLE.value:
+            d['shape'] = 0
             d['radius'] = self.radius
         elif self.shape == Shape.POLYGON.value:
+            d['shape'] = 1
             d['boundary'] = self.boundary.__str__().replace(',', '|').replace(' ', '')
 
-        if self.parent_location is None:
-            d['parent_id'] = -1
-        else:
-            d['parent_id'] = self.parent_location.ID
-
-        if self.override_transport is None:
-            d["override_transport"] = -1
-        else:
-            d["override_transport"] = self.override_transport.ID
         return d
 
     def spawn_sub_locations(self, cls, n_sub_loc, r_sub_loc, **kwargs):
@@ -295,7 +300,8 @@ class Location:
             return True
         if p.latched_to is not None:
             return True
-        if self.override_transport is None and isinstance(p.main_trans, MovementByTransporter): # todo check this logic. add overriding levels
+        if self.override_transport is None and isinstance(p.main_trans,
+                                                          MovementByTransporter):  # todo check this logic. add overriding levels
             return False
         return True
 
@@ -329,7 +335,7 @@ class Location:
 
         if p.get_next_target().loc == self:
             is_visiting = False
-            if p.current_target_idx == len(p.route) - 1 and p.route[-1].loc == self and p.is_day_finished==False:
+            if p.current_target_idx == len(p.route) - 1 and p.route[-1].loc == self and p.is_day_finished == False:
                 p.is_day_finished = True
                 Logger.log(f"{self.ID} finished daily route!", 'c')
             else:

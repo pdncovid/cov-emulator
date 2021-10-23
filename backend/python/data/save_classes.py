@@ -13,7 +13,7 @@ def all_subclasses(cls):
 
     f(cls, 0)
 
-    s = list(map(lambda x: x.__name__, s))
+    s = set(map(lambda x: x.__name__, s))
     return s
 
 

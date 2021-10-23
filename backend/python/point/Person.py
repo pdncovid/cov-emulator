@@ -3,7 +3,7 @@ import numpy as np
 from backend.python.Logger import Logger
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Time import Time
-from backend.python.enums import State
+from backend.python.enums import State, ClassNameMaps
 from backend.python.functions import find_in_subtree, get_random_element
 
 
@@ -28,6 +28,7 @@ class Person:
     n_characteristics = 3
 
     def __init__(self):
+        self.class_name = self.__class__.__name__
         self.ID = Person._id
         Person._id += 1
 
@@ -97,39 +98,55 @@ class Person:
             print(key, d[key])
 
     def get_description_dict(self):
-        d = {'class': self.__class__.__name__, 'id': self.ID,
-             'x': self.all_positions[self.ID][0], 'y': self.all_positions[self.ID][0],
-             'vx': self.all_velocities[self.ID][0], 'vy': self.all_velocities[self.ID][1],
-             'state': self.state, 'gender': self.gender, 'is_day_finished': self.is_day_finished,
-             'current_target_idx': self.current_target_idx, 'current_loc_enter': self.current_loc_enter,
-             'current_loc_leave': self.current_loc_leave, 'destination': self.all_destinations[self.ID],
-             'wealth': self.character_vector,
-             'behaviour': self.behaviour, 'infected_time': self.infected_time, 'temp': self.temp,
-             "tested_positive_time": self.tested_positive_time}
+        d = {'person': self.ID,
+             'gender': self.gender,
+             'age': self.age,
+             'immunity': self.immunity,
+             'behaviour': self.behaviour,
+             'character_vector': self.character_vector,
+             'route': ' '.join(
+                 map(str, RoutePlanningEngine.convert_route_to_occupancy_array(self.route, ClassNameMaps.lc_map, 5))),
+             'home_loc': self.home_loc.ID,
+             'home_weekend_loc': self.home_weekend_loc.ID if self.home_weekend_loc is not None else -1,
+             'work_loc': self.work_loc.ID if self.work_loc is not None else -1,
+             'main_trans': ClassNameMaps.mc_map[self.main_trans.class_name] if self.main_trans is not None else -1,
+             'state': self.state,
+             'disease_state': self.disease_state,
+             'infected_time': self.infected_time,
+             'infected_source_class': ClassNameMaps.pc_map[self.source.class_name] if self.source is not None else -1,
+             'infected_source_id': self.source.ID if self.source is not None else -1,
+             'infected_loc_class': ClassNameMaps.lc_map[self.infected_location.class_name] if self.infected_location is not None else -1,
+             'infected_loc_id': self.infected_location.ID if self.infected_location is not None else -1,
+             'tested_positive_time': self.tested_positive_time,
+             'temp': self.temp,
+             'person_class': ClassNameMaps.pc_map[self.class_name],
+             'route_len': len(self.route),
+             }
 
-        if self.current_loc is None:
-            d['current_loc_id'] = -1
-        else:
-            d['current_loc_id'] = self.current_loc.ID
-        if self.main_trans is None:
-            d['main_trans_id'] = -1
-        else:
-            d['main_trans_id'] = self.main_trans.ID
-        if self.current_trans is None:
-            d['current_trans_id'] = -1
-        else:
-            d['current_trans_id'] = self.current_trans.ID
+        return d
 
-        if self.source is None:
-            d['source_id'] = -1
-        else:
-            d['source_id'] = self.source.ID
+    def get_fine_description_dict(self, mins):
+        d = {
+            'person': self.ID,
+            'person_class': ClassNameMaps.pc_map[self.class_name],  # redundant
+            'current_location_id': self.get_current_location().ID if self.get_current_location() is not None else -1,
+            'current_location_class': ClassNameMaps.lc_map[self.get_current_location().class_name],
+            'current_movement_id': self.current_trans.ID if self.current_trans is not None else -1,
+            'current_movement_class': ClassNameMaps.mc_map[self.current_trans.class_name],
+            'cur_tar_idx': len(self.route) - 1 if self.is_day_finished else self.current_target_idx,
+            'route_len': len(self.route),
+            'time': mins,
+            'is_day_finished': int(self.is_day_finished),
 
-        if self.infected_location is None:
-            d['infected_location_id'] = -1
-        else:
-            d['infected_location_id'] = self.infected_location.ID
+            'current_loc_enter': self.current_loc_enter,
+            'current_loc_leave': self.current_loc_leave,
+            'destination': self.all_destinations[self.ID],
 
+            'x': round(Person.all_positions[self.ID][0] * 100) / 100,
+            'y': round(Person.all_positions[self.ID][1] * 100) / 100,
+            'vx': self.all_velocities[self.ID][0], 'vy': self.all_velocities[self.ID][1],
+
+        }
         return d
 
     def initialize_age(self):
@@ -144,11 +161,12 @@ class Person:
     def reset_day(self, t):
         from backend.python.point.Transporter import Transporter
         if self.get_current_location() != self.home_loc and self.get_current_location() != self.home_weekend_loc and \
-                not self.get_current_location().quarantined and not isinstance(self, Transporter) and not self.is_dead():
+                not self.get_current_location().quarantined and not isinstance(self,
+                                                                               Transporter) and not self.is_dead():
             Logger.log(
                 f"{self.ID} {self.__class__.__name__} not at home when day resets. (Now at {self.get_current_location().name} "
                 f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])} next target {self.get_next_target().loc.name}) "
-                f"CTarget {self.current_target_idx}/{len(self.route)-1} "
+                f"CTarget {self.current_target_idx}/{len(self.route) - 1} "
                 f"Route {list(map(str, self.route))}. "
                 f"{self.__repr__()}"
 
@@ -205,7 +223,7 @@ class Person:
             cur = cur.parent_location
         if len(possible_targets) == 0:
             # raise Exception(f"Could not find {target} in the tree!!!")
-            Logger.log(f"Could not find {target} in the tree!!!",'c')
+            Logger.log(f"Could not find {target} in the tree!!!", 'c')
             return self.home_loc
 
         if find_from_level == -1:

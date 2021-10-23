@@ -19,17 +19,18 @@ class TransmissionEngine:
         person_social_dist = np.array([p.social_distance for p in points])
         location_social_dist = np.array([p.get_current_location().social_distance for p in points])
         social_dist = np.maximum(person_social_dist, location_social_dist)
-        contacts, distance, sourceid = TransmissionEngine.get_close_contacts_and_distance(x, y, state, social_dist, r)
+        n_contacts, contacts, distance, sourceid = TransmissionEngine. \
+            get_close_contacts_and_distance(x, y, state, social_dist, r)
 
-        new_infected = TransmissionEngine.transmit_disease(points, contacts, distance, sourceid, t)
+        new_infected = TransmissionEngine.transmit_disease(points, n_contacts, contacts, distance, sourceid, t)
 
-        Logger.log(f"""{new_infected}/{sum(contacts > 0)}/{int(sum(contacts))}/{sum(
-            state == State.INFECTED.value)} Infected/Unique/Contacts/Active""", 'e')
+        return n_contacts, contacts, new_infected
 
     @staticmethod
     # @njit
     def get_close_contacts_and_distance(x, y, state, social_dist, r):
-        contacts = np.zeros(len(x))
+        contacts = {i: [] for i in range(len(x))}
+        n_contacts = np.zeros(len(x), dtype=np.int64)
         distance = np.ones(len(x)) * 1000
         sourceid = np.zeros(len(x), dtype=np.int64)
 
@@ -37,10 +38,8 @@ class TransmissionEngine:
         ys_idx = np.argsort(y)
         xs = x[xs_idx]
         ys = y[ys_idx]
-        # xs = np.take_along_axis(x, xs_idx, 0)
-        # ys = np.take_along_axis(y, ys_idx, 0)
 
-        procesed = 0
+        processed = 0
         for i in np.where(state == State.INFECTED.value)[0]:
             # iterate through infected people only to increase speed
             # if state[i] != State.INFECTED.value:
@@ -53,8 +52,8 @@ class TransmissionEngine:
             y_idx_r = bs(ys, y[i] + r)
             y_idx_l = bs(ys, y[i] - r)
 
-            close_points_idx = np.intersect1d(xs_idx[x_idx_l:x_idx_r], ys_idx[y_idx_l:y_idx_r])
-            procesed += len(close_points_idx)
+            close_points_idx = np.intersect1d(xs_idx[x_idx_l:x_idx_r], ys_idx[y_idx_l:y_idx_r], assume_unique=True)
+            processed += len(close_points_idx)
             close_points_idx = close_points_idx[state[close_points_idx] == State.SUSCEPTIBLE.value]
 
             d = np.sqrt(np.power(x[close_points_idx] - x[i], 2) + np.power(y[close_points_idx] - y[i], 2))
@@ -63,42 +62,46 @@ class TransmissionEngine:
             close_points_idx = close_points_idx[select_from_close]
             d = d[select_from_close]
 
-            contacts[close_points_idx] += 1
+            contacts[i] = close_points_idx
+            for ci in close_points_idx:
+                contacts[ci].append(i)
+            n_contacts[close_points_idx] += 1
+            n_contacts[i] += len(close_points_idx)
             sourceid[close_points_idx[d < distance[close_points_idx]]] = i
             distance[close_points_idx] = np.minimum(d, distance[close_points_idx])
-        # if TransmissionEngine.debug:
-        #     print(f"Processed {procesed}")
-        return contacts, distance, sourceid
+        return n_contacts, contacts, distance, sourceid
 
     @staticmethod
-    def transmit_disease(points, contacts, distance, sourceid, t):
-        valid = np.where(contacts > 0)[0]
+    def transmit_disease(points, n_contacts, contacts, distance, sourceid, t):
+        valid = np.where(distance < 1000)[0]
         validsourceid = sourceid[valid]
         infected_duration = []
+        age = []
         for i in validsourceid:
             infected_duration.append(t - points[i].infected_time)
+            age.append(points[i].age)
         infected_duration = np.array(infected_duration)
-        tr_p = TransmissionEngine.get_transmission_p(distance[valid], infected_duration, contacts[valid])
+        age = np.array(age)
+        tr_p = TransmissionEngine.get_transmission_p(distance[valid], infected_duration, n_contacts[valid], age)
 
         rand = np.random.rand(len(valid))
 
-        c = 0
+        c = []
         for i in range(len(valid)):
             contact_person = points[valid[i]]
             infected_person = points[sourceid[valid[i]]]
             # if contact_person.current_loc == infected_person.current_loc else 0
             location_p = contact_person.get_current_location().infectious
             behaviour_p = contact_person.behaviour * infected_person.behaviour
-            age_p = 1  # todo
             trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
 
-            if rand[i] < tr_p[i] * trans_p * location_p * behaviour_p * age_p:
+            if rand[i] < tr_p[i] * trans_p * location_p * behaviour_p:
                 contact_person.set_infected(t, infected_person, TransmissionEngine.common_fever_p)
-                c += 1
+                c.append(contact_person.ID)
         return c
 
     @staticmethod
-    def get_transmission_p(ds, infected_durations, contacts):
+    def get_transmission_p(ds, n_contacts, infected_durations, age):
         # 0 - 1
         def distance_f(d):
             return np.exp(-d / 5)
@@ -113,10 +116,14 @@ class TransmissionEngine:
             c = c / 20 + 0.5
             return c + (1 - c) ** 2
 
+        def age_f(a):
+            return a / 60
+
         dp = distance_f(ds)
         tp = duration_f(infected_durations)
-        cp = count_f(contacts)
-        return TransmissionEngine.base_transmission_p * dp * tp * cp
+        cp = count_f(n_contacts)
+        ap = age_f(age)
+        return TransmissionEngine.base_transmission_p * dp * tp * cp * ap
 
     @staticmethod
     def get_transport_transmission_p(p1, p2):
@@ -124,9 +131,8 @@ class TransmissionEngine:
             return 0
         if p1.all_movement_ids[p1.ID] != p2.all_movement_ids[p2.ID]:  # not in same movement
             return 0
-        # todo implement infection within latched people only! (in MovementByTransporter)
         if p1.latched_to != p2.latched_to:
             return 0
-        # if p1.current_trans.points_label[p1_idx] != p2.current_trans.points_label[p2_idx]:
-        #     return 0
+        # todo implement infection within latched people only! (in MovementByTransporter)
+
         return p1.current_trans.get_in_transport_transmission_p()

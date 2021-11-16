@@ -29,6 +29,8 @@ class Loader:
 
     @staticmethod
     def getFile(rdir, day, f_type):
+        if rdir == '':
+            abort(500)
         day = int(day)
         f_name = f"{day:05d}" + f_type + ".csv"
         return pd.read_csv(log_base_dir.joinpath(rdir).joinpath(f_name))
@@ -280,6 +282,15 @@ class ContactHandler(Resource):
         df_p = Loader.getFile(request_dir, 0, '_person_info')
         con_df = pd.DataFrame({'person': df_p['person'], 'contacts': [[] for _ in range(len(df_p))]})
         con_df = con_df.set_index('person')
+        df_p = df_p.set_index('person')
+
+        def pID2requesetGroupMap(ID):
+            # map from ID of the person to requested group
+            if request_group == 'age':
+                return (df_p.loc[ID, request_group] // 10) * 10
+            if request_group == 'person':
+                return ID
+            return df_p.loc[ID, request_group]
 
         for pi in day_info:
             df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '')
@@ -287,18 +298,15 @@ class ContactHandler(Resource):
             df['contacts'] = df['contacts'].map(lambda x: map(int, x.split(' ')))
 
             for idx, row in df[['person', 'contacts']].iterrows():
-                con_df.loc[row['person'], 'contacts'] += row['contacts']
-        df_p = df_p.set_index('person')
-        def pID2requesetGroupMap(ID):
-            if request_group == 'age':
-                return df_p.loc[ID, request_group]//10
-            return df_p.loc[ID, request_group]
-        con_df['request_group'] = con_df.index.map(pID2requesetGroupMap)
+                con_df.loc[row['person'], 'contacts'] += [pID2requesetGroupMap(i) for i in row['contacts']]
 
-        con_df['contacts'] = con_df['contacts'].map(
-                lambda x: [pID2requesetGroupMap(i) for i in x])
+        con_df['request_group'] = con_df.index.map(pID2requesetGroupMap)
+        # con_df['contacts'] = con_df['contacts'].map(lambda x: [pID2requesetGroupMap(i) for i in x])
+        print(con_df)
+
         gr = con_df.groupby('request_group')
-        print(con_df, gr.groups)
+        print(gr.groups)
+
         group_names = list(gr.groups.keys())
         gr_df = pd.DataFrame(index=group_names, columns=group_names).fillna(0)
         for g in gr.groups.keys():
@@ -340,6 +348,34 @@ class PeoplePathHandler(Resource):
         print("Person Paths", df)
         return {'status': 'SUCCESS', 'data': df.to_csv()}
 
+class LocationPeopleCountHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        parser.add_argument('day', type=str)
+        args = parser.parse_args()
+        print(args)
+        request_dir = args['dir']
+        request_selectedDay = args['day']
+
+        try:
+            df = Loader.getFile(request_dir, int(request_selectedDay), '')
+            df = df[["person", "time", "current_location_id"]]
+        except Exception as e:
+            return
+        locs = df['current_location_id'].unique()
+        d = {}
+        for l in locs:
+            d[l] = np.zeros(1440)
+        dfg = df.groupby("time")
+        for g in dfg.groups.keys():
+            for loc in dfg.get_group(g)['current_location_id']:
+                d[loc][g%1440] += 1
+        df = pd.DataFrame(d)
+        df.index.name = 'id'
+        # df= df.reset_index()
+        print("Person count", df)
+        return {'status': 'SUCCESS', 'data': df.to_csv()}
 
 class ActualLocationHistHandler(Resource):
     def post(self):
@@ -362,11 +398,44 @@ class ActualLocationHistHandler(Resource):
 
         m = getMap(request_groupBy, request_dir)
 
-        arr = {'group': [], 'timesteps': []}
+        arr = {'group': [], 'time': []}
         for key in df_gr.groups.keys():
             arr['group'].append(key if m is None else m[key])
-            arr['timesteps'].append('|'.join([str(e) for e in df_gr.get_group(key)['time'].values % 1440]))
+            freq = np.zeros(1440)
+            for t_rec in df_gr.get_group(key)['time'].values:
+                freq[t_rec % 1440] += 1
+            arr['time'].append('|'.join([str(int(e)) for e in freq]))
 
+        result = pd.DataFrame(arr)
+        print(result)
+        return {'status': 'SUCCESS', 'data': result.to_csv()}
+
+class RouteLocationHistHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        parser.add_argument('day', type=str)
+        args = parser.parse_args()
+        print(args)
+        request_dir = args['dir']
+        request_selectedDay = args['day']
+
+        try:
+            df = Loader.getFile(request_dir, int(request_selectedDay), '_person_info')
+        except Exception as e:
+            abort(500)
+        df = df[["person", "route"]]
+        df["route"] = df["route"].map(lambda x: x.split(" "))
+        m = getMap('location_class', request_dir)
+        arr = {'group': m, 'time': [np.zeros(1440) for _ in range(len(m))]}
+
+        for p_route in df["route"]:
+            for t, loc_class in enumerate(p_route):
+                loc_class=int(loc_class)
+                for _t in range(t*5,t*5+5):
+                    arr['time'][loc_class][_t] += 1
+        for i in range(len(arr['time'])):
+            arr['time'][i] = '|'.join([str(int(e)) for e in arr['time'][i]])
         result = pd.DataFrame(arr)
         print(result)
         return {'status': 'SUCCESS', 'data': result.to_csv()}
@@ -382,11 +451,12 @@ class LocationShapes(Resource):
         request_day = args['day']
 
         df = Loader.getFile(request_dir, request_day, "_location_info")
-        df = df[['class','x','y','radius','name','id']]
+        df = df[['class', 'x', 'y', 'radius', 'name', 'id']]
 
         print(df)
         return {'status': 'SUCCESS',
                 'data': df.to_csv()}
+
 
 @app.route("/", defaults={'path': ''})
 def serve(path):
@@ -405,5 +475,7 @@ api.add_resource(NContactHandler, '/flask/n_contacts')
 api.add_resource(ContactHandler, '/flask/contacts')
 
 api.add_resource(ActualLocationHistHandler, '/flask/ActualLocationHist')
+api.add_resource(RouteLocationHistHandler, '/flask/RouteLocationHist')
 api.add_resource(PeoplePathHandler, '/flask/peoplepath')
+api.add_resource(LocationPeopleCountHandler, '/flask/LocationPeopleCountHandler')
 api.add_resource(LocationShapes, '/flask/locationData')

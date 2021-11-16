@@ -3,7 +3,7 @@ from backend.python.Time import Time
 
 
 class ContainmentEngine:
-    testresultdelay = Time.get_duration(5)
+
     quarantineduration = Time.get_duration(24 * 2)
 
     @staticmethod
@@ -20,7 +20,7 @@ class ContainmentEngine:
 
     @staticmethod
     def update_route_according_to_containment(p, root, containment, t):
-        if p.is_tested_positive() and p.is_infected() and t - p.tested_positive_time > ContainmentEngine.testresultdelay:
+        if p.is_tested_positive() and p.is_infected():
             if containment == Containment.NONE.value:
                 return False
             elif containment == Containment.LOCKDOWN.value:

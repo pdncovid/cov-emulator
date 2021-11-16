@@ -172,6 +172,7 @@ class Person:
 
                 , 'c')
             self.print()
+            return False
 
         self.is_day_finished = False
         self.current_target_idx = 0
@@ -182,6 +183,9 @@ class Person:
         return True
 
     def on_enter_location(self, loc, t):
+        pass
+
+    def on_enter_home(self):
         pass
 
     def adjust_leaving_time(self, t):
@@ -407,7 +411,7 @@ class Person:
         return self.state == State.SUSCEPTIBLE.value
 
     def is_tested_positive(self):
-        return self.tested_positive_time > 0
+        return self.tested_positive_time > Time.t > 0
 
     def update_temp(self, common_p):
         if self.is_infected():

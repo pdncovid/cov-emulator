@@ -19,7 +19,7 @@ from backend.python.TransmissionEngine import TransmissionEngine
 from backend.python.Visualizer import Visualizer
 from backend.python.const import work_map
 from backend.python.data.save_classes import all_subclasses, save_array
-from backend.python.enums import Mobility, Shape, TestSpawn, Containment, State
+from backend.python.enums import Mobility, Shape, TestSpawn, Containment, State, ClassNameMaps
 from backend.python.functions import count_graph_n, get_random_element, separate_into_classes
 from backend.python.Time import Time
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
@@ -116,24 +116,17 @@ def update_point_parameters(args):
 
 
 def main(initializer, args):
+    integrity_test = False
+    record_fine_covid = True
+    record_fine_person = True
+    plot = False
+    n_events = 10
+    process_disease_freq = 1  # Time.get_duration(2)
+    process_disease_at = process_disease_freq
+
     test_name = time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime())
     os.makedirs('../../app/src/data/' + test_name)
 
-    loc_classes = all_subclasses(Location)
-    people_classes = all_subclasses(Person)
-    movement_classes = all_subclasses(Movement)
-    loc_classes_map = {x: i for i, x in enumerate(loc_classes)}
-    people_classes_map = {x: i for i, x in enumerate(people_classes)}
-    movement_classes_map = {x: i for i, x in enumerate(movement_classes)}
-    movement_classes_map[None] = -1
-    save_array('../../app/src/data/' + test_name + '/locs.txt', loc_classes)
-    save_array('../../app/src/data/' + test_name + '/people.txt', people_classes)
-    save_array('../../app/src/data/' + test_name + '/movement.txt', movement_classes)
-    save_array("../../app/src/data/locs.txt", loc_classes)
-    save_array("../../app/src/data/people.txt", people_classes)
-
-    plot = False
-    n_events = 10
     global log
     log = Logger('logs', time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
     set_parameters(args)
@@ -143,9 +136,28 @@ def main(initializer, args):
 
     # initialize graphs and people
     people, root = initializer()
-    log.log(f"{len(people)} {count_graph_n(root)}", 'i')
-    log.log(f"{len(people)} {count_graph_n(root)}", 'c')
-    log.log_graph(root)
+    locations = root.get_locations_according_function(lambda x: True)
+
+    # save initial parameters
+    loc_classes = all_subclasses(Location)
+    people_classes = all_subclasses(Person)
+    movement_classes = all_subclasses(Movement)
+    for p in people:
+        people_classes.add(p.class_name)
+    for l in locations:
+        loc_classes.add(l.class_name)
+    lc_map = {x: i for i, x in enumerate(loc_classes)}
+    pc_map = {x: i for i, x in enumerate(people_classes)}
+    mc_map = {x: i for i, x in enumerate(movement_classes)}
+    lc_map[None], pc_map[None], mc_map[None], = -1, -1, -1
+    ClassNameMaps.lc_map = lc_map
+    ClassNameMaps.pc_map = pc_map
+    ClassNameMaps.mc_map = mc_map
+    save_array('../../app/src/data/' + test_name + '/locs.txt', loc_classes)
+    save_array('../../app/src/data/' + test_name + '/people.txt', people_classes)
+    save_array('../../app/src/data/' + test_name + '/movement.txt', movement_classes)
+    save_array("../../app/src/data/locs.txt", loc_classes)
+    save_array("../../app/src/data/people.txt", people_classes)
 
     # initialize gathering events
     gather_places = root.get_locations_according_function(lambda l: isinstance(l, GatheringPlace))
@@ -177,19 +189,22 @@ def main(initializer, args):
 
     # # initialize plots
     if plot:
-        Visualizer.initialize(root, test_centers, people, loc_classes_map, root.radius, root.radius)
+        Visualizer.initialize(root, test_centers, people, lc_map, root.radius, root.radius)
 
     # initial iterations to initialize positions of the people
     for t in range(5):
         print(f"initializing {t}")
         MovementEngine.move_people(Person.all_people)
-    process_disease_freq = 1  # Time.get_duration(2)
-    process_disease_at = process_disease_freq
 
     # DAILY REPORT
     df_detailed_person = pd.DataFrame(columns=[])
     df_detailed_covid = pd.DataFrame(columns=[])
 
+    log.log(f"{len(people)} {count_graph_n(root)}", 'i')
+    log.log(f"{len(people)} {count_graph_n(root)}", 'c')
+    log.log_graph(root)
+
+    contacts, n_con, new_infected = {_i:[] for _i in range(len(people))}, np.zeros(len(people)), []
     # main iteration loop
     for i in range(iterations):
         t = Time.get_time()
@@ -201,43 +216,10 @@ def main(initializer, args):
         # reset day
         if t % Time.DAY == 0:
             if t > 0:
-                df_person = []
-                for p in people:
-                    df_person.append(
-                        {
-                            'person': p.ID,
-                            'gender': p.gender,
-                            'age': p.age,
-                            'immunity': p.immunity,
-                            'behaviour': p.behaviour,
-                            'character_vector': p.character_vector,
-                            'route': ' '.join(
-                                map(str, RoutePlanningEngine.convert_route_to_occupancy_array(p.route, loc_classes_map,
-                                                                                              5))),
-                            'home_loc': p.home_loc.ID,
-                            'home_weekend_loc': p.home_weekend_loc.ID if p.home_weekend_loc is not None else -1,
-                            'work_loc': p.work_loc.ID if p.work_loc is not None else -1,
-                            'main_trans': movement_classes_map[
-                                p.main_trans.__class__.__name__] if p.main_trans is not None else -1,
-                            'state': p.state,
-                            'disease_state': p.disease_state,
-                            'infected_time': p.infected_time,
-                            'infected_source_class': people_classes_map[
-                                p.source.__class__.__name__] if p.source is not None else -1,
-                            'infected_loc_class': loc_classes_map[
-                                p.infected_location.__class__.__name__] if p.infected_location is not None else -1,
-                            'temp': p.temp,
-                            'x': round(Person.all_positions[p.ID][0] * 100) / 100,
-                            'y': round(Person.all_positions[p.ID][1] * 100) / 100,
-                            'person_class': people_classes_map[p.__class__.__name__],
-                            'cur_tar_idx': len(p.route) - 1 if p.is_day_finished else p.current_target_idx,
-                            'route_len': len(p.route),
-
-                        }
-                    )
-                df_person = pd.DataFrame(df_person)
-                pd.DataFrame.to_csv(df_person,
+                pd.DataFrame.to_csv(pd.DataFrame([p.get_description_dict() for p in people]),
                                     f"../../app/src/data/{test_name}/{int(t // Time.DAY) - 1:05d}_person_info.csv")
+                pd.DataFrame.to_csv(pd.DataFrame([l.get_description_dict() for l in locations]),
+                                    f"../../app/src/data/{test_name}/{int(t // Time.DAY) - 1:05d}_location_info.csv")
                 pd.DataFrame.to_csv(df_detailed_person,
                                     f"../../app/src/data/{test_name}/{int(t // Time.DAY) - 1:05d}.csv")
                 pd.DataFrame.to_csv(df_detailed_covid,
@@ -253,6 +235,11 @@ def main(initializer, args):
                     good = False
             if not good:
                 a = input("RESET FAILED")
+
+            # reset test centers
+            for tc in test_centers:
+                tc.on_reset_day()
+
             # check for gather events on this day and update the routes accordingly.
             for event in gather_events:
                 if event.day == t // Time.DAY:
@@ -269,10 +256,12 @@ def main(initializer, args):
 
         # process transmission and recovery
         if t > process_disease_at:
-            TransmissionEngine.disease_transmission(people, t, args.infect_r)
+            n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.infect_r)
             CovEngine.process_recovery(people, t)
             CovEngine.process_death(people, t, cemetery)
             process_disease_at += process_disease_freq
+
+            Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'e')
 
         # process testing
         if t % testing_freq == 0:
@@ -300,63 +289,47 @@ def main(initializer, args):
         #         break
 
         # =================================== integrity check ======================================================
-        for p in people:
-            if p.is_dead():
-                assert isinstance(p.current_loc, Cemetery)  # Dead not in cemetery
-            if p.latched_to is None:
-                next_loc = MovementEngine.find_next_location(p)
-                if p.current_loc.depth >= next_loc.depth:  # parent transporting
-                    trans_loc = p.current_loc.parent_location
-                else:  # current transporting
-                    trans_loc = p.current_loc
-                if trans_loc.override_transport is not None and not isinstance(p, Transporter):
-                    if trans_loc.override_transport.override_level <= p.main_trans.override_level:
-                        assert p.current_trans == trans_loc.override_transport
+        # if integrity_test:
+        #     for p in people:
+        #         if p.is_dead():
+        #             assert isinstance(p.current_loc, Cemetery)  # Dead not in cemetery
+        #         if p.latched_to is None:
+        #             next_loc = MovementEngine.find_next_location(p)
+        #             if p.current_loc.depth >= next_loc.depth:  # parent transporting
+        #                 trans_loc = p.current_loc.parent_location
+        #             else:  # current transporting
+        #                 trans_loc = p.current_loc
+        #             if trans_loc.override_transport is not None and not isinstance(p, Transporter):
+        #                 if trans_loc.override_transport.override_level <= p.main_trans.override_level:
+        #                     assert p.current_trans == trans_loc.override_transport
 
-
-        # ==================================== plotting ==============================================================
-
-        # record in daily report
+        # ====================================================================================== record in daily report
         mins = Time.i_to_minutes(t)
-        person_details_list = []
-        person_states = {State(i.value).name: 0 for i in State}
-        person_states['time'] = mins
-        person_states['CUM_TESTED_POSITIVE'] = 0
-        person_states['IN_QUARANTINE_CENTER'] = 0
-        person_states['IN_QUARANTINE'] = 0
-        for p in people:
-            cur = p.get_current_location()
-            person_details_list.append(
-                {
+        if record_fine_covid:
+            covid_stats = {State(i.value).name: 0 for i in State}
+            covid_stats['time'] = mins
+            covid_stats['CUM_TESTED_POSITIVE'] = 0
+            covid_stats['IN_QUARANTINE_CENTER'] = 0
+            covid_stats['IN_QUARANTINE'] = 0
+            for p in people:
+                covid_stats[State(p.state).name] += 1
+                covid_stats['CUM_TESTED_POSITIVE'] += 1 if p.is_tested_positive() else 0
+                covid_stats['IN_QUARANTINE_CENTER'] += 1 if isinstance(p.get_current_location(),
+                                                                       COVIDQuarantineZone) else 0
+                covid_stats['IN_QUARANTINE'] += 1 if p.get_current_location().quarantined else 0
 
-                    'person': p.ID,
-                    'location': cur.ID,
-                    'x': round(Person.all_positions[p.ID][0] * 100) / 100,
-                    'y': round(Person.all_positions[p.ID][1] * 100) / 100,
-                    'person_class': people_classes_map[p.__class__.__name__],
-                    'loc_class': loc_classes_map[cur.__class__.__name__],
-                    'cur_movement': movement_classes_map[p.current_trans.__class__.__name__],
-                    'cur_tar_idx': len(p.route) - 1 if p.is_day_finished else p.current_target_idx,
-                    'route_len': len(p.route),
-                    'time': mins,
-                }
-            )
-            person_states[State(p.state).name] += 1
-            person_states['CUM_TESTED_POSITIVE'] += 1 if p.is_tested_positive() else 0
-            person_states['IN_QUARANTINE_CENTER'] += 1 if isinstance(p.get_current_location(),
-                                                                     COVIDQuarantineZone) else 0
-            person_states['IN_QUARANTINE'] += 1 if p.get_current_location().quarantined else 0
-
-        person_states["CUM_CASES"] = person_states[State.INFECTED.name] + person_states[State.DEAD.name] + \
-                                     person_states[State.RECOVERED.name]
-        df_detailed_person = df_detailed_person.append(pd.DataFrame(person_details_list))
-        df_detailed_covid = df_detailed_covid.append(pd.DataFrame([person_states]))
-
-        if t % (Time.DAY // 100) == 0 and plot:
-            plt.pause(0.001)
-            Visualizer.plot_map_and_points(root, people, test_centers, root.radius, root.radius, t)
-        # Visualizer.plot_position_timeline(df_detailed_person, root)
-        # Visualizer.plot_info(people)
+            covid_stats["CUM_CASES"] = covid_stats[State.INFECTED.name] + covid_stats[State.DEAD.name] + \
+                                       covid_stats[State.RECOVERED.name]
+            df_detailed_covid = df_detailed_covid.append(pd.DataFrame([covid_stats]))
+        if record_fine_person:
+            person_details_list = []
+            for p in people:
+                cur = p.get_current_location()
+                fine_details_p = p.get_fine_description_dict(mins)
+                fine_details_p['n_contacts'] = n_con[p.ID]
+                fine_details_p['contacts'] = ' '.join(map(str, contacts[p.ID]))  # directed edges from infected to sus
+                person_details_list.append(fine_details_p)
+            df_detailed_person = df_detailed_person.append(pd.DataFrame(person_details_list))
 
         Time.increment_time_unit()
 
@@ -364,14 +337,13 @@ def main(initializer, args):
 if __name__ == "__main__":
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-    parser.add_argument('-n', help='target population', default=10000)
+    parser.add_argument('-n', help='target population', default=1000)
     parser.add_argument('-i', help='initial infected', type=int, default=10)
 
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
     parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
-    parser.add_argument('--containment', help='containment strategy used ', type=int,
-                        default=Containment.NONE.value)
+    parser.add_argument('--containment', help='containment strategy used ', type=int, default=Containment.NONE.value)
     parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
     parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
     parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)

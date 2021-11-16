@@ -13,7 +13,6 @@ class Transporter(Person):
         self.max_latches = 10
         self.is_latchable = True
 
-
     # def get_random_route(self, root, t,
     #                      target_classes_or_objs=None,
     #                      possible_override_trans=None,
@@ -68,6 +67,10 @@ class Transporter(Person):
     def on_enter_location(self, loc, t):
         # if isinstance(point, Transporter):
         self.main_trans.try_to_latch_people(loc)
+
+    def on_enter_home(self):
+        # self.current_trans = self.home_loc.override_transport
+        pass
 
     # override
     def set_current_location(self, loc, t):
@@ -153,7 +156,7 @@ class Transporter(Person):
         if type(idx) != int:
             idx = self.latched_people.index(idx)
         p = self.latched_people[idx]
-        Logger.log(f"{p.ID} will be delatched from  transporter {self.ID} at {self.get_current_location()}",'d')
+        Logger.log(f"{p.ID} will be delatched from  transporter {self.ID} at {self.get_current_location()}", 'd')
 
         # p.in_inter_trans = False
         p.latched_to = None
@@ -169,8 +172,6 @@ class Transporter(Person):
         from backend.python.MovementEngine import MovementEngine
         # MovementEngine.find_next_location(p).enter_person(p, None)
         # p.get_current_location().add_to_next_location(p)
-
-
 
     # override
     def update_route(self, root, t, new_route_classes=None, replace=False):

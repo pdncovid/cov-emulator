@@ -218,6 +218,8 @@ class Location:
         f(location)
 
     def check_for_leaving(self, t):
+        wait_lvl0 = Time.get_duration(0.5)
+        wait_lvl1 = Time.get_duration(1)
         for i, p in enumerate(self.points):
             # check if the time spent in the current location is above
             # the point's staying threshold for that location
@@ -230,8 +232,7 @@ class Location:
                     continue
                 if p.all_destinations[p.ID] != -1:
                     # waiting too long in this place!!!
-                    if t - p.current_loc_leave > Time.get_duration(1) and \
-                            t - p.current_loc_enter > Time.get_duration(1):
+                    if t - p.current_loc_leave > wait_lvl1 and t - p.current_loc_enter > wait_lvl1:
                         Logger.log(
                             f"OT {p} @ {p.get_current_location().name} -> {MovementEngine.find_next_location(p)} [{p.get_next_target()}] "
                             f"({p.current_target_idx}/{len(p.route)}) "
@@ -243,8 +244,7 @@ class Location:
                         from backend.python.transport.Walk import Walk
                         walk = get_random_element(Walk.all_instances)
                         walk.add_point_to_transport(p)
-                    elif t - p.current_loc_leave > Time.get_duration(0.5) and \
-                            t - p.current_loc_enter > Time.get_duration(0.5):
+                    elif t - p.current_loc_leave > wait_lvl0 and t - p.current_loc_enter > wait_lvl0:
                         # todo change current transportation system to tuk tuk or taxi
                         Logger.log(
                             f"OT {p} @ {p.get_current_location().name} -> ({p.get_next_target()}) "

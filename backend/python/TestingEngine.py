@@ -33,7 +33,11 @@ class TestingEngine:
                 tested_on[close_point] = i
         test_count = np.zeros(len(test_centers), dtype=int)
         for p_idx in test_subjects:
-            if test_count[tested_on[p_idx]] >= test_centers[tested_on[p_idx]].max_tests:
+            tc = test_centers[tested_on[p_idx]]
+            if test_count[tested_on[p_idx]] >= tc.max_tests:
                 continue
-            test_centers[tested_on[p_idx]].test(points[p_idx], t)
+            if tc.daily_tests >= tc.max_tests:
+                continue
+            tc.test(points[p_idx], t)
+            tc.daily_tests += 1
             test_count[tested_on[p_idx]] += 1

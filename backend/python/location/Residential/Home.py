@@ -1,11 +1,5 @@
-from backend.python.RoutePlanningEngine import RoutePlanningEngine
-from backend.python.Target import Target
-from backend.python.enums import Shape
-from backend.python.Time import Time
-from backend.python.location.Building import Building
-from backend.python.location.Location import Location
-import numpy as np
 
+from backend.python.location.Building import Building
 
 class Home(Building):
     # def get_suggested_sub_route(self, point, route_so_far):
@@ -25,3 +19,9 @@ class Home(Building):
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
+
+    def enter_person(self, p):
+        super(Home, self).enter_person(p)
+        if p.home_loc == self:
+            p.on_enter_home()
+

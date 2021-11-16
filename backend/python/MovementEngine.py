@@ -4,18 +4,19 @@ from backend.python.Logger import Logger
 
 
 class MovementEngine:
-
+    min_v_cap_frac = 0.15
     @staticmethod
     def move_people(all_people):
-        _p = all_people[0]
+        from backend.python.point.Person import Person
+        _p = Person
 
         is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
 
         # new_v = 0.5*_p.all_velocities + (_p.all_velocities*0.25+1)*np.random.random((len(_p.all_velocities), 2))
-        new_v = np.expand_dims(_p.all_current_loc_vcap, -1) *(np.random.random((len(_p.all_velocities), 2))*2 - 1)
+        new_v = np.expand_dims(_p.all_current_loc_vcap, -1) *(np.random.random((len(_p.all_velocities), 2))*2 - 1) # TODO
         # v might be too small
         new_v = np.sign(new_v) * np.clip(np.abs(new_v),
-                                         np.expand_dims(_p.all_current_loc_vcap, -1) * 0.15,
+                                         np.expand_dims(_p.all_current_loc_vcap, -1) * MovementEngine.min_v_cap_frac,
                                          np.expand_dims(_p.all_current_loc_vcap, -1))
         _p.all_velocities = new_v
 
@@ -42,9 +43,9 @@ class MovementEngine:
             if isinstance(p.current_trans, MovementByTransporter) and not isinstance(p, Transporter):
                 continue
             p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1])
-            if p.all_destinations[p.ID] == -1:  # in location move
+            if _p.all_destinations[p.ID] == -1:  # in location move
                 continue
-            if MovementEngine.is_close(p, p.all_destination_exits[p.ID], eps=p.current_trans.destination_reach_eps) and \
+            if MovementEngine.is_close(p, _p.all_destination_exits[p.ID], eps=p.current_trans.destination_reach_eps) and \
                     is_in_loc_move[p.ID] == False:
                 # destination point reached
                 p.get_current_location().all_locations[p.all_destinations[p.ID]].on_destination_reached(p)
@@ -174,6 +175,8 @@ class MovementEngine:
                 trans = moving_loc.override_transport
             else:
                 pass
+        if p.home_loc == moving_loc:
+            trans = moving_loc.override_transport
         return trans
 
     # @staticmethod
@@ -189,12 +192,12 @@ class MovementEngine:
     #     p.all_velocities[p.ID] += np.random.rand(2) * 2 - 1
     #     p.all_velocities[p.ID] = np.clip(p.all_velocities[p.ID], -v_cap, v_cap)
 
-    @staticmethod
-    def move_towards(p, xy, v_cap):
-        x_new, y_new = np.where(abs(xy - p.all_positions[p.ID]) < v_cap, xy,
-                                p.all_positions[p.ID] + np.sign(xy - p.all_positions[p.ID]) * v_cap)
-
-        p.set_position(x_new, y_new)
+    # @staticmethod
+    # def move_towards(p, xy, v_cap):
+    #     x_new, y_new = np.where(abs(xy - p.all_positions[p.ID]) < v_cap, xy,
+    #                             p.all_positions[p.ID] + np.sign(xy - p.all_positions[p.ID]) * v_cap)
+    #
+    #     p.set_position(x_new, y_new)
 
     @staticmethod
     def is_close(p, xy, eps):

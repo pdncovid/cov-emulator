@@ -6,7 +6,7 @@ from backend.python.Time import Time
 
 class CovEngine:
     base_recovery_p = 0.8
-    death_after = Time.get_duration(24*21)
+    recover_after = Time.get_duration(24 * 21)
     dead_disease_state = 5
 
     @staticmethod
@@ -27,8 +27,8 @@ class CovEngine:
                     if p.disease_state == CovEngine.dead_disease_state:
                         p.set_dead()
 
-                if t - p.infected_time > CovEngine.death_after and np.random.rand() < 0.5: # todo find this value
-                    p.set_dead()
+                if t - p.infected_time > CovEngine.recover_after and np.random.rand() < 0.5: # todo find this value
+                    p.set_recovered()
                 if p.is_dead():
                     Logger.log(f"DEAD {p.ID}", 'c')
                     cemetery[0].enter_person(p)

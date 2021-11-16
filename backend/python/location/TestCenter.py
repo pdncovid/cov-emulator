@@ -1,5 +1,6 @@
 import numpy as np
 
+from backend.python.Time import Time
 from backend.python.Visualizer import Visualizer
 from backend.python.enums import State, TestSpawn
 
@@ -7,7 +8,7 @@ from backend.python.enums import State, TestSpawn
 class TestCenter:
     asymptotic_t = -1
     test_acc = -1
-
+    testresultdelay = Time.get_duration(5)
     def __init__(self, x, y, r):
         self.x = x
         self.y = y
@@ -17,11 +18,15 @@ class TestCenter:
         self.vy = 0
 
         self.max_tests = 100
+        self.daily_tests = 0
 
     @staticmethod
     def set_parameters(asymptotic_t, test_acc):
         TestCenter.asymptotic_t = asymptotic_t
         TestCenter.test_acc = test_acc
+
+    def on_reset_day(self):
+        self.daily_tests = 0
 
     def test(self, p, t):
         rnd = np.random.rand()
@@ -34,7 +39,7 @@ class TestCenter:
         else:
             result = False  # True if rnd > args.test_acc else False
         if result:
-            p.tested_positive_time = t
+            p.tested_positive_time = t+TestCenter.testresultdelay
 
     @staticmethod
     def spawn_test_center(method, points, test_centers, h, w, r, threshold):

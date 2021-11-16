@@ -12,6 +12,7 @@ function TopBar({ location }) {
           <Nav.Link href="/home" active={pathname == "/"}>Run</Nav.Link>
           <Nav.Link href="/prob" active={pathname == "/"}>Set matrices</Nav.Link>
           <Nav.Link href="/results" active={pathname == "/"}>Results</Nav.Link>
+          <Nav.Link href="/results2" active={pathname == "/"}>Results2</Nav.Link>
         </Nav>
       </Navbar.Collapse>
     </Navbar>

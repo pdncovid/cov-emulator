@@ -6,7 +6,6 @@ import numpy as np
 import argparse
 import pandas as pd
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.GatherEvent import GatherEvent
 from backend.python.Logger import Logger
@@ -16,7 +15,7 @@ from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.TestingEngine import TestingEngine
 from backend.python.TransmissionEngine import TransmissionEngine
-from backend.python.Visualizer import Visualizer
+# from backend.python.Visualizer import Visualizer
 from backend.python.const import work_map
 from backend.python.data.save_classes import all_subclasses, save_array
 from backend.python.enums import Mobility, Shape, TestSpawn, Containment, State, ClassNameMaps
@@ -94,7 +93,7 @@ def initialize():
     bus = Bus()
     car = Car()
     tuktuk = Tuktuk()
-    main_trans = [bus]
+    main_trans = [bus, car]
 
     for person in people:
         if person.main_trans is None:
@@ -123,6 +122,8 @@ def main(initializer, args):
     n_events = 10
     process_disease_freq = 1  # Time.get_duration(2)
     process_disease_at = process_disease_freq
+    total_vaccination_days = 100
+    vaccination_start_day = 1
 
     test_name = time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime())
     os.makedirs('../../app/src/data/' + test_name)
@@ -137,6 +138,18 @@ def main(initializer, args):
     # initialize graphs and people
     people, root = initializer()
     locations = root.get_locations_according_function(lambda x: True)
+
+    # check house density
+    loc_classes = separate_into_classes(root)
+    for loc_class in loc_classes.keys():
+        if str(Home.__name__) in loc_class.__name__:
+            print(loc_class, len(loc_classes[loc_class]))
+            pph = len(people) / len(loc_classes[loc_class])
+            if pph > 4:
+                Logger.log(
+                    f'Houses are too dense with people. Increase houses or reduce population. People per house is {pph}',
+                    'c')
+                exit(-1)
 
     # save initial parameters
     loc_classes = all_subclasses(Location)
@@ -175,6 +188,17 @@ def main(initializer, args):
         gather_events.append(GatherEvent(day, start_time, duration, gathering_place,
                                          np.random.randint(int(args.n * 0.10)),
                                          get_random_element(gather_criteria)))
+    # initialize vaccination events
+    vaccinate_events = []
+    for vday in range(total_vaccination_days):
+        if vday < 30:
+            vaccinate_events.append((vday+vaccination_start_day, 60, 100))
+        elif vday < 60:
+            vaccinate_events.append((vday + vaccination_start_day, 30, 60))
+        elif vday < 90:
+            vaccinate_events.append((vday + vaccination_start_day, 20, 30))
+        else:
+            vaccinate_events.append((vday + vaccination_start_day, 12, 20))
 
     # add test centers to medical zones
     test_centers = []
@@ -188,8 +212,8 @@ def main(initializer, args):
     cemetery = classes[Cemetery]
 
     # # initialize plots
-    if plot:
-        Visualizer.initialize(root, test_centers, people, lc_map, root.radius, root.radius)
+    # if plot:
+    #     Visualizer.initialize(root, test_centers, people, lc_map, root.radius, root.radius)
 
     # initial iterations to initialize positions of the people
     for t in range(5):
@@ -249,6 +273,11 @@ def main(initializer, args):
                             selected_person.route, Target(event.loc, t + event.time + event.duration, None),
                             t + event.time, t + event.time + event.duration)
                         selected_person.set_route(new_route, t, move2first=True)
+            # vaccination
+            day = t//Time.DAY
+            for vaccinate_event in vaccinate_events:
+                if vaccinate_event[0] == day:
+                    CovEngine.vaccinate_people(vaccinate_event[1],vaccinate_event[2], people)
 
         # process movement
         MovementEngine.process_people_switching(root, t)
@@ -337,7 +366,7 @@ def main(initializer, args):
 if __name__ == "__main__":
     global args
     parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-    parser.add_argument('-n', help='target population', default=1000)
+    parser.add_argument('-n', help='target population', default=100)
     parser.add_argument('-i', help='initial infected', type=int, default=10)
 
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)

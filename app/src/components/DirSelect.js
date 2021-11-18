@@ -126,7 +126,7 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
 
         // loading grouping options
         axios.post(api + '/flask/possible_groups', { dir: _selectedLogDir }).then(response => {
-             getGroupOptionsArr(response.data.data.split("\n"))
+             getGroupOptionsArr(response.data.data)
         }).catch(err => { console.log(err) })
 
         onSelect(_selectedLogDir);

@@ -70,6 +70,8 @@ class Transporter(Person):
 
     def on_enter_home(self):
         # self.current_trans = self.home_loc.override_transport
+        if len(self.latched_people)!=0:
+            raise Exception(f"People ({len(self.latched_people)}) are latched to transporter when the transporter is going home!")
         pass
 
     # override

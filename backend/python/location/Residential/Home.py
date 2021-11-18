@@ -22,6 +22,6 @@ class Home(Building):
 
     def enter_person(self, p):
         super(Home, self).enter_person(p)
-        if p.home_loc == self:
+        if p.home_loc == self or p.home_weekend_loc == self:
             p.on_enter_home()
 

@@ -7,6 +7,9 @@ import pathlib
 import pandas as pd
 import numpy as np
 import re
+import matplotlib.pyplot as plt
+from anytree import Node, RenderTree
+from anytree.exporter import JsonExporter
 
 app = Flask(__name__, static_url_path='', static_folder='frontend/build')
 CORS(app)  # comment this on deployment
@@ -162,6 +165,9 @@ class InfectionTreeHandler(Resource):
         person_infos.sort()
         ids = []
         parents = []
+        parents_class = []
+        infected_loc = []
+        infected_loc_class = []
         infect_time = []
         for pi in person_infos:
             df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '_person_info')
@@ -172,18 +178,50 @@ class InfectionTreeHandler(Resource):
                 ids = df.index
                 parents = df['infected_source_id'].values
                 infect_time = df['infected_time'].values
+                parents_class = df['infected_source_class'].values
+                infected_loc = df['infected_loc_id'].values
+                infected_loc_class = df['infected_loc_class'].values
             else:
                 parents = np.maximum(parents, df['infected_source_id'].values)
                 infect_time = np.maximum(infect_time, df['infected_time'].values)
+                parents_class = np.maximum(parents_class, df['infected_source_class'].values)
+                infected_loc = np.maximum(infected_loc, df['infected_loc_id'].values)
+                infected_loc_class = np.maximum(infected_loc_class, df['infected_loc_class'].values)
 
-        df = pd.DataFrame({'id': ids, 'parent': parents, 'time': infect_time})
+        df = pd.DataFrame({'id': ids, 'parent': parents, 'time': infect_time, 'parents_class':parents_class,
+                           'infected_loc':infected_loc,'infected_loc_class':infected_loc_class})
         df = df.set_index('id')
         df = df.loc[df['parent'] != -1]
         df.loc[df.index == df['parent'], 'parent'] = ''
         print("Infection Tree", df)
+
+        nodes_dict = {}
+
+        parent_node = Node("ROOT")
+        for idx, i in enumerate(ids):
+            if i not in nodes_dict.keys():
+                nodes_dict[i] = Node(i, attributes={'infect_time':str(infect_time[idx]),
+                                                    'infected_loc':str(infected_loc[idx]),
+                                                    'infected_loc_class':str(infected_loc_class[idx])})
+        for idx,p in enumerate(parents):
+            if p not in nodes_dict.keys():
+                nodes_dict[p] = Node(p, attributes={'infect_time':str(infect_time[idx]),
+                                                    'infected_loc':str(infected_loc[idx]),
+                                                    'infected_loc_class':str(infected_loc_class[idx])})
+        for i, p in zip(ids,parents):
+            if i==p:
+                nodes_dict[i].parent = parent_node
+            else:
+                nodes_dict[i].parent = nodes_dict[p]
+        while parent_node.parent is not None:
+            parent_node = parent_node.parent
+        print(RenderTree(parent_node))
+        exporter = JsonExporter(indent=2, sort_keys=False)
+        json_tree = exporter.export(parent_node)
         return {
             'resultStatus': 'SUCCESS',
-            'data': df.to_csv()
+            'data': df.to_csv(),
+            'json': json_tree
         }
 
 
@@ -353,10 +391,12 @@ class LocationPeopleCountHandler(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('dir', type=str)
         parser.add_argument('day', type=str)
+        parser.add_argument('time', type=str)
         args = parser.parse_args()
         print(args)
         request_dir = args['dir']
         request_selectedDay = args['day']
+        request_time = args['time']
 
         try:
             df = Loader.getFile(request_dir, int(request_selectedDay), '')
@@ -366,16 +406,67 @@ class LocationPeopleCountHandler(Resource):
         locs = df['current_location_id'].unique()
         d = {}
         for l in locs:
-            d[l] = np.zeros(1440)
-        dfg = df.groupby("time")
-        for g in dfg.groups.keys():
-            for loc in dfg.get_group(g)['current_location_id']:
-                d[loc][g%1440] += 1
+            d[l] = np.zeros(1)
+        df['time'] = df['time']%1440
+        df = df.loc[df['time']==int(request_time)]
+        for loc in df['current_location_id']:
+            d[loc][0] += 1
         df = pd.DataFrame(d)
         df.index.name = 'id'
         # df= df.reset_index()
         print("Person count", df)
         return {'status': 'SUCCESS', 'data': df.to_csv()}
+class LocationPeopleCountSurfaceHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        parser.add_argument('day', type=str)
+        parser.add_argument('time', type=str)
+        args = parser.parse_args()
+        print(args)
+        request_dir = args['dir']
+        request_selectedDay = args['day']
+        request_time = args['time']
+
+        try:
+            df = Loader.getFile(request_dir, int(request_selectedDay), '')
+            df = df[["person", "time", "current_location_id"]]
+            df['time'] = df['time'] % 1440
+            df = df.loc[df['time'] == int(request_time)]
+
+        except Exception as e:
+            return
+
+        df_loc = Loader.getFile(request_dir, request_selectedDay, '_location_info')
+
+        xmin = int(np.floor(min(df_loc['x'] - df_loc['radius'])))
+        xmax = int(np.ceil(max(df_loc['x'] + df_loc['radius'])))
+
+        ymin = int(np.floor(min(df_loc['y'] - df_loc['radius'])))
+        ymax = int(np.ceil(max(df_loc['y'] + df_loc['radius'])))
+
+        x = np.arange(xmin, xmax, 1)
+        y = np.arange(ymin, ymax, 1)
+        d = {}
+
+        for _y in y:
+            d[int(_y)] = np.zeros(len(x))
+        for _loc in df['current_location_id']:
+            loc_x = int(np.round(df_loc.loc[_loc, 'x']))
+            loc_y = int(np.round(df_loc.loc[_loc, 'y']))
+            d[loc_y][loc_x-xmin] += 1
+
+        df = pd.DataFrame(d)
+        # plt.imshow(df.to_numpy())
+        # plt.colorbar()
+        # plt.show()
+
+        df['x'] = x
+        df['y'] = y
+        # df = df.set_index('x')
+        # df= df.reset_index()
+        print("Person count", df)
+        return {'status': 'SUCCESS', 'data': df.to_csv(index=False)}
 
 class ActualLocationHistHandler(Resource):
     def post(self):
@@ -478,4 +569,5 @@ api.add_resource(ActualLocationHistHandler, '/flask/ActualLocationHist')
 api.add_resource(RouteLocationHistHandler, '/flask/RouteLocationHist')
 api.add_resource(PeoplePathHandler, '/flask/peoplepath')
 api.add_resource(LocationPeopleCountHandler, '/flask/LocationPeopleCountHandler')
+api.add_resource(LocationPeopleCountSurfaceHandler, '/flask/LocationPeopleCountSurfaceHandler')
 api.add_resource(LocationShapes, '/flask/locationData')

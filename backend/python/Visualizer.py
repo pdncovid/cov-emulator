@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 from matplotlib.lines import Line2D
 
 from backend.python.Logger import Logger

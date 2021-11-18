@@ -73,9 +73,10 @@ class Movement(metaclass=Singleton):
             raise Exception("Can't remove latched people from this movement method to another movement method"
                             "Un-latch first, or the behaviour is unexpected!")
         from backend.python.point.Transporter import Transporter
-        if isinstance(point, Transporter):
+        from backend.python.transport.MovementByTransporter import MovementByTransporter
+        if isinstance(point, Transporter) and isinstance(point.current_trans, MovementByTransporter):
             if len(point.latched_people) != 0:
-                raise Exception("Trying to remove transporter from movement without delatching!")
+                raise Exception("Trying to remove transporter from movement without delatching it's transporting people!")
         point.all_movement_ids[point.ID] = -1
         point.all_movement_enter_times[point.ID] = -1
         point.all_sources[point.ID] = -1

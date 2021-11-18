@@ -42,7 +42,10 @@ class MovementEngine:
         for idx, p in enumerate(all_people):
             if isinstance(p.current_trans, MovementByTransporter) and not isinstance(p, Transporter):
                 continue
-            p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1])
+            if isinstance(p.current_trans, MovementByTransporter):
+                p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1])
+            else:
+                p.set_position(new_xy[p.ID, 0], new_xy[p.ID, 1], force=True)
             if _p.all_destinations[p.ID] == -1:  # in location move
                 continue
             if MovementEngine.is_close(p, _p.all_destination_exits[p.ID], eps=p.current_trans.destination_reach_eps) and \
@@ -175,7 +178,8 @@ class MovementEngine:
                 trans = moving_loc.override_transport
             else:
                 pass
-        if p.home_loc == moving_loc:
+
+        if p.home_loc == moving_loc or p.home_weekend_loc==moving_loc:
             trans = moving_loc.override_transport
         return trans
 

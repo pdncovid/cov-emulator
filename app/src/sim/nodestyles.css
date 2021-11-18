@@ -1,0 +1,24 @@
+.node__root > circle {
+    /* fill: red;
+  }
+  
+  .node__branch > circle {
+    fill: yellow;
+  }
+  
+  .node__leaf > circle {
+    fill: green;
+    /* Let's also make the radius of leaf nodes larger */
+    r: 10;
+  } */
+
+  .link__leaf  { 
+      stroke:rgb(165, 164, 164) 
+      !important;
+  }
+
+  .link__branch > { 
+    stroke:rgb(54, 53, 53) 
+    !important;
+    strokeWidth: "2px";
+  }

@@ -93,9 +93,10 @@ class TransmissionEngine:
             # if contact_person.current_loc == infected_person.current_loc else 0
             location_p = contact_person.get_current_location().infectious
             behaviour_p = contact_person.behaviour * infected_person.behaviour
+            immunity_p = (1 - contact_person.get_effective_immunity()) * (1 - infected_person.get_effective_immunity())
             trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
 
-            if rand[i] < tr_p[i] * trans_p * location_p * behaviour_p:
+            if rand[i] < tr_p[i] * trans_p * location_p * behaviour_p * immunity_p:
                 contact_person.set_infected(t, infected_person, TransmissionEngine.common_fever_p)
                 c.append(contact_person.ID)
         return c

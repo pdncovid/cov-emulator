@@ -1,11 +1,11 @@
-GarmentAdmin
-Retired
-Transporter
-CommercialZoneBusDriver
-GarmentWorker
 BusDriver
 TuktukDriver
+Transporter
+CommercialWorker
+CommercialZoneBusDriver
+GarmentWorker
 Infant
+GarmentAdmin
 SchoolBusDriver
 Student
-CommercialWorker
+Retired

@@ -72,7 +72,26 @@ export const csv2JSONarr = async (csv, onUploadProgress) => {
     }
     return column_data;
 }
+export const csv2arr = async (csv, onUploadProgress) => {
 
+    var lines = csv.split("\n");
+    // console.log("Found " + lines.length + " records.")
+
+    var headers = lines[0].split(",").map((e) => strip_text(e));
+    var arr = []
+    for (var i = 1; i < lines.length; i++) {
+
+        var currentline = lines[i].split(",").map((e) => strip_text(e));
+        if (currentline.length!=headers.length)
+            continue;
+        arr.push(currentline)
+        if (i % (Math.round(lines.length / 100)) == 0) {
+            // console.log((i +1)/ lines.length * 100);
+            // onUploadProgress((i +1)/ lines.length * 100);
+        }
+    }
+    return arr;
+}
 export const strip_text = (str) => {
     return str.trim().replace(/[\n\r\t]/g, '')
 }

@@ -1,5 +1,6 @@
 import numpy as np
 
+from backend.python.CovEngine import CovEngine
 from backend.python.Logger import Logger
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Time import Time
@@ -33,10 +34,13 @@ class Person:
         Person._id += 1
 
         self.gender = 0 if np.random.rand() < 0.5 else 1  # gender of the person
-        self.age = self.initialize_age()  # age todo add to repr
-        self.immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find and add to repr
+        self.age = self.initialize_age()
+        self.base_immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find
+        self.immunity_boost = 0
         self.character_vector = np.zeros((Person.n_characteristics,))  # characteristics of the point
         self.behaviour = 0.5  # behaviour of the point (healthy medical practices -> unhealthy)
+        self.asymptotic_chance = self.base_immunity ** 2
+        self.is_asymptotic = False
 
         Person.all_positions = np.concatenate([Person.all_positions, [[0, 0]]], 0)
         Person.all_velocities = np.concatenate([Person.all_velocities, [[0, 0]]], 0)
@@ -101,7 +105,8 @@ class Person:
         d = {'person': self.ID,
              'gender': self.gender,
              'age': self.age,
-             'immunity': self.immunity,
+             'base_immunity': self.base_immunity,
+             'immunity_boost': self.immunity_boost,
              'behaviour': self.behaviour,
              'character_vector': self.character_vector,
              'route': ' '.join(
@@ -115,7 +120,8 @@ class Person:
              'infected_time': self.infected_time,
              'infected_source_class': ClassNameMaps.pc_map[self.source.class_name] if self.source is not None else -1,
              'infected_source_id': self.source.ID if self.source is not None else -1,
-             'infected_loc_class': ClassNameMaps.lc_map[self.infected_location.class_name] if self.infected_location is not None else -1,
+             'infected_loc_class': ClassNameMaps.lc_map[
+                 self.infected_location.class_name] if self.infected_location is not None else -1,
              'infected_loc_id': self.infected_location.ID if self.infected_location is not None else -1,
              'tested_positive_time': self.tested_positive_time,
              'temp': self.temp,
@@ -159,6 +165,7 @@ class Person:
         return np.random.random((Person.n_characteristics, Person.n_characteristics))
 
     def reset_day(self, t):
+        ret = True
         from backend.python.point.Transporter import Transporter
         if self.get_current_location() != self.home_loc and self.get_current_location() != self.home_weekend_loc and \
                 not self.get_current_location().quarantined and not isinstance(self,
@@ -172,7 +179,7 @@ class Person:
 
                 , 'c')
             self.print()
-            return False
+            ret = False
 
         self.is_day_finished = False
         self.current_target_idx = 0
@@ -180,7 +187,8 @@ class Person:
         RoutePlanningEngine.set_route(self, t)
         self.adjust_leaving_time(t)
         self.character_vector = np.dot(self.get_character_transform_matrix(), self.character_vector.T)
-        return True
+        self.immunity_boost *= CovEngine.daily_immunity_boost_dec_factor
+        return ret
 
     def on_enter_location(self, loc, t):
         pass
@@ -346,6 +354,7 @@ class Person:
             self.all_positions[self.ID] = [new_x, new_y]
         else:
             start = self.all_movement_enter_times[self.ID]
+            print(self.get_description_dict())
             raise Exception(f"Tried to move {self.ID} in {self.get_current_location()} (enter at:{start})."
                             f"Going to {self.get_next_target()}")
 
@@ -378,6 +387,9 @@ class Person:
         #     return self.route[self.current_target_idx]
         return self.route[min(self.current_target_idx + 1, len(self.route) - 1)]
 
+    def get_effective_immunity(self):
+        return min(1, max(0, self.base_immunity + self.immunity_boost * (1 - self.base_immunity)))
+
     def set_infected(self, t, p, common_p):
         self.state = State.INFECTED.value
         self.infected_time = t
@@ -385,6 +397,7 @@ class Person:
         self.infected_location = p.get_current_location()
         self.update_temp(common_p)
         self.disease_state = 1
+        self.is_asymptotic = np.random.rand() < self.asymptotic_chance
 
     def set_recovered(self):
         self.state = State.RECOVERED.value

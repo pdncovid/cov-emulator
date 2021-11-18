@@ -11,9 +11,14 @@ import MenuItem from '@material-ui/core/MenuItem';
 import FormControl from '@material-ui/core/FormControl';
 import Select from '@material-ui/core/Select';
 
+import Typography from '@material-ui/core/Typography';
+import Slider from '@material-ui/core/Slider';
+
 import Button from '@material-ui/core/Button';
 import CircularProgress from '@material-ui/core/CircularProgress';
-import { ConsoleLog } from "react-console-log";
+import Tree from 'react-d3-tree';
+import './nodestyles.css'
+import { useCenteredTree } from "./centeredTrree";
 
 import randomColor from "randomcolor";
 
@@ -21,11 +26,11 @@ import DirSelect from "../components/DirSelect";
 
 import DataFrame from 'dataframe-js';
 import axios from 'axios'
-import {api} from '../utils/constants';
+import { api } from '../utils/constants';
 
 function ResultsPage() {
 
-    
+
     const [initialLoad, setInitialLoad] = useState(true);
     const [loadprogress, setLoadprogress] = useState(0);
 
@@ -67,6 +72,10 @@ function ResultsPage() {
 
     const [stateTimelineData, setStateTimelineData] = useState([]);
     const [infectionGraphData, setInfectionGraphData] = useState([]);
+    const [infectionTreeData, setInfectionTreeData] = useState({ name: 'ROOT' });
+    const [nodeX, setNodeX] = useState(30);
+    const [nodeY, setNodeY] = useState(30);
+
     const [contactHistData, setContactHistData] = useState([]);
     const [contactHistLayout, setContactHistLayout] = useState([]);
 
@@ -76,13 +85,7 @@ function ResultsPage() {
     const [personPathLayout2, setPersonPathLayout2] = useState([]);
     const [personPathFrames, setPersonPathFrames] = useState([]);
 
-
-    // const [loadedDf, setLoadedDf] = useState([]);
-    // const [loadedPersonDf, setLoadedPersonDf] = useState([]);
-    // const [loadedLocationDf, setLoadedLocationDf] = useState([]);
-
-    // const [processedDf, setProcessedDf] = useState([]);
-    // const [processedPersonDf, setProcessedPersonDf] = useState([]);
+    const [translate, containerRef] = useCenteredTree();
 
 
     useEffect(() => {
@@ -97,6 +100,7 @@ function ResultsPage() {
         processMoveHist()
 
         plotLocationTree()
+        plotInfectionTree()
     }, [selectedDay])
 
     useEffect(() => {
@@ -117,10 +121,10 @@ function ResultsPage() {
     const handleDayChange = function (_day) {
         setSelectedDay(_day);
     }
-   
+
     const handleAnalyzePeopleClick = (_selectedPeople) => {
 
-        
+
         axios.post(api + "/flask/setpeopleclasses", { dir: selectedLogDir, classes: _selectedPeople.join(',') })
             .then(function (response) {
                 //handle success
@@ -141,10 +145,10 @@ function ResultsPage() {
     }
 
 
-    const getLocsArr=(arr,_LCC) => {setLocs(arr);setLocClassColors(_LCC)}
-    const getPeopleArr=(arr) => {setPeople(arr)}
-    const getMovementArr=(arr) => {setMovement(arr)}
-    const getGroupOptionsArr=(arr) => {setGroupOptions(arr)}
+    const getLocsArr = (arr, _LCC) => { setLocs(arr); setLocClassColors(_LCC) }
+    const getPeopleArr = (arr) => { setPeople(arr) }
+    const getMovementArr = (arr) => { setMovement(arr) }
+    const getGroupOptionsArr = (arr) => { setGroupOptions(arr) }
 
     // draw covid data timeline
 
@@ -208,7 +212,7 @@ function ResultsPage() {
                     _df = _df.withColumn('time', row => row.get('time').split('|').map(e => parseInt(e)));
                     console.log(_df)
                     let gData = [];
-                    var timesteps = [...Array(1440).keys()].map((t)=>''+Math.floor((t)/60).toString().padStart(2, '0')+':'+((t)%60).toString().padStart(2, '0'))
+                    var timesteps = [...Array(1440).keys()].map((t) => '' + Math.floor((t) / 60).toString().padStart(2, '0') + ':' + ((t) % 60).toString().padStart(2, '0'))
                     _df.map((row) => {
                         try {
                             var trace1 = {
@@ -220,17 +224,17 @@ function ResultsPage() {
                                 // xbins: { size: 5, },
                             };
                             gData.push(trace1);
-                            
+
                         } catch (err) {
                             console.log(err)
                         }
 
                     })
-                    
+
                     setLocHistData(gData);
                     setLocHistLayout({
                         barmode: 'stack',
-                        bargap :0.0,
+                        bargap: 0.0,
                         title: 'Histogram of visited places during the day',
                         xaxis: {
                             title: 'Time',
@@ -275,7 +279,7 @@ function ResultsPage() {
 
     // show initialized route histogram for the given day
     async function processRouteHist() {
-        axios.post(api + "/flask/RouteLocationHist", { dir: selectedLogDir, day: selectedDay.toString()})
+        axios.post(api + "/flask/RouteLocationHist", { dir: selectedLogDir, day: selectedDay.toString() })
             .then(function (response) {
                 const data = response.data.data;
                 csv2JSONarr(data, (pr) => { }).then((json_data) => {
@@ -283,7 +287,7 @@ function ResultsPage() {
                     _df = _df.withColumn('time', row => row.get('time').split('|').map(e => parseInt(e)));
                     console.log(_df)
                     let gData = [];
-                    var timesteps = [...Array(1440).keys()].map((t)=>''+Math.floor((t)/60).toString().padStart(2, '0')+':'+((t)%60).toString().padStart(2, '0'))
+                    var timesteps = [...Array(1440).keys()].map((t) => '' + Math.floor((t) / 60).toString().padStart(2, '0') + ':' + ((t) % 60).toString().padStart(2, '0'))
                     _df.map((row) => {
                         try {
                             var trace1 = {
@@ -295,17 +299,17 @@ function ResultsPage() {
                                 // xbins: { size: 5, },
                             };
                             gData.push(trace1);
-                            
+
                         } catch (err) {
                             console.log(err)
                         }
 
                     })
-                    
+
                     setRouteHistData(gData);
                     setRouteHistLayout({
                         barmode: 'stack',
-                        bargap :0.0,
+                        bargap: 0.0,
                         title: 'Histogram of planned visits during the day',
                         xaxis: {
                             title: 'Time',
@@ -383,7 +387,7 @@ function ResultsPage() {
                     _df = _df.withColumn('time', row => row.get('time').split('|').map(e => parseInt(e)));
                     console.log(_df)
                     let gData = [];
-                    var timesteps = [...Array(1440).keys()].map((t)=>''+Math.floor((t)/60).toString().padStart(2, '0')+':'+((t)%60).toString().padStart(2, '0'))
+                    var timesteps = [...Array(1440).keys()].map((t) => '' + Math.floor((t) / 60).toString().padStart(2, '0') + ':' + ((t) % 60).toString().padStart(2, '0'))
                     _df.map((row) => {
                         try {
                             var trace1 = {
@@ -395,17 +399,17 @@ function ResultsPage() {
                                 // xbins: { size: 5, },
                             };
                             gData.push(trace1);
-                            
+
                         } catch (err) {
                             console.log(err)
                         }
 
                     })
-                    
+
                     setMoveHistData(gData);
                     setMoveHistLayout({
                         barmode: 'stack',
-                        bargap :0.0,
+                        bargap: 0.0,
                         title: 'Histogram of used movement methods during the day',
                         xaxis: {
                             title: 'Time',
@@ -597,7 +601,6 @@ function ResultsPage() {
         axios.post(api + "/flask/infectiontree", { dir: selectedLogDir })
             .then(function (response) {
                 const data = response.data.data;
-                console.log(data)
                 csv2JSONarr(data, (pr) => { }).then((json_data) => {
                     var sub_df = new DataFrame(json_data)
                     console.log(sub_df)
@@ -622,20 +625,64 @@ function ResultsPage() {
 
     }
 
+    // draw infection tree
+    const renderRectSvgNode = ({ nodeDatum, toggleNode }) => (
+        <g>
+            <circle r="10"  x="-10" onClick={toggleNode} fill="red"/>
+            <text fill="black" strokeWidth="1" x="20">
+                ID: {nodeDatum.name}
+            </text>
+            {nodeDatum.attributes?.infect_time && (
+                <text fill="black" x="20" dy="20" strokeWidth="1">
+                    t: {nodeDatum.attributes?.infect_time}
+                </text>
+            )}
+        </g>
+    );
+
+    const getDynamicPathClass = ({ source, target }, orientation) => {
+        if (!target.children) {
+          // Target node has no children -> this link leads to a leaf node.
+          console.log('hhh')
+          return 'link__leaf';
+        }
+    
+        // Style it as a link connecting two branch nodes by default.
+        return 'link__branch';
+      };
+
+    async function plotInfectionTree() {
+        // Here we're using `renderCustomNodeElement` to represent each node
+        // as an SVG `rect` instead of the default `circle`.
+
+        axios.post(api + "/flask/infectiontree", { dir: selectedLogDir })
+            .then(function (response) {
+                const data = response.data.json;
+                console.log(data)
+                const json_data = JSON.parse(data)
+                setInfectionTreeData(json_data);
+
+            })
+            .catch(function (response) {
+                console.log(response);
+            });
+
+    }
+
     // plot number of contacts grouped
     function plotNumberOfContacts() {
-      
+
 
         axios.post(api + "/flask/contacts", { dir: selectedLogDir, group_by: selectedGroup })
             .then(function (response) {
                 const data = response.data.contacts;
-                
+
                 csv2JSONarr(data, (pr) => { }).then((json_data) => {
                     var _df = new DataFrame(json_data)
-                    console.log(_df,_df.listColumns())
+                    console.log(_df, _df.listColumns())
                     let plotData = [{
                         type: 'surface',
-                        z: _df.toArray().map((e)=>e.slice(1)),
+                        z: _df.toArray().map((e) => e.slice(1)),
                         contours: {
                             z: {
                                 show: true,
@@ -649,20 +696,20 @@ function ResultsPage() {
                     setContactHistData(plotData)
                     setContactHistLayout({
                         title: 'Number of contacts for each group',
-                        scene:{ 
+                        scene: {
                             xaxis: {
                                 title: '',
-                                ticktext:_df.listColumns(),
-                                tickvals:[...Array(_df.listColumns().length).keys()]
+                                ticktext: _df.listColumns(),
+                                tickvals: [...Array(_df.listColumns().length).keys()]
                             },
                             yaxis: {
                                 title: '',
-                                ticktext:_df.listColumns(),
-                                tickvals:[...Array(_df.listColumns().length).keys()]
+                                ticktext: _df.listColumns(),
+                                tickvals: [...Array(_df.listColumns().length).keys()]
                             }
                         }
                     })
-                    
+
 
                 });
 
@@ -915,6 +962,12 @@ function ResultsPage() {
         setStagedPeople(_stagedPeople)
         setSelectedStagedPeople([])
     }
+    const handleSliderChangeNodeX = function (event, newValue) {
+        setNodeX(newValue);
+    };
+    const handleSliderChangeNodeY = function (event, newValue) {
+        setNodeY(newValue);
+    };
     return (
         <div>
             <div className="results-page">
@@ -930,38 +983,10 @@ function ResultsPage() {
                         getLocsArr={getLocsArr}
                         getPeopleArr={getPeopleArr}
                         getMovementArr={getMovementArr}
-                        getGroupOptionsArr={getGroupOptionsArr} 
+                        getGroupOptionsArr={getGroupOptionsArr}
                     />
-                    
-                    {/* <FormGroup row style={{ maxWidth: 500, padding: 30 }}>
-                        {people.map((p) => {
-                            return (
-                                <FormControlLabel
-                                    control={<Checkbox checked={peopleCheckedState[p]} onChange={handlePeopleCheckChange} name={p} key={p} />}
-                                    label={p}
-                                />
-                            )
-                        })}
-
-                        <Button variant="contained" color="primary" onClick={handleAnalyzePeopleClick}>Analyze only selected people</Button>
-                    </FormGroup> */}
                 </div>
-                {/* <FormControl variant="outlined" style={{ padding: 20, width: 200 }}>
-                    <InputLabel id="select-day">Selected Day</InputLabel>
-                    <Select
-                        labelId="select-day-label"
-                        id="select-day"
-                        value={selectedDay}
-                        onChange={handleDayChange}
-                        label="Selected Day"
-                    >
-                        {days.map((e) => {
-                            return (<MenuItem value={e} key={e}>{e}</MenuItem>);
-                        })}
-
-                    </Select>
-                </FormControl> */}
-
+                <br />
                 <div>
                     <h4>Overall information</h4>
                     <Plot
@@ -1000,7 +1025,7 @@ function ResultsPage() {
                         }}
                     />
                 </div>
-                
+                <div style={{ height: '50px' }}></div>
                 <div>
                     <h4>COVID-19 Spread Analysis</h4>
                     <Plot
@@ -1025,9 +1050,72 @@ function ResultsPage() {
                     <Plot
                         data={infectionGraphData}
                         layout={{
-                            title: 'Infection tree with time',
+                            title: 'Infection tree',
                         }}
                     />
+                    <br />
+                    <div style={{ height: '50px' }}></div>
+
+                    <Grid container spacing={10} alignItems="center" padding='30px'>
+                        <Grid item xs={12}>
+                            <Typography>Infection Tree</Typography>
+                        </Grid>
+                        <Grid container rowSpacing={10} columnSpacing={{ xs: 10, sm: 20, md: 30 }}>
+                            <Grid item xs={6}>
+                                <Typography>Node X</Typography>
+                            </Grid>
+
+                            <Grid item xs={6}>
+                                <Typography>Node Y</Typography>
+                            </Grid>
+
+                            <Grid item xs={6}>
+                                <Slider
+                                    style={{ width: '250px' }}
+                                    aria-label="Node X"
+                                    value={nodeX}
+                                    onChange={handleSliderChangeNodeX}
+                                    valueLabelDisplay="auto"
+                                    // step={1}
+                                    // marks
+                                    min={1}
+                                    max={110}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Slider
+                                    style={{ width: '250px' }}
+                                    aria-label="Node Y"
+                                    value={nodeY}
+                                    onChange={handleSliderChangeNodeY}
+                                    valueLabelDisplay="auto"
+                                    // step={1}
+                                    // marks
+                                    min={1}
+                                    max={110}
+                                />
+                            </Grid>
+                        </Grid>
+
+                        <div id="treeWrapper" style={{
+                            width: '70em', height: '50em', margin: '0 auto', padding: '15px', border: 'black 5px solid'
+                        }} ref={containerRef}>
+                            <Tree
+                                data={infectionTreeData}
+                                translate={translate}
+                                renderCustomNodeElement={renderRectSvgNode}
+                                orientation="horizontal"
+                                nodeSize={{ x: nodeX, y: nodeY }}
+                                pathClassFunc={getDynamicPathClass}
+                            />
+
+                        </div>
+
+
+                    </Grid>
+                    <br />
+                    <div style={{ height: '50px' }}></div>
+
                     <div>
                         <Plot
                             data={contactHistData}
@@ -1047,7 +1135,7 @@ function ResultsPage() {
                         <Button onClick={plotNumberOfContacts}>Plot N Contacts</Button>
                     </div>
                 </div>
-                
+
                 <div>
                     <h4>Daily mobility data analysis</h4>
                     <Plot
@@ -1148,9 +1236,6 @@ function ResultsPage() {
 
             </div>
             <br></br>
-            <div>
-                <ConsoleLog />
-            </div>
         </div>
     );
 }

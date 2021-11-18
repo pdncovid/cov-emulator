@@ -142,7 +142,7 @@ class Location:
 
             if len(possible_positions) < n:
                 print(f"Cannot make {n} locations with {radius}. Making only {len(possible_positions)} locations")
-                while len(possible_positions) != n:
+                while len(possible_positions) != n and len(failed_positions)>0:
                     possible_positions.append(failed_positions.pop())
             else:
                 possible_positions = possible_positions[:n]

@@ -1,24 +1,21 @@
-.node__root > circle {
-    /* fill: red;
-  }
-  
-  .node__branch > circle {
-    fill: yellow;
-  }
-  
-  .node__leaf > circle {
-    fill: green;
-    /* Let's also make the radius of leaf nodes larger */
-    r: 10;
-  } */
-
-  .link__leaf  { 
-      stroke:rgb(165, 164, 164) 
-      !important;
+  .linkleaf  { 
+    stroke:rgb(0, 0, 0)!important;
   }
 
-  .link__branch > { 
-    stroke:rgb(54, 53, 53) 
-    !important;
-    strokeWidth: "2px";
+  .linkbranch  { 
+    stroke:rgb(0, 0, 0)!important;
+  }
+
+  .container {
+    font-family: arial;
+    font-size: 24px;
+    margin: 25px;
+    outline: dashed 1px black;
+    /* Center child horizontally*/
+    display: flex;
+    justify-content: center;
+  }
+
+  .my-tooltip {
+    background: rgba(0, 0, 255, 0.2);
   }

@@ -21,7 +21,7 @@ class Home(Building):
         super().__init__(shape, x, y, name, **kwargs)
 
     def enter_person(self, p):
-        super(Home, self).enter_person(p)
         if p.home_loc == self or p.home_weekend_loc == self:
             p.on_enter_home()
+        super(Home, self).enter_person(p)
 

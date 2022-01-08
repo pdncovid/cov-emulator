@@ -1,6 +1,7 @@
 import numpy as np
 
 from backend.python.Logger import Logger
+from backend.python.enums import PersonFeatures
 
 
 class MovementEngine:
@@ -12,27 +13,31 @@ class MovementEngine:
 
         is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
 
+        vxy = _p.features[:, [PersonFeatures.vx.value,PersonFeatures.vy.value]]
         # new_v = 0.5*_p.all_velocities + (_p.all_velocities*0.25+1)*np.random.random((len(_p.all_velocities), 2))
-        new_v = np.expand_dims(_p.all_current_loc_vcap, -1) *(np.random.random((len(_p.all_velocities), 2))*2 - 1) # TODO
+        new_v = np.expand_dims(_p.all_current_loc_vcap, -1) *(np.random.random((len(vxy), 2))*2 - 1) # TODO
         # v might be too small
         new_v = np.sign(new_v) * np.clip(np.abs(new_v),
                                          np.expand_dims(_p.all_current_loc_vcap, -1) * MovementEngine.min_v_cap_frac,
                                          np.expand_dims(_p.all_current_loc_vcap, -1))
-        _p.all_velocities = new_v
+        vxy = new_v
 
+        xy = _p.features[:, [PersonFeatures.px.value,PersonFeatures.py.value]]
         # inside location random movement
-        new_xy = _p.all_positions + _p.all_velocities * is_in_loc_move
+        new_xy = xy + vxy * is_in_loc_move
         is_outside = np.sum((new_xy - _p.all_current_loc_positions) ** 2, 1) > _p.all_current_loc_radii ** 2
         is_outside = is_outside * is_in_loc_move[:, 0]
-        _p.all_velocities[is_outside] = -(_p.all_velocities[is_outside] + 1) / 2
-        new_xy[is_outside] = (np.random.random(_p.all_positions.shape)*(2**0.5*np.expand_dims(_p.all_current_loc_radii, -1) ) + _p.all_current_loc_positions)[is_outside]
+        vxy[is_outside] = -(vxy[is_outside] + 1) / 2
+        new_xy[is_outside] = (np.random.random(xy.shape)*(2**0.5*np.expand_dims(_p.all_current_loc_radii, -1) ) + _p.all_current_loc_positions)[is_outside]
+
+        _p.features[:, [PersonFeatures.vx.value,PersonFeatures.vy.value]] = vxy
 
         # movement to other location
         new_xy_inter_loc = np.where(
-            np.expand_dims(np.sum((_p.all_destination_exits - _p.all_positions) ** 2, 1) < _p.all_current_loc_vcap ** 2,
+            np.expand_dims(np.sum((_p.all_destination_exits - xy) ** 2, 1) < _p.all_current_loc_vcap ** 2,
                            -1),
             _p.all_destination_exits,  # if between location move reaches destination
-            _p.all_positions + np.sign(_p.all_destination_exits - _p.all_positions) * np.expand_dims(
+            xy + np.sign(_p.all_destination_exits - xy) * np.expand_dims(
                 _p.all_current_loc_vcap, -1))
 
         new_xy = np.where(is_in_loc_move, new_xy, new_xy_inter_loc)
@@ -74,11 +79,10 @@ class MovementEngine:
     def find_lcp_location(point):
         lc = point.get_current_location()
         ln = point.get_next_target().loc
-
         dc, dn = lc.depth, ln.depth
 
         while lc.parent_location != ln.parent_location:
-            if dc > dn:
+            if dc < dn:
                 dn -= 1
                 ln = ln.parent_location
             else:
@@ -172,6 +176,7 @@ class MovementEngine:
     @staticmethod
     def get_movement_method(moving_loc, p):
         trans = p.main_trans
+
         from backend.python.point.Transporter import Transporter
         if moving_loc.override_transport is not None and not isinstance(p, Transporter):
             if moving_loc.override_transport.override_level <= p.main_trans.override_level:
@@ -205,7 +210,9 @@ class MovementEngine:
 
     @staticmethod
     def is_close(p, xy, eps):
-        return (p.all_positions[p.ID][0] - xy[0]) ** 2 + (p.all_positions[p.ID][1] - xy[1]) ** 2 < eps ** 2
+        x = p.features[p.ID, PersonFeatures.px.value]
+        y = p.features[p.ID, PersonFeatures.py.value]
+        return (x - xy[0]) ** 2 + (y - xy[1]) ** 2 < eps ** 2
 
     @staticmethod
     def containment(p, args):
@@ -213,4 +220,5 @@ class MovementEngine:
             pass
         if args.containment == 1:
             if np.random.rand() < 0.90:
-                p.all_velocities[p.ID] = [0, 0]
+                p.features[p.ID, PersonFeatures.vx.value] = 0
+                p.features[p.ID, PersonFeatures.vy.value] = 0

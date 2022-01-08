@@ -1,12 +1,11 @@
-import copy
 
-from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
 import numpy as np
 import pandas as pd
-
+from random import choices
+import matplotlib.pyplot as plt
 from backend.python.enums import State, Containment
 from backend.python.functions import bs, get_idx_most_likely, get_random_element
 import os
@@ -20,6 +19,8 @@ class RoutePlanningEngine:
     df_loc_o_1 = None
     df_p = None
     df_o = None
+    df_p_1 = None
+    df_o_1 = None
 
     loaded_person = None
 
@@ -53,7 +54,7 @@ class RoutePlanningEngine:
     #             p.update_route(root, t % Time.DAY, RoutePlanningEngine.get_alternate_route(p))
 
     @staticmethod
-    def process_loc_p(day_of_week=1, containment=Containment.NONE.value):
+    def process_loc_p(day_of_week=0, containment=Containment.NONE.value):
         day_of_week = (day_of_week + RoutePlanningEngine.weekday_shift) % 7
         if RoutePlanningEngine.loaded_day_of_week == day_of_week and RoutePlanningEngine.loaded_containment == containment:
             return
@@ -116,6 +117,17 @@ class RoutePlanningEngine:
         return p1, p2
 
     @staticmethod
+    def get_loc_name(loc, p):
+        loc_name = loc.__class__.__name__
+        if loc == p.home_loc:
+            loc_name = '_home'
+        elif loc == p.home_weekend_loc:
+            loc_name = '_w_home'
+        elif loc == p.work_loc:
+            loc_name = '_work'
+        return loc_name
+
+    @staticmethod
     def set_parameters(day_of_week, containment):
         p1, p2 = RoutePlanningEngine.process_loc_p(day_of_week, containment)
         o1, o2 = RoutePlanningEngine.process_loc_o(day_of_week, containment)
@@ -124,14 +136,38 @@ class RoutePlanningEngine:
         if RoutePlanningEngine.df_loc_o_1 is None:
             RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o1).set_index('location').groupby('person')
 
-        RoutePlanningEngine.df_loc_p = RoutePlanningEngine.df_loc_p_1
+        RoutePlanningEngine.df_loc_p = pd.read_csv(p1).set_index('location').groupby('person') #RoutePlanningEngine.df_loc_p_1
         RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p2).set_index('location').groupby('person')
 
-        RoutePlanningEngine.df_loc_o = RoutePlanningEngine.df_loc_o_1
+        RoutePlanningEngine.df_loc_o = pd.read_csv(o1).set_index('location').groupby('person')#RoutePlanningEngine.df_loc_o_1
         RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o2).set_index('location').groupby('person')
 
         RoutePlanningEngine.loaded_day_of_week = day_of_week
         RoutePlanningEngine.loaded_containment = containment
+
+        # to_plot = []
+        # titles = []
+        # for key in RoutePlanningEngine.df_loc_p.groups.keys():
+        #     try:
+        #         to_plot.append(RoutePlanningEngine.df_loc_p.get_group(key).values[:, :-50].T)
+        #         titles.append(key)
+        #     except:
+        #         pass
+        # RoutePlanningEngine.plot_curves(to_plot, titles)
+
+    @staticmethod
+    def plot_curves(to_plot, titles):
+        n = len(to_plot)
+
+        fig, axs = plt.subplots(int(n**0.5), int(n**0.5)+1)
+        for i in range(len(axs)):
+            for j in range(len(axs[i])):
+                try:
+                    axs[i, j].plot(to_plot[i*len(axs[i]) + j])
+                    axs[i, j].set_title(titles[i*len(axs[i]) + j])
+                except:
+                    break
+        plt.show()
 
     @staticmethod
     def set_route(p, t):
@@ -169,8 +205,10 @@ class RoutePlanningEngine:
             if route_so_far[i].leaving_time > leave_t:
                 end_i = i
                 break
+        else:
+            end_i = len(route_so_far)
         if end_i < start_i:
-            raise Exception()
+            raise Exception(f"End={end_i} < Start={start_i}")
         if start_i == end_i:
             route_so_far.append(target)
             route_so_far.append(route_so_far[-2].__copy__())
@@ -237,38 +275,39 @@ class RoutePlanningEngine:
         return r1 + r2
 
     @staticmethod
+    def check_loaded_df(route_so_far, p, t):
+        if RoutePlanningEngine.loaded_person != p.__class__.__name__:
+            RoutePlanningEngine.loaded_person = p.__class__.__name__
+
+            RoutePlanningEngine.df_p_1 = RoutePlanningEngine.df_loc_p_1.get_group(p.__class__.__name__)
+            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_loc_o_1.get_group(p.__class__.__name__)
+            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(p.__class__.__name__)
+            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(p.__class__.__name__)
+
+    @staticmethod
     def get_loc_for_p_at_t(route_so_far, p, t):
+        RoutePlanningEngine.check_loaded_df(route_so_far, p, t)
+
         day = t // Time.DAY
-
-        if day > Time.get_time() // Time.DAY:
-            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p_1.get_group(p.__class__.__name__)
-            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o_1.get_group(p.__class__.__name__)
-
-        else:
-            if RoutePlanningEngine.loaded_person != p.__class__.__name__ or len(route_so_far) == 0:
-                RoutePlanningEngine.loaded_person = p.__class__.__name__
-                RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(p.__class__.__name__)
-                RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(p.__class__.__name__)
         t = Time.i_to_minutes(t) % 1440
         t = str(t)
-        if len(route_so_far) > 0:
-            loc_name = route_so_far[-1].loc.__class__.__name__
-            if route_so_far[-1].loc == p.home_loc:
-                loc_name = '_home'
-            elif route_so_far[-1].loc == p.home_weekend_loc:
-                loc_name = '_w_home'
-            elif route_so_far[-1].loc == p.work_loc:
-                loc_name = '_work'
+        tnow = Time.get_time()
+        if day == tnow//Time.DAY:
+            idx = get_idx_most_likely(RoutePlanningEngine.df_p[t].values, method=0, scale=0.2)
+        else:
+            idx = get_idx_most_likely(RoutePlanningEngine.df_p_1[t].values, method=0, scale=0.2)  # we dont come here because we stop the day around 11 pm
 
-            last_t = Time.i_to_minutes(route_so_far[-2].leaving_time) % 1440 if len(route_so_far) > 1 else 0
-            dt = str((int(t) - int(last_t)) % 1440)
+        # if len(route_so_far) > 0:
+        #     loc_name = RoutePlanningEngine.get_loc_name(route_so_far[-1].loc, p)
+        #
+        #     last_t = Time.i_to_minutes(route_so_far[-2].leaving_time) % 1440 if len(route_so_far) > 1 else 0
+        #     dt = str((int(t) - int(last_t)) % 1440)
+        #
+        #     p_of_staying = RoutePlanningEngine.df_o.loc[loc_name][dt]
+        #
+        #     if p_of_staying >= 1 - np.random.exponential(0.1):
+        #         return [route_so_far[-1].loc]
 
-            p_of_staying = RoutePlanningEngine.df_o.loc[loc_name][dt]
-
-            if p_of_staying >= 1 - np.random.exponential(0.1):
-                return [route_so_far[-1].loc]
-
-        idx = get_idx_most_likely(RoutePlanningEngine.df_p[t].values, method=0, scale=0.2)
         if idx == -1:
             return [p.home_loc]
         location = RoutePlanningEngine.df_p.index[idx]
@@ -285,11 +324,18 @@ class RoutePlanningEngine:
         return [location]
 
     @staticmethod
-    def get_dur_for_p_in_loc_at_t(p, loc, t):
+    def get_dur_for_p_in_loc_at_t(route_so_far, p, loc, t):
         from backend.python.point.Transporter import Transporter
         if isinstance(p, Transporter):
             return Time.get_duration(0.1)
-        return RoutePlanningEngine._route_process_delta
+
+        RoutePlanningEngine.check_loaded_df(route_so_far, p, t)
+        loc_name = RoutePlanningEngine.get_loc_name(loc, p)
+        weights = RoutePlanningEngine.df_o.loc[loc_name].values[:-1].astype('float')
+        values = np.arange(1440)
+        dt = Time.get_duration(choices(values, weights)[0]/120)
+        dt = min(dt,Time.get_duration(1))
+        return dt
 
     @staticmethod
     def convert_route_to_occupancy_array(route, loc_map, dt):

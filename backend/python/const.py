@@ -8,6 +8,7 @@ from backend.python.location.Commercial.CommercialCanteen import CommercialCante
 from backend.python.location.Commercial.CommercialWorkArea import CommercialWorkArea
 from backend.python.location.Commercial.CommercialZone import CommercialZone
 from backend.python.location.Districts.DenseDistrict import DenseDistrict
+from backend.python.location.Districts.SparseDistrict import SparseDistrict
 from backend.python.location.Education.Classroom import Classroom
 from backend.python.location.Education.EducationZone import EducationZone
 from backend.python.location.Education.School import School
@@ -37,10 +38,12 @@ from backend.python.point.Infant import Infant
 from backend.python.point.Retired import Retired
 from backend.python.point.SchoolBusDriver import SchoolBusDriver
 from backend.python.point.Student import Student
+from backend.python.point.Teacher import Teacher
 from backend.python.point.TuktukDriver import TuktukDriver
 
 default_infectiousness = {
     DenseDistrict: 0.8,
+    SparseDistrict: 0.8,
 
     UrbanBlock: 0.8,
     RuralBlock: 0.6,
@@ -81,6 +84,7 @@ work_map = {
     GarmentWorker: 'GarmentWorkArea',
     GarmentAdmin: 'GarmentOffice',
     Student: 'Classroom',
+    Teacher: 'Classroom',
     BusDriver: 'BusStation',
     TuktukDriver: 'TukTukStation',
     CommercialZoneBusDriver: 'CommercialBuilding',

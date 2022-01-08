@@ -3,6 +3,7 @@ import axios from 'axios'
 import { api } from '../utils/constants';
 import { strip_text } from "../utils/files";
 
+import Grid from '@material-ui/core/Grid';
 import FormHelperText from '@material-ui/core/FormHelperText';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
@@ -23,7 +24,7 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
 
     const [days, setDays] = useState([]);
     const [selectedDay, setSelectedDay] = useState('');
-    
+
     const [people, setPeople] = useState([]);
 
     const [selectedPeople, setSelectedPeople] = useState([]);
@@ -41,7 +42,7 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
         setPeopleCheckedState({ ...peopleCheckedState, [event.target.name]: event.target.checked });
     };
 
-    const handleAnalyzePeopleClick = (e) =>{
+    const handleAnalyzePeopleClick = (e) => {
         let _selectedPeople = [];
         people.forEach(element => {
             if (peopleCheckedState[element]) {
@@ -52,7 +53,7 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
         onAnalyzePeople(_selectedPeople);
     }
 
-    const handleDayChange =(event) =>{
+    const handleDayChange = (event) => {
         setSelectedDay(event.target.value);
         onDayChange(event.target.value);
     }
@@ -63,10 +64,9 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
 
         // loading number of days
         axios.post(api + '/flask/n_days', { dir: _selectedLogDir }).then(response => {
-            let _days = response.data.message.split(',')
-            setDays(_days)
-        }).catch(error => {
-            console.log(error)
+            let _days = response.data.message
+
+            setDays([...Array(parseInt(_days)).keys()])
         })
 
         // Loading Locations
@@ -75,21 +75,9 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
                 //handle success
                 const data = response.data.data;
                 var locs_str = data.split("\n");
-
-                let _LCC = {};
-                var r = () => Math.random() * 256 >> 0;
-                locs_str.forEach((i, e) => {
-                    var _rc = `rgba(${r()}, ${r()}, ${r()}, 0.3)`;
-                    _LCC[i] = _rc;
-                    _LCC[e] = _rc;
-                })
-
-                getLocsArr(locs_str, _LCC);
-                console.log(locs_str, _LCC);
+                getLocsArr(locs_str);
+                console.log(locs_str);
             })
-            .catch(function (response) {
-                console.log(response);
-            });
 
         // Loading People
         axios.post(api + "/flask/textfile", { dir: _selectedLogDir, filename: 'people.txt' })
@@ -105,9 +93,6 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
                 getPeopleArr(people_str);
                 console.log(people_str);
             })
-            .catch(function (response) {
-                console.log(response);
-            });
 
         // Loading Movement
         axios.post(api + "/flask/textfile", { dir: _selectedLogDir, filename: 'movement.txt' })
@@ -119,52 +104,36 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
                 getMovementArr(movement_str);
                 console.log(movement_str);
             })
-            .catch(function (response) {
-                //handle error
-                console.log(response);
-            });
 
         // loading grouping options
         axios.post(api + '/flask/possible_groups', { dir: _selectedLogDir }).then(response => {
-             getGroupOptionsArr(response.data.data)
-        }).catch(err => { console.log(err) })
+            getGroupOptionsArr(response.data.data)
+        })
 
         onSelect(_selectedLogDir);
     }
 
     return (
         <React.Fragment>
-            <FormControl variant="outlined" style={{ padding: 20, width: 200 }}>
-                <InputLabel id="select-day">Selected Log</InputLabel>
-                <Select
-                    labelId="select-log-label"
-                    id="select-log"
-                    value={selectedLogDir}
-                    onChange={onDirChange}
-                    label="Selected Log"
-                >
-                    {dirs.map((e) => {
-                        return (<MenuItem value={e} key={e}>{e}</MenuItem>);
-                    })}
+            <Grid container spacing={0} padding='30px'>
+                <FormControl variant="outlined" style={{ padding: 20, width: 200 }}>
+                    <InputLabel id="select-day">Selected Log</InputLabel>
+                    <Select
+                        labelId="select-log-label"
+                        id="select-log"
+                        value={selectedLogDir}
+                        onChange={onDirChange}
+                        label="Selected Log"
+                    >
+                        {dirs.map((e) => {
+                            return (<MenuItem value={e} key={e}>{e}</MenuItem>);
+                        })}
 
-                </Select>
-                <Button onClick={refreshDirs}>Refresh</Button>
-            </FormControl>
+                    </Select>
+                    <Button onClick={refreshDirs}>Refresh</Button>
+                </FormControl>
 
-            <FormGroup row style={{ maxWidth: 500, padding: 30 }}>
-                {people.map((p) => {
-                    return (
-                        <FormControlLabel
-                            control={<Checkbox checked={peopleCheckedState[p]} onChange={handlePeopleCheckChange} name={p} key={p} />}
-                            label={p}
-                        />
-                    )
-                })}
-
-                <Button variant="contained" color="primary" onClick={handleAnalyzePeopleClick}>Analyze only selected people</Button>
-            </FormGroup>
-
-            <FormControl variant="outlined" style={{ padding: 20, width: 200 }}>
+                <FormControl variant="outlined" style={{ padding: 20, width: 200 }}>
                     <InputLabel id="select-day">Selected Day</InputLabel>
                     <Select
                         labelId="select-day-label"
@@ -179,6 +148,28 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
 
                     </Select>
                 </FormControl>
+
+                <FormGroup row style={{ maxWidth: 1000, padding: 30 }}>
+                {people.map((p) => {
+                    return (
+                        <FormControlLabel
+                            control={<Checkbox checked={peopleCheckedState[p]} onChange={handlePeopleCheckChange} name={p} key={p} />}
+                            label={p}
+                        />
+                    )
+                })}
+
+                <Button  onClick={handleAnalyzePeopleClick}>Analyze only selected people</Button>
+            </FormGroup>
+            </Grid>
+
+
+            
+
+
+
+            <br />
+            <hr class="rounded" />
         </React.Fragment>
     );
 };

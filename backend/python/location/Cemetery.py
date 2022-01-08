@@ -11,7 +11,7 @@ class Cemetery(Location):
                  **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
         self.set_quarantined(False, 0)
-        self.override_transport = Walk(0.1)
+        self.override_transport = Walk()
 
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = False

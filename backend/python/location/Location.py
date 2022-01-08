@@ -16,14 +16,60 @@ class Location:
     DEBUG = False
     all_locations = []
     _id = 0
+    # features = np.zeros((0, len(LocationFeatures)+1))
 
     def __init__(self, shape, x, y, name, **kwargs):
         from backend.python.const import default_infectiousness
         self.class_name = self.__class__.__name__
         self.ID = Location._id
         Location._id += 1
-        self.x = x
-        self.y = y
+        # tmp_feature_arr = np.zeros(len(LocationFeatures) + 1)
+        # tmp_feature_arr[LocationFeatures.id.value] = self.ID
+        # tmp_feature_arr[LocationFeatures.px.value] = x
+        # tmp_feature_arr[LocationFeatures.py.value] = y
+        # tmp_feature_arr[LocationFeatures.shape.value] = shape
+        # tmp_feature_arr[LocationFeatures.depth.value] = 0
+        # tmp_feature_arr[LocationFeatures.capacity.value] = kwargs.get('capacity')
+        # tmp_feature_arr[LocationFeatures.infectious.value] = default_infectiousness[self.__class__] if kwargs.get(
+        #     'infectiousness') is None else kwargs.get('infectiousness')
+        # tmp_feature_arr[LocationFeatures.social_distance.value] = 0.0
+        # tmp_feature_arr[LocationFeatures.hygiene_boost.value] = 0  # TODO
+        # tmp_feature_arr[LocationFeatures.recovery_p.value] = 0.1  # TODO
+        # tmp_feature_arr[LocationFeatures.quarantined.value] = kwargs.get('quarantined', 0)
+        # tmp_feature_arr[LocationFeatures.quarantined_time.value] = -1
+        # tmp_feature_arr[LocationFeatures.parent_id.value] = -1
+        # tmp_feature_arr[LocationFeatures.om.value] = -1
+
+        exitdist = kwargs.get('exitdist', 0.9)
+        if shape == Shape.CIRCLE.value:
+            exittheta = kwargs.get('exittheta', 0.0)
+            self.radius = kwargs.get('r')
+            # tmp_feature_arr[LocationFeatures.radius.value] = kwargs.get('r')
+            if self.radius is None:
+                raise Exception("Please provide radius")
+            self.ex = x + np.cos(exittheta) * kwargs.get('r') * exitdist
+            self.ey = y + np.sin(exittheta) * kwargs.get('r') * exitdist
+            # tmp_feature_arr[LocationFeatures.ex.value] = x + np.cos(exittheta) * kwargs.get('r') * exitdist
+            # tmp_feature_arr[LocationFeatures.ey.value] = y + np.sin(exittheta) * kwargs.get('r') * exitdist
+        elif shape == Shape.POLYGON.value:
+            self.boundary = kwargs.get('b')
+            if self.boundary is None:
+                raise Exception("Please provide boundary")
+            # TODO add exit point here
+            # tmp_feature_arr[LocationFeatures.px.value] = np.average(self.boundary[:, 0])
+            # tmp_feature_arr[LocationFeatures.px.value] = np.average(self.boundary[:, 1])
+            # tmp_feature_arr[LocationFeatures.ex.value] = tmp_feature_arr[LocationFeatures.px.value] * (1 - exitdist) + \
+            #                                              self.boundary[0][0] * exitdist
+            # tmp_feature_arr[LocationFeatures.ey.value] = tmp_feature_arr[LocationFeatures.py.value] * (1 - exitdist) + \
+            #                                              self.boundary[0][1] * exitdist
+            self.px = np.average(self.boundary[:, 0])
+            self.py = np.average(self.boundary[:, 1])
+            self.ex = self.px * (1 - exitdist) + self.boundary[0][0] * exitdist
+            self.ey = self.py * (1 - exitdist) + self.boundary[0][1] * exitdist
+
+        # Location.features = np.append(Location.features, np.expand_dims(tmp_feature_arr, 0), axis=0)
+        self.px = x
+        self.py = y
         self.shape = shape
         self.depth = 0
         self.capacity = kwargs.get('capacity')
@@ -32,31 +78,12 @@ class Location:
         self.infectious = default_infectiousness[self.__class__] if kwargs.get(
             'infectiousness') is None else kwargs.get('infectiousness')
         self.social_distance = 0.0
-        self.hygiene_boost = 0  # TODO
+        self.hygiene_boost = 0
 
         self.quarantined = kwargs.get('quarantined', False)
         self.quarantined_time = -1
 
         self.boundary = []  # list of polygon points of the boundary [(x1,y1),(x2,y2), ...]
-        self.radius = 0  # radius if shape is circle
-
-        exitdist = kwargs.get('exitdist', 0.9)
-        if shape == Shape.CIRCLE.value:
-            exittheta = kwargs.get('exittheta', 0.0)
-            self.radius = kwargs.get('r')
-            if self.radius is None:
-                raise Exception("Please provide radius")
-            self.exit = (x + np.cos(exittheta) * self.radius * exitdist, y + np.sin(exittheta) * self.radius * exitdist)
-        elif shape == Shape.POLYGON.value:
-            self.boundary = kwargs.get('b')
-            if self.boundary is None:
-                raise Exception("Please provide boundary")
-            # TODO add exit point here
-            self.x = np.average(self.boundary[:, 0])
-            self.y = np.average(self.boundary[:, 1])
-            self.exit = (self.x * (1 - exitdist) + self.boundary[0, 0] * exitdist,
-                         self.y * (1 - exitdist) + self.boundary[0, 1] * exitdist)
-
         self.points = []
         self.is_visiting = []
 
@@ -73,10 +100,17 @@ class Location:
     def __str__(self):
         return self.name
 
+    # def get_feature(self, feature):
+    #     return self.features[self.ID, LocationFeatures[feature].value]
+
+    @staticmethod
+    def get_location(_id):
+        return Location.all_locations[int(_id)]
+
     def get_description_dict(self):
         d = {
             'class': ClassNameMaps.lc_map[self.class_name],
-            'id': self.ID, 'x': self.x, 'y': self.y,
+            'id': self.ID, 'x': self.px, 'y': self.py,
             'depth': self.depth, 'capacity': self.capacity,
             'override_transport': ClassNameMaps.mc_map[
                 self.override_transport.class_name] if self.override_transport is not None else -1,
@@ -86,15 +120,13 @@ class Location:
 
             'children_ids': ' '.join([str(ch.ID) for ch in self.locations]),
             'quarantined_time': self.quarantined_time,
-            'exit': ' '.join([str(e) for e in self.exit]),
+            'exit': ' '.join([str(e) for e in [self.ex,self.ey]]),
             'name': self.name,
         }
 
         if self.shape == Shape.CIRCLE.value:
-            d['shape'] = 0
             d['radius'] = self.radius
         elif self.shape == Shape.POLYGON.value:
-            d['shape'] = 1
             d['boundary'] = self.boundary.__str__().replace(',', '|').replace(' ', '')
 
         return d
@@ -117,8 +149,8 @@ class Location:
         if self.shape == Shape.CIRCLE.value:
             possible_positions = []
             failed_positions = []
-            x = self.x
-            y = self.y
+            x = self.px
+            y = self.py
             r1 = self.radius
             r2 = radius
             _r = 0
@@ -142,7 +174,7 @@ class Location:
 
             if len(possible_positions) < n:
                 print(f"Cannot make {n} locations with {radius}. Making only {len(possible_positions)} locations")
-                while len(possible_positions) != n and len(failed_positions)>0:
+                while len(possible_positions) != n and len(failed_positions) > 0:
                     possible_positions.append(failed_positions.pop())
             else:
                 possible_positions = possible_positions[:n]
@@ -182,14 +214,14 @@ class Location:
 
     def get_suggested_sub_route(self, point, route_so_far) -> list:
         t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else Time.get_time()
-        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(point, self, t)
+        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(route_so_far, point, self, t)
         travel_time = MovementEngine.get_time_to_move(route_so_far[-1].loc, self, point) if len(route_so_far) > 0 else 0
         _r = [Target(self, t + dur + travel_time, None)]
         route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
         return route_so_far
 
     def get_distance_to(self, loc):
-        return ((self.x - loc.x) ** 2 + (self.y - loc.y) ** 2) ** 0.5
+        return ((self.px - loc.px) ** 2 + (self.py - loc.py) ** 2) ** 0.5
 
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = quarantined
@@ -206,12 +238,15 @@ class Location:
             f(self)
 
     def add_sub_location(self, location):
+        # Location.features[location.ID, LocationFeatures.parent_id.value] = self.ID
         location.parent_location = self
+        # Location.features[location.ID, LocationFeatures.depth.value] = Location.features[self.ID, LocationFeatures.depth.value] + 1
         location.depth = self.depth + 1
         self.locations.append(location)
 
         def f(ll):
             for ch in ll.locations:
+                # Location.features[ch.ID, LocationFeatures.depth.value] = Location.features[ll.ID, LocationFeatures.depth.value] + 1
                 ch.depth = ll.depth + 1
                 f(ch)
 
@@ -230,9 +265,10 @@ class Location:
                     continue
                 if p.is_day_finished and p.get_current_location() == p.route[0].loc:
                     continue
-                if p.all_destinations[p.ID] != -1:
-                    # waiting too long in this place!!!
-                    if t - p.current_loc_leave > wait_lvl1 and t - p.current_loc_enter > wait_lvl1:
+                # waiting too long in this place!!!
+                if t - p.current_loc_leave > wait_lvl1 and t - p.current_loc_enter > wait_lvl1:
+                    from backend.python.transport.Walk import Walk
+                    if not isinstance(p.current_trans, Walk):
                         Logger.log(
                             f"OT {p} @ {p.get_current_location().name} -> {MovementEngine.find_next_location(p)} [{p.get_next_target()}] "
                             f"({p.current_target_idx}/{len(p.route)}) "
@@ -241,11 +277,16 @@ class Location:
                             f"ADD TO Walk"
                             , 'c'
                         )
-                        from backend.python.transport.Walk import Walk
                         walk = get_random_element(Walk.all_instances)
                         walk.add_point_to_transport(p)
-                    elif t - p.current_loc_leave > wait_lvl0 and t - p.current_loc_enter > wait_lvl0:
-                        # todo change current transportation system to tuk tuk or taxi
+
+                        next_location = MovementEngine.find_next_location(p)
+                        p.set_point_destination(next_location)
+                    continue
+                if t - p.current_loc_leave > wait_lvl0 and t - p.current_loc_enter > wait_lvl0:
+                    # todo change current transportation system to tuk tuk or taxi
+                    from backend.python.transport.Tuktuk import Tuktuk
+                    if not isinstance(p.current_trans, Tuktuk):
                         Logger.log(
                             f"OT {p} @ {p.get_current_location().name} -> ({p.get_next_target()}) "
                             f"({p.current_target_idx}/{len(p.route)}) "
@@ -254,9 +295,11 @@ class Location:
                             f"ADD TO Tuktuk"
                             , 'c'
                         )
-                        from backend.python.transport.Tuktuk import Tuktuk
                         tuktuk = get_random_element(Tuktuk.all_instances)
                         tuktuk.add_point_to_transport(p)
+
+                        # next_location = MovementEngine.find_next_location(p)
+                        # p.set_point_destination(next_location)
                     continue
 
                 self.leave_this_location(p)
@@ -292,7 +335,11 @@ class Location:
             if not can_go_out_movement:
                 MovementEngine.set_movement_method(transporting_location, p)
                 # p.set_point_destination(next_location)
-            Logger.log(f"# {p} cannot leave {self}", 'c')
+                Logger.log(f"# {p} cannot leave {self} and goto {p.get_next_target()} (No transport) "
+                           f"Route:{p.current_target_idx}/{len(p.route)} (destination:{p.all_destinations[p.ID]})", 'd')
+            if not can_go_out_containment:
+                Logger.log(f"# {p} cannot leave {self} and goto {p.get_next_target()} (Contained) "
+                           f"Route:{p.current_target_idx}/{len(p.route)}", 'd')
 
     def can_enter(self, p):
         from backend.python.transport.MovementByTransporter import MovementByTransporter
@@ -337,7 +384,7 @@ class Location:
             is_visiting = False
             if p.current_target_idx == len(p.route) - 1 and p.route[-1].loc == self and p.is_day_finished == False:
                 p.is_day_finished = True
-                Logger.log(f"{self.ID} finished daily route!", 'c')
+                Logger.log(f"{self.ID} finished daily route!", 'd')
             else:
                 p.increment_target_location()
             current_loc_leave = self.get_leaving_time(p, t)  # new leaving time after incrementing target
@@ -403,13 +450,13 @@ class Location:
         # if self.shape == Shape.POLYGON.value:
         #     return is_inside_polygon(self.boundary, (x, y))
         # if self.shape == Shape.CIRCLE.value:
-        return (x - self.x) ** 2 + (y - self.y) ** 2 <= self.radius ** 2
+        return (x - self.px) ** 2 + (y - self.py) ** 2 <= self.radius ** 2
 
     def is_intersecting(self, x, y, r, eps=0):
         _is = False
         for l in self.locations:
             if l.shape == Shape.CIRCLE.value:
-                if (l.x - x) ** 2 + (l.y - y) ** 2 < r ** 2 + l.radius ** 2 - eps ** 2:
+                if (l.px - x) ** 2 + (l.py - y) ** 2 < r ** 2 + l.radius ** 2 - eps ** 2:
                     _is = True
                     break
             # todo other shapes

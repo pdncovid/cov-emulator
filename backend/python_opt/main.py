@@ -1,8 +1,9 @@
 import numpy
 
 
-np = 10
-nl = 3
+np = 100
+nl = 30
+npf = 10
+nlf = 10
 
-
-p = numpy.zeros((np, 10))
+p = numpy.zeros((np, npf))

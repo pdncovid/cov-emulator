@@ -11,7 +11,6 @@ class Walk(Movement):
         velocity_cap = 2*1000/Time.get_duration(1)
         super().__init__(velocity_cap, mobility_pattern)
         self.destination_reach_eps = 1.0
-        self.infectiousness = 1.0
         self.override_level = 0
         Walk.all_instances.append(self)
 

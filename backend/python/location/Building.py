@@ -9,4 +9,4 @@ class Building(Location):
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
-        self.override_transport = Walk(Mobility.RANDOM.value)
+        self.override_transport = Walk()

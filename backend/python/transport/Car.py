@@ -12,7 +12,6 @@ class Car(Movement):
         self._vehicle_waiting_time_after_initialization = 1
 
         self.destination_reach_eps = 2.0
-        self.infectiousness = 0.0
 
         self.override_level = 2
 

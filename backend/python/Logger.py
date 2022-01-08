@@ -1,4 +1,12 @@
 import logging
+import os
+import time
+
+import pandas as pd
+import psutil
+
+from backend.python.Time import Time
+from backend.python.enums import State, PersonFeatures
 
 
 class MyFileHandler(logging.FileHandler):
@@ -21,10 +29,18 @@ class Logger:
     _logger = None
     write_level = None
     write_level_ = None
+    # DAILY REPORT
+    df_detailed_person = pd.DataFrame(columns=[])
+    df_detailed_covid = pd.DataFrame(columns=[])
+    df_detailed_resource_usage = pd.DataFrame(columns=[])
+    df_resource_usage = pd.DataFrame(columns=[])
+    cpu_time_stamp = -1
 
     def __init__(self, logpath, filename, print=True, write=False):
         if Logger._logger is None:
             logging.getLogger('matplotlib.font_manager').disabled = True
+
+            Logger.cpu_time_stamp = time.time()
 
             Logger.write_level = 'i'
             Logger.write_level_ = logging.INFO
@@ -83,6 +99,75 @@ class Logger:
         for p in people:
             Logger.log_person(p)
 
+    @staticmethod
+    def save_log_files(test_name, t, people, locations):
+        _base = f"../../app/src/data/{test_name}/"
+        pd.DataFrame.to_csv(pd.DataFrame([p.get_description_dict() for p in people]),
+                            _base+f"{int(t // Time.DAY) - 1:05d}_person_info.csv", index=False)
+        pd.DataFrame.to_csv(pd.DataFrame([l.get_description_dict() for l in locations]),
+                            _base+f"{int(t // Time.DAY) - 1:05d}_location_info.csv", index=False)
+        pd.DataFrame.to_csv(Logger.df_detailed_person,
+                            _base+f"{int(t // Time.DAY) - 1:05d}.csv", index=False)
+        pd.DataFrame.to_csv(Logger.df_detailed_covid,
+                            _base+f"{int(t // Time.DAY) - 1:05d}_cov_info.csv", index=False)
+        pd.DataFrame.to_csv(Logger.df_detailed_resource_usage,
+                            _base+f"{int(t // Time.DAY) - 1:05d}_resource_info.csv", index=False)
+        Logger.df_detailed_person = pd.DataFrame(columns=[])
+        Logger.df_detailed_covid = pd.DataFrame(columns=[])
+        Logger.df_detailed_resource_usage = pd.DataFrame(columns=[])
+
+        Logger.df_resource_usage = Logger.df_resource_usage.append(pd.DataFrame([{'day': t // Time.DAY,
+                                                                    'cpu_time': (time.time() - Logger.cpu_time_stamp),
+                                                                    'mem': psutil.Process(
+                                                                        os.getpid()).memory_info().rss}]))
+
+        pd.DataFrame.to_csv(Logger.df_resource_usage, _base+f"resource_info.csv", index=False)
+
+        Logger.cpu_time_stamp = time.time()
+
+    @staticmethod
+    def update_resource_usage_log():
+        mins = Time.i_to_minutes(Time.get_time())
+        Logger.df_detailed_resource_usage = Logger.df_detailed_resource_usage.append(pd.DataFrame([{
+            'time': mins,
+            'cpu_time': time.time() - Logger.cpu_time_stamp,
+            'mem': psutil.Process(os.getpid()).memory_info().rss
+        }]))
+
+    @staticmethod
+    def update_covid_log(people):
+        from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
+        from backend.python.CovEngine import CovEngine
+        mins = Time.i_to_minutes(Time.get_time())
+        covid_stats = {State(i.value).name: 0 for i in State}
+        covid_stats['time'] = mins
+        covid_stats['CUM_TESTED_POSITIVE'] = 0
+        covid_stats['IN_QUARANTINE_CENTER'] = 0
+        covid_stats['IN_QUARANTINE'] = 0
+        covid_stats['VACCINATED_1'] = 0
+        covid_stats['VACCINATED_2'] = 0
+        for p in people:
+            covid_stats[State(p.state).name] += 1
+            covid_stats['CUM_TESTED_POSITIVE'] += 1 if p.is_tested_positive() else 0
+            covid_stats['IN_QUARANTINE_CENTER'] += 1 if isinstance(p.get_current_location(),
+                                                                   COVIDQuarantineZone) else 0
+            covid_stats['IN_QUARANTINE'] += p.get_current_location().quarantined
+            covid_stats['VACCINATED_1'] += 1 if p.features[p.ID, PersonFeatures.immunity_boost.value] > 0 else 0
+            covid_stats['VACCINATED_2'] += 1 if p.features[p.ID, PersonFeatures.immunity_boost.value] > CovEngine.immunity_boost_inc else 0
+        covid_stats["CUM_CASES"] = covid_stats[State.INFECTED.name] + covid_stats[State.DEAD.name] + \
+                                   covid_stats[State.RECOVERED.name]
+        Logger.df_detailed_covid = Logger.df_detailed_covid.append(pd.DataFrame([covid_stats]))
+    @staticmethod
+    def update_person_log(people, n_con, contacts):
+        mins = Time.i_to_minutes(Time.get_time())
+        person_details_list = []
+        for p in people:
+            cur = p.get_current_location()
+            fine_details_p = p.get_fine_description_dict(mins)
+            fine_details_p['n_contacts'] = n_con[p.ID]
+            fine_details_p['contacts'] = ' '.join(map(str, contacts[p.ID]))  # directed edges from infected to sus
+            person_details_list.append(fine_details_p)
+        Logger.df_detailed_person = Logger.df_detailed_person.append(pd.DataFrame(person_details_list))
     @staticmethod
     def close():
         # Shut down the logger

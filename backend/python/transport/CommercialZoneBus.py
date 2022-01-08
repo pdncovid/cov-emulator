@@ -11,7 +11,6 @@ class CommercialZoneBus(MovementByTransporter):
         super().__init__(velocity_cap, mobility_pattern)
 
         self.destination_reach_eps = 10.0
-        self.infectiousness = 1.0
         self.override_level = 4
         CommercialZoneBus.all_instances.append(self)
 

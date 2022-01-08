@@ -2,11 +2,14 @@ import numpy as np
 
 from backend.python.Logger import Logger
 from backend.python.Time import Time
+from backend.python.enums import PersonFeatures
 
 
 class CovEngine:
     base_recovery_p = 0.8
     recover_after = Time.get_duration(24 * 21)
+    die_after = Time.get_duration(24 * 14)
+
     dead_disease_state = 5
     daily_vaccinations = 10000
     immunity_boost_inc = 0.5
@@ -33,7 +36,7 @@ class CovEngine:
     def process_recovery(points, t):
         for i, p in enumerate(points):
             if p.is_infected():
-                if p.is_asymptotic:
+                if p.features[p.ID, PersonFeatures.is_asymptotic.value]:
                     if np.random.rand() < CovEngine.get_recovery_p(p, t):
                         p.set_recovered()
                 else:
@@ -46,7 +49,7 @@ class CovEngine:
     def process_death(points, t, cemetery):
         for i, p in enumerate(points):
             if p.is_infected():
-                if p.is_asymptotic:
+                if p.features[p.ID, PersonFeatures.is_asymptotic.value]:
                     if np.random.rand() < CovEngine.get_worsen_p(p, t):
                         p.set_dead()
                 else:
@@ -65,27 +68,37 @@ class CovEngine:
     def get_recovery_p(p, t):
         # 0 - 1
         def duration_f(dt):
-            return ((np.tanh((dt - Time.get_duration(24 * 14)) / Time.get_duration(24 * 14)) + 0.2) *
-                    (np.tanh(
-                        (-dt + Time.get_duration(24 * 20)) / Time.get_duration(24 * 20)) + 0.5) + 1.19987) / 2.6683940
+            mu = 15
+            sig = 5
+            x = dt / 60 / 24
+            return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
             # return np.exp(-abs(np.random.normal(7, 2, len(dt)) - dt))
 
         lp = p.get_current_location().recovery_p
         tp = duration_f(t - p.infected_time)
+        if t - p.infected_time < CovEngine.recover_after and p.disease_state == 0:
+            # too early to recover
+            return 0
         return CovEngine.base_recovery_p * tp * lp * p.get_effective_immunity()
 
     @staticmethod
     def get_worsen_p(p, t):
         # 0 - 1
         def duration_f(dt):
-            return ((np.tanh((dt - Time.get_duration(24 * 14)) / Time.get_duration(24 * 14)) + 0.2) *
-                    (np.tanh(
-                        (-dt + Time.get_duration(24 * 20)) / Time.get_duration(24 * 20)) + 0.5) + 1.19987) / 2.6683940
+            mu = 20
+            sig = 10
+            x = dt/60/24
+            return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
             # return np.exp(-abs(np.random.normal(7, 2, len(dt)) - dt))
-
+        def age_f(a):
+            return (np.tanh((a - 60) / 20) + 1) / 2
         lp = p.get_current_location().recovery_p
         tp = duration_f(t - p.infected_time)
-        return (1 - CovEngine.base_recovery_p) * tp * (1 - lp) * (1 - p.get_effective_immunity()) * 0.1
+        ageP = age_f(p.features[p.ID, PersonFeatures.age.value])
+        if t - p.infected_time < CovEngine.die_after and p.disease_state == CovEngine.dead_disease_state-1:
+            # too early to die
+            return 0
+        return (1 - CovEngine.base_recovery_p) * tp * ageP * (1 - lp) * (1 - p.get_effective_immunity()) * 0.1
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ class TukTukStation(Building):
         t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else Time.get_time()
 
         # goto tuktuk station for a little while
-        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(point, self, t)
+        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(route_so_far, point, self, t)
         _r = [Target(self, t + dur, None)]
         route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
 
@@ -29,7 +29,7 @@ class TukTukStation(Building):
         route_so_far = point.get_random_route_through(route_so_far, pass_through_objs, 1)
 
         # they come back to station most of the time
-        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(point, self, route_so_far[-1].leaving_time)
+        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(route_so_far, point, self, route_so_far[-1].leaving_time)
         _r = [Target(self, route_so_far[-1].leaving_time + dur, None)]
         route_so_far = RoutePlanningEngine.join_routes(route_so_far, _r)
 

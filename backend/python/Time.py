@@ -4,19 +4,22 @@ import numpy as np
 
 
 class Time:
-    _shift_hrs = 1
+    _shift_hrs = 4
     _scale = 5
     t = 0
+    t_minutes = 0
     DAY = -1
 
     @staticmethod
     def init():
         Time.t = 0
+        Time.t_minutes = Time._shift_hrs*60
         Time.DAY = Time.get_duration(24)
 
     @staticmethod
     def increment_time_unit():
         Time.t += 1
+        Time.t_minutes += Time._scale
 
     @staticmethod
     def get_time():
@@ -49,7 +52,15 @@ class Time:
 
     @staticmethod
     def i_to_minutes(i):
-        string = Time.i_to_time(i)
-        _, day, hours = string.split(" ")
-        hrs, mins = hours.split(":")
+        hrs = Time._shift_hrs + (i // (60 / Time._scale))
+        day = hrs // 24
+        hrs = hrs%24
+        mins = i % (60 / Time._scale) * Time._scale
         return int(hrs)*60+int(mins)+int(day)*1440
+
+        # mins = Time._shift_hrs * 60 + i*Time._scale
+        # return int(mins)
+
+        # string = Time.i_to_time(i)
+        # _, day, hours = string.split(" ")
+        # hrs, mins = hours.split(":")

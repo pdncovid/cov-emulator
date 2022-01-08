@@ -16,7 +16,7 @@ class BusStation(Building):
         t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else Time.get_time()
 
         # goto bus station for a little while
-        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(point, self, t)
+        dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(route_so_far, point, self, t)
         route_so_far = RoutePlanningEngine.join_routes(route_so_far, [Target(self, t + dur, None)])
 
         # if the route is defined for the bus, repeat the same route. otherwise define it first
@@ -34,8 +34,8 @@ class BusStation(Building):
 
             # select locations that do not have a override transport or a movement level worse than bus
             loc_wo_trans = root.get_locations_according_function(
-                lambda rr: (rr.override_transport is None or
-                            rr.override_transport.override_level >= bus.override_level)  # and
+                lambda rr: rr.override_transport is None or
+                           (rr.override_transport.override_level >= bus.override_level)  # and
                 # (sum(_r.override_transport is not None for _r in rr.locations) > 0)
             )
 
@@ -51,16 +51,25 @@ class BusStation(Building):
                         n += 1
                     if ort is not None:
                         children_of_wo_trans_locs.add(loc)
-                if n > 0:#==len(r.locations):
+                if n > 0:  # ==len(r.locations):
                     pass_through.append(r)
             np.random.shuffle(pass_through)
-            for cls in pass_through:
-                loc = point.find_closest(cls, self, find_from_level=-1)
-                for ch in loc.locations:
-                    if isinstance(ch, BusStation) or isinstance(ch, Cemetery):
-                        continue
-                    BusStation.bus_routes[point.ID].append(ch)    # pass through all the children
-                # BusStation.bus_routes[point.ID].append(loc)     # pass through the parent. But teleport once reached
+
+            # divide bus routes to separate depth levels
+            pass_through_depths = {}
+            for pass_through_loc in pass_through:
+                pass_through_depths[pass_through_loc.depth] = []
+            for pass_through_loc in pass_through:
+                pass_through_depths[pass_through_loc.depth].append(pass_through_loc)
+
+            pass_through_locs = get_random_element(list(pass_through_depths.values()))  # select bus route depth
+            pass_through_loc = get_random_element(pass_through_locs)    # select particular locationi
+            loc = point.find_closest(pass_through_loc, self, find_from_level=-1)
+            for ch in loc.locations:
+                if isinstance(ch, BusStation) or isinstance(ch, Cemetery):
+                    continue
+                BusStation.bus_routes[point.ID].append(ch)  # pass through all the children
+            # BusStation.bus_routes[point.ID].append(loc)     # pass through the parent. But teleport once reached
 
         bus_route = BusStation.bus_routes[point.ID]
 

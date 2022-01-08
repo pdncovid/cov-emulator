@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 
 import { Layer, Line, Text } from "react-konva";
-const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_distance_grid_lines, gs_y, gs_x, convertx2px, converty2py, }) => {
+const MyGrid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_distance_grid_lines, gs_y, gs_x, convertx2px, converty2py, }) => {
 
 
     const [initialLoad, setInitialLoad] = useState(true);
@@ -194,4 +194,4 @@ const Grid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axis_
         </Layer>
     );
 };
-export default Grid;
+export default MyGrid;

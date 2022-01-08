@@ -59,7 +59,7 @@ export const csv2JSONarr = async (csv, onUploadProgress) => {
     });
     for (var i = 1; i < lines.length; i++) {
 
-        var currentline = lines[i].split(",").map((e) => strip_text(e));
+        var currentline = lines[i].split(",").map((e) => strip_text(e)); //",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"
         if (currentline.length!=headers.length)
             continue;
         for (var j = 0; j < headers.length; j++) {

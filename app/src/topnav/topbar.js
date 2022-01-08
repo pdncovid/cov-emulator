@@ -11,8 +11,9 @@ function TopBar({ location }) {
         <Nav className="mr-auto">
           <Nav.Link href="/home" active={pathname == "/"}>Run</Nav.Link>
           <Nav.Link href="/prob" active={pathname == "/"}>Set matrices</Nav.Link>
-          <Nav.Link href="/results" active={pathname == "/"}>Results</Nav.Link>
-          <Nav.Link href="/results2" active={pathname == "/"}>Results2</Nav.Link>
+          <Nav.Link href="/results" active={pathname == "/"}>Disease Analysis</Nav.Link>
+          <Nav.Link href="/results2" active={pathname == "/"}>Mobility Analysis</Nav.Link>
+          <Nav.Link href="/results3" active={pathname == "/"}>Performance Analysis</Nav.Link>
         </Nav>
       </Navbar.Collapse>
     </Navbar>

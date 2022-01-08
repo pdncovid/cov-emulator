@@ -4,7 +4,7 @@ from backend.python.Time import Time
 
 class ContainmentEngine:
 
-    quarantineduration = Time.get_duration(24 * 2)
+    quarantineduration = Time.get_duration(24 * 14)
 
     @staticmethod
     def can_go_there(p, current_l, next_l):

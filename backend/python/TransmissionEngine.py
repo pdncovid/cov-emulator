@@ -1,7 +1,7 @@
 import numpy as np
 
 from backend.python.Logger import Logger
-from backend.python.enums import State
+from backend.python.enums import State, PersonFeatures
 from backend.python.functions import bs
 from backend.python.Time import Time
 
@@ -14,9 +14,10 @@ class TransmissionEngine:
 
     @staticmethod
     def disease_transmission(points, t, r):
-        x, y = Person.all_positions[:, 0], Person.all_positions[:, 1]
+        x = Person.features[:, PersonFeatures.px.value]
+        y = Person.features[:, PersonFeatures.py.value]
         state = np.array([p.state for p in points])
-        person_social_dist = np.array([p.social_distance for p in points])
+        person_social_dist = Person.features[:, PersonFeatures.social_d.value]
         location_social_dist = np.array([p.get_current_location().social_distance for p in points])
         social_dist = np.maximum(person_social_dist, location_social_dist)
         n_contacts, contacts, distance, sourceid = TransmissionEngine. \
@@ -31,8 +32,8 @@ class TransmissionEngine:
     def get_close_contacts_and_distance(x, y, state, social_dist, r):
         contacts = {i: [] for i in range(len(x))}
         n_contacts = np.zeros(len(x), dtype=np.int64)
-        distance = np.ones(len(x)) * 1000
-        sourceid = np.zeros(len(x), dtype=np.int64)
+        distance = np.ones(len(x))*1000
+        sourceid = np.zeros(len(x), dtype=np.int64)*-1
 
         xs_idx = np.argsort(x)
         ys_idx = np.argsort(y)
@@ -40,12 +41,8 @@ class TransmissionEngine:
         ys = y[ys_idx]
 
         processed = 0
-        for i in np.where(state == State.INFECTED.value)[0]:
-            # iterate through infected people only to increase speed
-            # if state[i] != State.INFECTED.value:
-            #     continue
-            # infect to closest points
-
+        # for i in np.where(state == State.INFECTED.value)[0]:
+        for i in range(len(x)):
             x_idx_r = bs(xs, x[i] + r)
             x_idx_l = bs(xs, x[i] - r)
 
@@ -54,32 +51,39 @@ class TransmissionEngine:
 
             close_points_idx = np.intersect1d(xs_idx[x_idx_l:x_idx_r], ys_idx[y_idx_l:y_idx_r], assume_unique=True)
             processed += len(close_points_idx)
-            close_points_idx = close_points_idx[state[close_points_idx] == State.SUSCEPTIBLE.value]
 
             d = np.sqrt(np.power(x[close_points_idx] - x[i], 2) + np.power(y[close_points_idx] - y[i], 2))
 
             select_from_close = np.logical_and(d < r, d > social_dist[close_points_idx])
-            close_points_idx = close_points_idx[select_from_close]
             d = d[select_from_close]
+            close_points_idx = close_points_idx[select_from_close]
 
-            contacts[i] = close_points_idx
+            # add contacts to dictionary
             for ci in close_points_idx:
                 contacts[ci].append(i)
+                contacts[i].append(ci)
+
             n_contacts[close_points_idx] += 1
             n_contacts[i] += len(close_points_idx)
-            sourceid[close_points_idx[d < distance[close_points_idx]]] = i
-            distance[close_points_idx] = np.minimum(d, distance[close_points_idx])
+
+            if state[i] == State.INFECTED.value:
+                select_from_sus = state[close_points_idx] == State.SUSCEPTIBLE.value
+                close_points_idx = close_points_idx[select_from_sus]
+                d = d[select_from_sus]
+                sourceid[close_points_idx[d < distance[close_points_idx]]] = i
+                distance[close_points_idx] = np.minimum(d + 1e-6, distance[close_points_idx])
+
         return n_contacts, contacts, distance, sourceid
 
     @staticmethod
     def transmit_disease(points, n_contacts, contacts, distance, sourceid, t):
-        valid = np.where(distance < 1000)[0]
+        valid = np.where(sourceid > -1)[0]
         validsourceid = sourceid[valid]
         infected_duration = []
-        age = []
+        age = Person.features[validsourceid, PersonFeatures.age.value]
         for i in validsourceid:
             infected_duration.append(t - points[i].infected_time)
-            age.append(points[i].age)
+
         infected_duration = np.array(infected_duration)
         age = np.array(age)
         tr_p = TransmissionEngine.get_transmission_p(distance[valid], infected_duration, n_contacts[valid], age)
@@ -92,7 +96,8 @@ class TransmissionEngine:
             infected_person = points[sourceid[valid[i]]]
             # if contact_person.current_loc == infected_person.current_loc else 0
             location_p = contact_person.get_current_location().infectious
-            behaviour_p = contact_person.behaviour * infected_person.behaviour
+            behaviour_p = Person.features[contact_person.ID, PersonFeatures.behaviour.value]*\
+                          Person.features[infected_person.ID, PersonFeatures.behaviour.value]
             immunity_p = (1 - contact_person.get_effective_immunity()) * (1 - infected_person.get_effective_immunity())
             trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
 
@@ -108,17 +113,17 @@ class TransmissionEngine:
             return np.exp(-d / 5)
 
         def duration_f(dt):
-            return ((np.tanh((dt - Time.get_duration(24 * 5)) / Time.get_duration(24 * 5)) + 0.2) *
-                    (np.tanh(
-                        (-dt + Time.get_duration(24 * 8)) / Time.get_duration(24 * 8)) + 0.5) + 1.19987) / 2.6683940
+            x = dt/60/24
+            mu = 15
+            sig = 10
+            return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
         def count_f(c):
-            c[c > 10] = 10
-            c = c / 20 + 0.5
-            return c + (1 - c) ** 2
+            c[c > 5] = 10
+            return (c + (1 - (c / 20 + 0.5)) ** 2) / 5
 
         def age_f(a):
-            return a / 60
+            return (np.tanh((a-60)/20)+2)/3
 
         dp = distance_f(ds)
         tp = duration_f(infected_durations)

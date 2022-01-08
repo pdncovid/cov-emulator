@@ -30,7 +30,7 @@ class Movement(metaclass=Singleton):
 
         self.destination_reach_eps = 10.0
 
-        self.infectious = 1.0
+        self.infectiousness = 1.0
 
         self.override_level = 0  # 0 means definitely override, higher value means less likely to override at a location
 
@@ -50,8 +50,14 @@ class Movement(metaclass=Singleton):
     def get_description_dict(self):
         d = {'class': self.__class__.__name__, 'id': self.ID, 'vcap': self.vcap,
              "destination_reach_eps": self.destination_reach_eps, "mobility_pattern": self.mobility,
-             "infectious": self.infectious}
+             "infectious": self.infectiousness}
         return d
+
+    @staticmethod
+    def get_movement(_id):
+        if _id == -1:
+            return None
+        return Movement.all_instances[int(_id)]
 
     def add_point_to_transport(self, point):
         from backend.python.location.Cemetery import Cemetery

@@ -8,7 +8,7 @@ from backend.python.Logger import Logger
 from backend.python.Time import Time
 from backend.python.location.Location import Location
 
-from backend.python.enums import Mobility, Shape, State
+from backend.python.enums import Mobility, Shape, State, PersonFeatures
 from backend.python.point.Transporter import Transporter
 from backend.python.transport import Walk, Bus
 from backend.python.transport.CommercialZoneBus import CommercialZoneBus
@@ -295,12 +295,13 @@ class Visualizer:
         dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
         for p in points:
             if p.state == State.INFECTED.value:
-                if p.all_positions[p.ID, 0] > w or p.all_positions[p.ID, 1] > h:
+                x = p.features[p.ID, PersonFeatures.px.value]
+                y = p.features[p.ID, PersonFeatures.py.value]
+                if x > w or y > h:
                     Logger.log("Person outside map", 'c')
                     continue
                 try:
-                    zz[int(p.all_positions[p.ID, 0] // dw) + res // 2, int(
-                        p.all_positions[p.ID, 1] // dh) + res // 2] += 1  # todo bugsy
+                    zz[int(x // dw) + res // 2, int(y // dh) + res // 2] += 1  # todo bugsy
                 except IndexError as e:
                     Logger.log(str(e), 'c')
         return xx, yy, zz

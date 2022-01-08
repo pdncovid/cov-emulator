@@ -4,6 +4,7 @@ from backend.python.functions import get_random_element
 from backend.python.Time import Time
 from backend.python.location.Education.School import School
 from backend.python.location.Location import Location
+from backend.python.point.Teacher import Teacher
 from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Walk import Walk
 
@@ -25,7 +26,15 @@ class EducationZone(Location):
                 EducationZone.pb_map[point.ID] = working_building
 
             route_so_far = working_building.get_suggested_sub_route(point, route_so_far)
+        elif isinstance(point, Teacher):
+            schools = self.get_children_of_class(School)
+            if point.ID in EducationZone.pb_map.keys():
+                working_building = EducationZone.pb_map[point.ID]
+            else:
+                working_building = get_random_element(schools)
+                EducationZone.pb_map[point.ID] = working_building
 
+            route_so_far = working_building.get_suggested_sub_route(point, route_so_far)
         # elif isinstance(point, BusDriver) or isinstance(point, TuktukDriver):
         #     route_so_far = [Target(self, route_so_far[-1].leaving_timeTime.get_duration(.5), None)]
         else:

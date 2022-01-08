@@ -4,7 +4,7 @@ from backend.python.location.Blocks.RuralBlock import RuralBlock
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Location import Location
 
-class DenseDistrict(Location):
+class SparseDistrict(Location):
     # def get_suggested_sub_route(self, point, route_so_far):
     #     raise NotImplementedError()
     #     # # find the block where point is at
@@ -16,6 +16,5 @@ class DenseDistrict(Location):
 
     def __init__(self, shape, x, y, name, **kwargs):
         super().__init__(shape, x, y, name, **kwargs)
-        self.spawn_sub_locations(UrbanBlock, 8, 100)
-        self.spawn_sub_locations(RuralBlock, 3, 200)
+        self.spawn_sub_locations(UrbanBlock, 1, 200)
 

@@ -64,7 +64,7 @@ class MovementByTransporter(Movement):
         for i in range(len(hops2reach)):
             if hops2reach[i] == 1e10:
                 continue
-            if dist_by_disp[i] > 5:
+            if dist_by_disp[i] > 3:
                 continue
             c = dist_by_disp[i]#*cost(hops2reach, i)
             if c < best:

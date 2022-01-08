@@ -1,4 +1,5 @@
 from backend.python.Logger import Logger
+from backend.python.enums import PersonFeatures
 
 from backend.python.point.Person import Person
 import numpy as np
@@ -66,13 +67,15 @@ class Transporter(Person):
     # override
     def on_enter_location(self, loc, t):
         # if isinstance(point, Transporter):
+        if self.home_loc == loc or self.home_weekend_loc == loc:  # don't try to latch. o.w. Latch when resetting!!!
+            return
         self.main_trans.try_to_latch_people(loc)
 
     def on_enter_home(self):
         # self.current_trans = self.home_loc.override_transport
-        if len(self.latched_people)!=0:
-            raise Exception(f"People ({len(self.latched_people)}) are latched to transporter when the transporter is going home!")
-        pass
+        if len(self.latched_people) != 0:
+            Logger.log(f"People ({len(self.latched_people)}) are latched to transporter when the transporter is going home!", 'c')
+            self.force_delatch_and_teleport_all()
 
     # override
     def set_current_location(self, loc, t):
@@ -94,9 +97,8 @@ class Transporter(Person):
 
     # override
     def set_position(self, new_x, new_y, force=False):
-
-        self.all_positions[self.ID] = [new_x, new_y]
-
+        self.features[self.ID, PersonFeatures.px.value] = new_x
+        self.features[self.ID, PersonFeatures.py.value] = new_y
         for latched_p in self.latched_people:
             latched_p.set_position(new_x, new_y, True)
 
@@ -151,9 +153,17 @@ class Transporter(Person):
 
     def delatch_all(self):
         i = 0
-        while i < (len(self.latched_people)):
-            self.delatch(i, self.get_current_location())
+        while len(self.latched_people) != 0:
+            self.delatch(0, self.get_current_location())
 
+    def force_delatch_and_teleport_all(self):
+        if len(self.latched_people) == 0:
+            return
+        Logger.log(f"Forcefully delatching {len(self.latched_people)} from {self.ID}",'c')
+        while len(self.latched_people) != 0:
+            self.delatch(0, self.latched_people[0].route[-1].loc)
+        if len(self.latched_people)>0:
+            raise Exception("WHAT?")
     def delatch(self, idx, loc):
         if type(idx) != int:
             idx = self.latched_people.index(idx)
@@ -166,6 +176,12 @@ class Transporter(Person):
         self.latched_dst.pop(idx)
 
         loc.enter_person(p)
+        # get next target and if p cannot goto it using current moving loc
+        # transport keep the main trans as the current transport. otherwise people will be stuck in another district.
+        from backend.python.MovementEngine import MovementEngine
+        if MovementEngine.find_lcp_location(p) != p.get_current_location(): # target is not here. have to go out.
+            trans = p.main_trans
+            trans.add_point_to_transport(p)
 
         # last mile problem. Transporter will drop at last closest location. But person has to goto one of the children
         # of the dropped location. Search for locations, and enter to that location.

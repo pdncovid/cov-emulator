@@ -4,7 +4,7 @@ from backend.python.CovEngine import CovEngine
 from backend.python.Logger import Logger
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Time import Time
-from backend.python.enums import State, ClassNameMaps
+from backend.python.enums import State, ClassNameMaps, PersonFeatures, PersonOcc
 from backend.python.functions import find_in_subtree, get_random_element
 
 
@@ -13,8 +13,9 @@ class Person:
     infect_temperature = (37.4, 1.2)
     _id = 0
     all_people = []
-    all_positions = np.zeros((0, 2))
-    all_velocities = np.zeros((0, 2))
+    features = np.zeros((0, len(PersonFeatures) + 1))
+    # all_positions = np.zeros((0, 2))
+    # all_velocities = np.zeros((0, 2))
 
     all_movement_ids = np.array([], dtype=int)
     all_movement_enter_times = np.array([], dtype=int)
@@ -33,17 +34,75 @@ class Person:
         self.ID = Person._id
         Person._id += 1
 
-        self.gender = 0 if np.random.rand() < 0.5 else 1  # gender of the person
-        self.age = self.initialize_age()
-        self.base_immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find
-        self.immunity_boost = 0
-        self.character_vector = np.zeros((Person.n_characteristics,))  # characteristics of the point
-        self.behaviour = 0.5  # behaviour of the point (healthy medical practices -> unhealthy)
-        self.asymptotic_chance = self.base_immunity ** 2
-        self.is_asymptotic = False
+        tmp_feature_arr = np.zeros(len(PersonFeatures) + 1)
+        tmp_feature_arr[PersonFeatures.id.value] = self.ID
+        tmp_feature_arr[PersonFeatures.occ.value] = PersonOcc[self.__class__.__name__].value
+        tmp_feature_arr[PersonFeatures.gender.value] = 0 if np.random.rand() < 0.5 else 1  # gender of the person
+        tmp_feature_arr[PersonFeatures.age.value] = self.initialize_age()
+        tmp_feature_arr[PersonFeatures.base_immunity.value] = 1 / tmp_feature_arr[
+            PersonFeatures.age.value] if np.random.rand() < 0.9 else np.random.rand()  # todo find
+        tmp_feature_arr[PersonFeatures.immunity_boost.value] = 0
+        tmp_feature_arr[
+            PersonFeatures.behaviour.value] = 0.5  # behaviour of the point (healthy medical practices -> unhealthy)
+        tmp_feature_arr[PersonFeatures.asymptotic_chance.value] = tmp_feature_arr[
+                                                                      PersonFeatures.base_immunity.value] ** 2
+        tmp_feature_arr[PersonFeatures.is_asymptotic.value] = -1
+        tmp_feature_arr[PersonFeatures.social_d.value] = 0.0
+        tmp_feature_arr[PersonFeatures.hygiene_p.value] = 1.0
+        tmp_feature_arr[PersonFeatures.temp.value] = 35
+        tmp_feature_arr[PersonFeatures.state.value] = State.SUSCEPTIBLE.value
+        tmp_feature_arr[PersonFeatures.disease_state.value] = 0
+        tmp_feature_arr[PersonFeatures.source_id.value] = -1
+        tmp_feature_arr[PersonFeatures.inf_t.value] = -1
+        tmp_feature_arr[PersonFeatures.inf_l.value] = -1
+        tmp_feature_arr[PersonFeatures.tested_t.value] = -1
+        tmp_feature_arr[PersonFeatures.px.value] = -1
+        tmp_feature_arr[PersonFeatures.py.value] = -1
+        tmp_feature_arr[PersonFeatures.vx.value] = -1
+        tmp_feature_arr[PersonFeatures.vy.value] = -1
+        tmp_feature_arr[PersonFeatures.fr.value] = -1
+        tmp_feature_arr[PersonFeatures.to.value] = -1
+        tmp_feature_arr[PersonFeatures.tox.value] = -1
+        tmp_feature_arr[PersonFeatures.toy.value] = -1
+        tmp_feature_arr[PersonFeatures.cl_id.value] = -1
+        tmp_feature_arr[PersonFeatures.cl_enter_t.value] = -1
+        tmp_feature_arr[PersonFeatures.cl_leave_t.value] = -1
+        tmp_feature_arr[PersonFeatures.cl_x.value] = -1
+        tmp_feature_arr[PersonFeatures.cl_y.value] = -1
+        tmp_feature_arr[PersonFeatures.cl_r.value] = -1
+        tmp_feature_arr[PersonFeatures.cl_v_cap.value] = -1
+        tmp_feature_arr[PersonFeatures.day_over.value] = 0
+        tmp_feature_arr[PersonFeatures.home_id.value] = -1
+        tmp_feature_arr[PersonFeatures.home_w_id.value] = -1
+        tmp_feature_arr[PersonFeatures.work_id.value] = -1
+        tmp_feature_arr[PersonFeatures.cm_id.value] = -1
+        tmp_feature_arr[PersonFeatures.cm_enter_t.value] = -1
+        tmp_feature_arr[PersonFeatures.fm_id.value] = -1
+        tmp_feature_arr[PersonFeatures.is_transporter.value] = 0
+        tmp_feature_arr[PersonFeatures.latched_id.value] = -1
+        tmp_feature_arr[PersonFeatures.happiness.value] = 50
+        tmp_feature_arr[PersonFeatures.social_class.value] = 5
+        tmp_feature_arr[PersonFeatures.daily_income.value] = 1500
+        tmp_feature_arr[PersonFeatures.daily_expense.value] = 800
 
-        Person.all_positions = np.concatenate([Person.all_positions, [[0, 0]]], 0)
-        Person.all_velocities = np.concatenate([Person.all_velocities, [[0, 0]]], 0)
+        Person.features = np.append(Person.features, np.expand_dims(tmp_feature_arr, 0), axis=0)
+
+        # self.gender = 0 if np.random.rand() < 0.5 else 1  # gender of the person
+        # self.age = self.initialize_age()
+        # self.base_immunity = 1 / self.age if np.random.rand() < 0.9 else np.random.rand()  # todo find
+        # self.immunity_boost = 0
+        self.character_vector = np.zeros((Person.n_characteristics,))  # characteristics of the point
+        # self.behaviour = 0.5  # behaviour of the point (healthy medical practices -> unhealthy)
+        # self.asymptotic_chance = self.base_immunity ** 2
+        # self.is_asymptotic = False
+
+        # self.happiness = 50  # happiness score 0 to 100
+        # self.social_class = 5  # social class 0 to 10, 0 mean lowest (poor) 10 mean highest (rich)
+        # self.daily_income = 1500
+        # self.daily_expense = 800
+
+        # Person.all_positions = np.concatenate([Person.all_positions, [[0, 0]]], 0)
+        # Person.all_velocities = np.concatenate([Person.all_velocities, [[0, 0]]], 0)
 
         Person.all_movement_ids = np.append(Person.all_movement_ids, -1)
         Person.all_movement_enter_times = np.append(Person.all_movement_enter_times, -1)
@@ -83,9 +142,10 @@ class Person:
 
         self.tested_positive_time = -1  # tested positive time
 
-        self.social_distance = 0.0
+        # self.social_distance = 0.0
+        # self.hygeinic_p = 1.0  # TODO
 
-        self.temp = 0  # temperature of the point
+        # self.temp = 0  # temperature of the point
         self.update_temp(0.0)
         Person.all_people.append(self)
 
@@ -100,14 +160,19 @@ class Person:
         d = self.get_description_dict()
         for key in d.keys():
             print(key, d[key])
+        d = self.get_fine_description_dict(Time.get_time())
+        for key in d.keys():
+            print(key, d[key])
 
     def get_description_dict(self):
         d = {'person': self.ID,
-             'gender': self.gender,
-             'age': self.age,
-             'base_immunity': self.base_immunity,
-             'immunity_boost': self.immunity_boost,
-             'behaviour': self.behaviour,
+             'gender': self.features[self.ID, PersonFeatures.gender.value],
+             'age': self.features[self.ID, PersonFeatures.age.value],
+             'base_immunity': self.features[self.ID, PersonFeatures.base_immunity.value],
+             'immunity_boost': self.features[self.ID, PersonFeatures.immunity_boost.value],
+             'behaviour': self.features[self.ID, PersonFeatures.behaviour.value],
+             'happiness': self.features[self.ID, PersonFeatures.happiness.value],
+             'social_class': self.features[self.ID, PersonFeatures.social_class.value],
              'character_vector': self.character_vector,
              'route': ' '.join(
                  map(str, RoutePlanningEngine.convert_route_to_occupancy_array(self.route, ClassNameMaps.lc_map, 5))),
@@ -123,8 +188,9 @@ class Person:
              'infected_loc_class': ClassNameMaps.lc_map[
                  self.infected_location.class_name] if self.infected_location is not None else -1,
              'infected_loc_id': self.infected_location.ID if self.infected_location is not None else -1,
+             'is_asymptotic': int(self.is_asymptotic) if self.is_infected() else -1,
              'tested_positive_time': self.tested_positive_time,
-             'temp': self.temp,
+             'temp': self.features[self.ID, PersonFeatures.temp.value],
              'person_class': ClassNameMaps.pc_map[self.class_name],
              'route_len': len(self.route),
              }
@@ -148,9 +214,11 @@ class Person:
             'current_loc_leave': self.current_loc_leave,
             'destination': self.all_destinations[self.ID],
 
-            'x': round(Person.all_positions[self.ID][0] * 100) / 100,
-            'y': round(Person.all_positions[self.ID][1] * 100) / 100,
-            'vx': self.all_velocities[self.ID][0], 'vy': self.all_velocities[self.ID][1],
+            'x': round(self.features[self.ID, PersonFeatures.px.value] * 100) / 100,
+            'y': round(self.features[self.ID, PersonFeatures.py.value] * 100) / 100,
+
+            'vx': self.features[self.ID, PersonFeatures.vx.value],
+            'vy': self.features[self.ID, PersonFeatures.vx.value],
 
         }
         return d
@@ -181,13 +249,19 @@ class Person:
             self.print()
             ret = False
 
+        # removing all latched people from transporters because we can't have them
+        # inside a transporter when resetting the day
+        if isinstance(self, Transporter):
+            self.force_delatch_and_teleport_all()
+
         self.is_day_finished = False
         self.current_target_idx = 0
         from backend.python.RoutePlanningEngine import RoutePlanningEngine
+
         RoutePlanningEngine.set_route(self, t)
-        self.adjust_leaving_time(t)
+        # self.adjust_leaving_time(t)
         self.character_vector = np.dot(self.get_character_transform_matrix(), self.character_vector.T)
-        self.immunity_boost *= CovEngine.daily_immunity_boost_dec_factor
+        self.features[self.ID, PersonFeatures.immunity_boost.value] *= CovEngine.daily_immunity_boost_dec_factor
         return ret
 
     def on_enter_location(self, loc, t):
@@ -245,7 +319,7 @@ class Person:
             level = min(find_from_level - 1, len(possible_targets) - 1)
 
         if level > 0:
-            Logger.log(f"{self} is going to {target} that is at level {level}", 'e')
+            Logger.log(f"{self} is going to {target} that is at level {level}", 'd')
         return get_random_element(possible_targets[level])
 
     def get_random_route_at(self, route_so_far, find_from_level):
@@ -345,13 +419,15 @@ class Person:
         self.route = route
         if move2first:
             self.current_target_idx = 0
-            self.set_position(route[0].loc.x + np.random.normal(0, 1),
-                              route[0].loc.y + np.random.normal(0, 1), True)
+            x = route[0].loc.px + np.random.normal(0, 1)
+            y = route[0].loc.py + np.random.normal(0, 1)
+            self.set_position(x, y, True)
             self.route[0].enter_person(self)
 
     def set_position(self, new_x, new_y, force=False):
         if not self.latched_to or force:
-            self.all_positions[self.ID] = [new_x, new_y]
+            self.features[self.ID, PersonFeatures.px.value] = new_x
+            self.features[self.ID, PersonFeatures.py.value] = new_y
         else:
             start = self.all_movement_enter_times[self.ID]
             print(self.get_description_dict())
@@ -360,11 +436,13 @@ class Person:
 
     def set_point_destination(self, target_location):
         if target_location is not None:
-            Person.all_destinations[self.ID] = target_location.ID
-            Person.all_destination_exits[self.ID] = target_location.exit
+            _id = target_location.ID
         else:
-            Person.all_destinations[self.ID] = -1
-            Person.all_destination_exits[self.ID] = self.get_current_location().exit
+            _id = -1
+            target_location = self.get_current_location()
+
+        Person.all_destinations[self.ID] = _id
+        Person.all_destination_exits[self.ID] = [target_location.ex, target_location.ey]
 
     def get_point_destination(self):
         id = Person.all_destinations[self.ID]
@@ -373,8 +451,9 @@ class Person:
 
     def set_current_location(self, loc, t):
         self.current_loc = loc
-        Person.all_current_loc_positions[self.ID] = loc.x, loc.y
-        Person.all_current_loc_radii[self.ID] = loc.radius
+        r = loc.radius
+        Person.all_current_loc_positions[self.ID] = loc.px - r, loc.py - r
+        Person.all_current_loc_radii[self.ID] = r
 
     def get_current_location(self):
         return self.current_loc
@@ -388,7 +467,9 @@ class Person:
         return self.route[min(self.current_target_idx + 1, len(self.route) - 1)]
 
     def get_effective_immunity(self):
-        return min(1, max(0, self.base_immunity + self.immunity_boost * (1 - self.base_immunity)))
+        return min(1, max(0, self.features[self.ID, PersonFeatures.base_immunity.value] +
+                          self.features[self.ID, PersonFeatures.immunity_boost.value] * (
+                                  1 - self.features[self.ID, PersonFeatures.base_immunity.value])))
 
     def set_infected(self, t, p, common_p):
         self.state = State.INFECTED.value
@@ -397,7 +478,7 @@ class Person:
         self.infected_location = p.get_current_location()
         self.update_temp(common_p)
         self.disease_state = 1
-        self.is_asymptotic = np.random.rand() < self.asymptotic_chance
+        self.is_asymptotic = np.random.rand() < self.features[self.ID, PersonFeatures.asymptotic_chance.value]
 
     def set_recovered(self):
         self.state = State.RECOVERED.value
@@ -408,8 +489,9 @@ class Person:
 
     def set_dead(self):
         self.state = State.DEAD.value
-        self.temp = 25
-        self.all_velocities[self.ID] = [0, 0]
+        self.features[self.ID, PersonFeatures.temp.value] = 25
+        self.features[self.ID, PersonFeatures.vx.value] = 0
+        self.features[self.ID, PersonFeatures.vy.value] = 0
 
     def is_infected(self):
         return self.state == State.INFECTED.value
@@ -424,15 +506,15 @@ class Person:
         return self.state == State.SUSCEPTIBLE.value
 
     def is_tested_positive(self):
-        return self.tested_positive_time > Time.t > 0
+        return self.tested_positive_time > 0
 
     def update_temp(self, common_p):
         if self.is_infected():
-            self.temp = np.random.normal(*Person.infect_temperature)
+            self.features[self.ID, PersonFeatures.temp.value] = np.random.normal(*Person.infect_temperature)
         elif self.is_recovered() or self.is_susceptible():
             if np.random.rand() < common_p:  # Common fever
-                self.temp = np.random.normal(*Person.infect_temperature)
+                self.features[self.ID, PersonFeatures.temp.value] = np.random.normal(*Person.infect_temperature)
             else:
-                self.temp = np.random.normal(*Person.normal_temperature)
+                self.features[self.ID, PersonFeatures.temp.value] = np.random.normal(*Person.normal_temperature)
         elif self.is_dead():
-            self.temp = 25
+            self.features[self.ID, PersonFeatures.temp.value] = 25

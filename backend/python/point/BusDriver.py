@@ -1,10 +1,6 @@
 import numpy as np
 
-from backend.python.MovementEngine import MovementEngine
-from backend.python.RoutePlanningEngine import RoutePlanningEngine
-from backend.python.Time import Time
 from backend.python.enums import Mobility
-from backend.python.functions import get_random_element
 from backend.python.point.Transporter import Transporter
 from backend.python.transport.Bus import Bus
 
@@ -15,6 +11,8 @@ class BusDriver(Transporter):
         super().__init__()
         self.main_trans = Bus(Mobility.RANDOM.value)
         self.max_latches = 60
+        self.route_rep = []
+
     def initialize_age(self):
         return np.random.randint(25, 50)
 

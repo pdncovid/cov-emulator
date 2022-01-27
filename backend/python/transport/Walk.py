@@ -1,7 +1,6 @@
 from backend.python.Time import Time
 from backend.python.enums import Mobility
 from backend.python.transport.Movement import Movement
-import numpy as np
 
 
 class Walk(Movement):

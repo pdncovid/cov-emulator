@@ -20,7 +20,6 @@ class MovementByTransporter(Movement):
     def add_point_to_transport(self, point):
         super().add_point_to_transport(point)
 
-
     # # override
     # def transport_point(self, point, destination_xy):
     #     if not isinstance(point, Transporter):
@@ -41,15 +40,19 @@ class MovementByTransporter(Movement):
             hops = 0
             displacement = tr.get_current_location().get_distance_to(tar)
             distance = 0
-            # tr passed the current_target_idx and going to next. therefore +1
-            for j in range(tr.current_target_idx + 1, len(tr.route)):
-                hops += 1
-                if j == tr.current_target_idx + 1:
-                    distance += tr.get_current_location().get_distance_to(tr.route[j].loc)
-                else:
-                    distance += tr.route[j].loc.get_distance_to(tr.route[j - 1].loc)
-                if tar == tr.route[j].loc:
-                    dist_by_disp[i] = distance/(displacement+1e-10)
+
+            flag = -1
+            for j in range(len(tr.route_rep_all_stops)):
+                if tr.get_current_location() == tr.route_rep_all_stops[j] or tar == tr.route_rep_all_stops[j]:
+                    flag += 1
+                if flag >= 0:  # found start or end
+                    hops += 1
+                    if j == 0:
+                        pass
+                    else:
+                        distance += tr.route_rep_all_stops[j].get_distance_to(tr.route_rep_all_stops[j - 1])
+                if flag > 0:
+                    dist_by_disp[i] = distance / (displacement + 1e-10)
                     hops2reach[i] = hops
                     break
             else:
@@ -64,9 +67,9 @@ class MovementByTransporter(Movement):
         for i in range(len(hops2reach)):
             if hops2reach[i] == 1e10:
                 continue
-            if dist_by_disp[i] > 3:
-                continue
-            c = dist_by_disp[i]#*cost(hops2reach, i)
+            # if dist_by_disp[i] > 1000:  # TODO: Whats the optimal value
+            #     continue
+            c = dist_by_disp[i]  # *cost(hops2reach, i)
             if c < best:
                 best = c
                 des = path2next_tar[i]
@@ -93,13 +96,13 @@ class MovementByTransporter(Movement):
                     possible_transporters.append((cost, transporter, des))
             if len(possible_transporters) == 0:
                 Logger.log("No one to latch", 'i')
-                return
+                continue
             possible_transporters.sort(key=lambda x: x[0])
 
             for i in range(len(possible_transporters)):
                 (cost, transporter, destination) = possible_transporters[i]
                 if transporter.latch(p, destination):
                     Logger.log(
-                        f"{p.ID} in {self} latched to transporter {transporter.ID} and will goto {destination.name}",
+                        f"{p.ID} in {self} latched to transporter {transporter.ID} at {location} and will goto {destination.name}",
                         'd')
                     break

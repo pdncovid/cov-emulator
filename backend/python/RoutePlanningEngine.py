@@ -1,15 +1,15 @@
 
+import os
+from random import choices
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 from backend.python.MovementEngine import MovementEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
-import numpy as np
-import pandas as pd
-from random import choices
-import matplotlib.pyplot as plt
-from backend.python.enums import State, Containment
-from backend.python.functions import bs, get_idx_most_likely, get_random_element
-import os
-import sys
+from backend.python.enums import Containment, PersonFeatures
+from backend.python.functions import get_idx_most_likely, get_random_element
 
 
 class RoutePlanningEngine:
@@ -31,6 +31,8 @@ class RoutePlanningEngine:
 
     ending_hours = [21, 0, 22, 0]
     _route_process_delta = Time.get_duration(0.5)
+
+    _values = np.arange(1440)
 
     # @staticmethod
     # def get_alternate_route(point):
@@ -188,7 +190,7 @@ class RoutePlanningEngine:
             cls_or_obj = RoutePlanningEngine. \
                 get_loc_for_p_at_t(route, p, (day + 1) * Time.DAY + Time.get_time_from_datetime(1, 0))
             target = get_random_element(cls_or_obj)
-            route = p.get_random_route_through(route, [target], 1)
+            route = p.get_random_route_through(route, [target], 0)
 
         p.set_route(route, t, move2first)
 
@@ -233,18 +235,13 @@ class RoutePlanningEngine:
         return _route
 
     @staticmethod
-    def add_stops_as_targets_in_route(route, p):
+    def add_all_stops_in_route(route):
         new_route = []
+        new_route += [route[0]]
         for i in range(len(route) - 1):
-            path = MovementEngine.get_path(route[i].loc, route[i + 1].loc)
-            new_route += [Target(path[0], route[i].leaving_time, route[i].likely_trans)]
-            new_route += [Target(loc, route[i].leaving_time, None) for loc in path[1:-1]]
+            path = MovementEngine.get_path(route[i], route[i + 1])
+            new_route += path[1:]
         new_route += [route[-1]]
-        if new_route[0].loc != p.home_loc:
-            new_route = [route[0]] + new_route
-        for i in range(len(new_route) - 1):
-            if new_route[i].leaving_time > new_route[i + 1].leaving_time:
-                raise Exception()
         return new_route
 
     @staticmethod
@@ -279,10 +276,14 @@ class RoutePlanningEngine:
         if RoutePlanningEngine.loaded_person != p.__class__.__name__:
             RoutePlanningEngine.loaded_person = p.__class__.__name__
 
-            RoutePlanningEngine.df_p_1 = RoutePlanningEngine.df_loc_p_1.get_group(p.__class__.__name__)
-            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_loc_o_1.get_group(p.__class__.__name__)
-            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(p.__class__.__name__)
-            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(p.__class__.__name__)
+            RoutePlanningEngine.df_p_1 = RoutePlanningEngine.df_loc_p_1.get_group(p.__class__.__name__).drop(columns=['person']).astype(float)
+            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(p.__class__.__name__).drop(columns=['person']).astype(float)
+
+            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_loc_o_1.get_group(p.__class__.__name__).drop(columns=['person']).astype(float)
+            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(p.__class__.__name__).drop(columns=['person']).astype(float)
+
+            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_o_1.cumsum()
+            RoutePlanningEngine.df_o = RoutePlanningEngine.df_o.cumsum()
 
     @staticmethod
     def get_loc_for_p_at_t(route_so_far, p, t):
@@ -324,17 +325,16 @@ class RoutePlanningEngine:
         return [location]
 
     @staticmethod
-    def get_dur_for_p_in_loc_at_t(route_so_far, p, loc, t):
-        from backend.python.point.Transporter import Transporter
-        if isinstance(p, Transporter):
-            return Time.get_duration(0.1)
+    def get_dur_for_p_in_loc_at_t(route_so_far, p, loc, t): # TODO too slow
+        if p.features[p.ID, PersonFeatures.is_transporter.value] == 1:
+            return Time.get_duration(0.5)
 
         RoutePlanningEngine.check_loaded_df(route_so_far, p, t)
         loc_name = RoutePlanningEngine.get_loc_name(loc, p)
-        weights = RoutePlanningEngine.df_o.loc[loc_name].values[:-1].astype('float')
-        values = np.arange(1440)
-        dt = Time.get_duration(choices(values, weights)[0]/120)
+        weights = RoutePlanningEngine.df_o.loc[loc_name].values.astype('float')
+        dt = Time.get_duration(choices(RoutePlanningEngine._values, weights)[0]/120)
         dt = min(dt,Time.get_duration(1))
+        # dt = Time.get_duration(1/6)
         return dt
 
     @staticmethod

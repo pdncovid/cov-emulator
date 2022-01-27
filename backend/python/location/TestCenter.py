@@ -8,7 +8,7 @@ from backend.python.enums import State, TestSpawn
 class TestCenter:
     asymptotic_t = -1
     test_acc = -1
-    testresultdelay = Time.get_duration(5)
+    testresultdelay = Time.get_duration(24)
     def __init__(self, x, y, r):
         self.x = x
         self.y = y
@@ -39,6 +39,7 @@ class TestCenter:
         else:
             result = False  # True if rnd > args.test_acc else False
         if result:
+            p.set_tested_positive()
             p.tested_positive_time = t+TestCenter.testresultdelay
 
     @staticmethod

@@ -1,23 +1,19 @@
-import argparse
 import os
 import sys
-import time
 
 import numpy as np
-
-from backend.python.location.Districts.DenseDistrict import DenseDistrict
-from backend.python.main import executeSim, set_parameters, get_args
 
 from backend.python.GatherEvent import GatherEvent
 from backend.python.Logger import Logger
 from backend.python.Time import Time
 from backend.python.const import work_map
-from backend.python.enums import Shape, Containment
+from backend.python.enums import Shape, PersonFeatures
 from backend.python.functions import get_random_element, separate_into_classes
 from backend.python.location.Cemetery import Cemetery
-from backend.python.location.Districts.SparseDistrict import SparseDistrict
+from backend.python.location.Districts.DenseDistrict import DenseDistrict
 from backend.python.location.GatheringPlace import GatheringPlace
 from backend.python.location.Residential.Home import Home
+from backend.python.main import executeSim, set_parameters, get_args
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.point.GarmentAdmin import GarmentAdmin
@@ -29,6 +25,7 @@ from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.Car import Car
 from backend.python.transport.Tuktuk import Tuktuk
+from backend.python.point.Person import Person
 
 
 def initialize():
@@ -51,7 +48,7 @@ def initialize():
     people += [Retired() for _ in range(int(0.1 * args.n))]
 
     people += [BusDriver() for _ in range(int(0.15 * args.n))]
-    people += [TuktukDriver() for _ in range(int(0.05 * args.n))]
+    # people += [TuktukDriver() for _ in range(int(0.05 * args.n))]
     # people += [CommercialZoneBusDriver() for _ in range(int(0.03 * args.n))]
     # people += [SchoolBusDriver() for _ in range(int(0.02 * args.n))]
 
@@ -73,7 +70,7 @@ def initialize():
         if person.main_trans is None:
             person.main_trans = get_random_element(main_trans)
         person.set_home_loc(get_random_element(loc_classes[Home]))  # todo
-        person.home_weekend_loc = person.find_closest('Home', person.home_loc.parent_location, find_from_level=2)
+        person.home_weekend_loc = person.find_closest(Home, person.home_loc.parent_location, find_from_level=2)
         if work_map[person.__class__] is None:
             person.work_loc = person.home_loc
         else:
@@ -89,8 +86,8 @@ if __name__ == "__main__":
     sys.setrecursionlimit(1000000)
     set_parameters(args)
 
-    print(f"Test Simulation: With 10 gathering events. No Vaccination. Days={args.days}")
-    n_events = 10
+    print(f"Test Simulation: With 3 gathering events. No Vaccination. Days={args.days}")
+    n_events = 3
     total_vaccination_days = 0
     vaccination_start_day = 1
     people, root = initialize()
@@ -99,7 +96,7 @@ if __name__ == "__main__":
     gather_places = root.get_locations_according_function(lambda l: isinstance(l, GatheringPlace))
     gather_criteria = [lambda x: isinstance(x, Student),
                        lambda x: isinstance(x, CommercialWorker),
-                       lambda x: 14 < x.age < 45]
+                       lambda x: 14 < Person.features[x.ID, PersonFeatures.age.value] < 45]
     gather_events = []
     for ge in range(n_events):
         gathering_place = get_random_element(gather_places)

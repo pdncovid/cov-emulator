@@ -1,4 +1,3 @@
-from backend.python.enums import Mobility, Shape
 from backend.python.location.Location import Location
 from backend.python.transport.Walk import Walk
 
@@ -22,7 +21,7 @@ class Cemetery(Location):
     def enter_person(self, p):
         if p.is_dead():
             super().enter_person(p)
-            p.set_position(self.x, self.y, force=True)
+            p.set_position(self.px, self.py, force=True)
             if p.current_trans is not None:
                 p.current_trans.remove_point_from_transport(p)
             if p.latched_to is not None:

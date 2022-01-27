@@ -1,5 +1,3 @@
-from backend.python.enums import Shape
-from backend.python.functions import get_random_element
 from backend.python.location.Blocks.RuralBlock import RuralBlock
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Location import Location

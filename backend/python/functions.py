@@ -61,6 +61,9 @@ def find_in_subtree(c, tar, skip):
             return
         if r == tar:
             _all.append(r)
+        if type(tar) == type:
+            if isinstance(r, tar):
+                _all.append(r)
         if type(tar) == str:
             if r.__class__.__name__ == tar:
                 _all.append(r)

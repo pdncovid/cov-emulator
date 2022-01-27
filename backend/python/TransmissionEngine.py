@@ -1,10 +1,7 @@
 import numpy as np
 
-from backend.python.Logger import Logger
 from backend.python.enums import State, PersonFeatures
 from backend.python.functions import bs
-from backend.python.Time import Time
-
 from backend.python.point.Person import Person
 
 

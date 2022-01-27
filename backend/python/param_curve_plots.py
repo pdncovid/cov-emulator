@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from backend.python.Time import Time
+
 def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
@@ -72,7 +72,7 @@ plt.savefig("images/disease_worsen_age.png")
 import pandas as pd
 V = pd.read_csv('data/p_go_4_LocPersonTime.csv')
 V = V.loc[V['person']=='Student']
-plt.figure(figsize=(14, 8))
+plt.figure(figsize=(12, 8))
 plt.imshow(V.values[:,:1440].astype(float), interpolation='none', aspect='auto')
 plt.yticks([i for i in range(len(V['location']))],V['location'].values)
 plt.xlabel("Time (minutes)")
@@ -81,11 +81,12 @@ plt.savefig("images/locationvisitprob_student.png")
 
 V = pd.read_csv('data/p_dtLocPersonTime.csv')
 V = V.loc[V['person']=='Student']
-plt.figure(figsize=(14, 8))
+plt.figure(figsize=(12, 8))
 plt.imshow(V.values[:,:1440].astype(float), interpolation='none', aspect='auto')
 plt.yticks([i for i in range(len(V['location']))],V['location'].values)
 plt.xlabel("Time (minutes)")
 plt.colorbar()
+plt.tight_layout()
 plt.savefig("images/locationoccupancyprob_student.png")
 
 

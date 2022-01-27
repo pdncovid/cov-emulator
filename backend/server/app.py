@@ -1,5 +1,3 @@
-import random
-
 from flask import Flask, send_from_directory
 from flask_restful import Api, Resource, reqparse, abort
 
@@ -466,14 +464,14 @@ class ActualLocationHistHandler(Resource):
             if int(request_selectedDay) == 0:
                 df_prev = None
             else:
-                df_prev = Loader.getFile(request_dir, int(request_selectedDay)-1, '')
+                df_prev = Loader.getFile(request_dir, int(request_selectedDay) - 1, '')
                 df_prev = df_prev[[request_groupBy, "time"]]
                 df_prev_gr = df_prev.groupby(request_groupBy)
         except Exception as e:
             abort(500)
             return
 
-        start_t = df['time'].min()%1440
+        start_t = df['time'].min() % 1440
 
         m = getMap(request_groupBy, request_dir)
 
@@ -482,14 +480,14 @@ class ActualLocationHistHandler(Resource):
             arr['group'].append(key if m is None else m[key])
             freq = np.zeros(1440)
             for t_rec in df_gr.get_group(key)['time'].values:
-                if t_rec%1440 < start_t:
+                if t_rec % 1440 < start_t:
                     continue
                 freq[t_rec % 1440] += 1
             if df_prev is not None:
                 if key in df_prev_gr.groups.keys():
 
                     for t_rec in df_prev_gr.get_group(key)['time'].values:
-                        if t_rec%1440 >= start_t:
+                        if t_rec % 1440 >= start_t:
                             continue
                         freq[t_rec % 1440] += 1
             arr['time'].append('|'.join([str(int(e)) for e in freq]))
@@ -571,9 +569,9 @@ class ContactHandler(Resource):
         def pID2requesetGroupMap(ID):
             # map from ID of the person to requested group
             if request_group == 'age':
-                gap = 10
-                age = (df_p.loc[ID, request_group] // gap) * gap
-                return str(age)+"-"+str(age+gap)
+                gap = 5
+                age = int((df_p.loc[ID, request_group] // gap) * gap)
+                return str(age) + "-" + str(age + gap)
             if request_group == 'person':
                 return ID
             return df_p.loc[ID, request_group]
@@ -779,8 +777,8 @@ class InfectionHandler(Resource):
         def pID2requesetGroupMap(ID):
             # map from ID of the person to requested group
             if request_group == 'age':
-                gap = 10
-                age = (df_p.loc[ID, request_group] // gap) * gap
+                gap = 5
+                age = int((df_p.loc[ID, request_group] // gap) * gap)
                 return str(age) + "-" + str(age + gap)
             if request_group == 'person':
                 return ID

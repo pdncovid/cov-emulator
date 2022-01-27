@@ -20,6 +20,7 @@ class Location:
 
     def __init__(self, shape, x, y, name, **kwargs):
         from backend.python.const import default_infectiousness
+        from backend.python.const import default_happiness_boost
         self.class_name = self.__class__.__name__
         self.ID = Location._id
         Location._id += 1
@@ -79,6 +80,8 @@ class Location:
             'infectiousness') is None else kwargs.get('infectiousness')
         self.social_distance = 0.0
         self.hygiene_boost = 0
+
+        self.happiness_boost = default_happiness_boost[self.__class__]
 
         self.quarantined = kwargs.get('quarantined', False)
         self.quarantined_time = -1
@@ -275,13 +278,13 @@ class Location:
                             f"dt={t - p.current_loc_leave} "
                             f"Move {p.current_trans} "
                             f"ADD TO Walk"
-                            , 'c'
+                            , 'e'
                         )
-                        walk = get_random_element(Walk.all_instances)
-                        walk.add_point_to_transport(p)
+                        # walk = get_random_element(Walk.all_instances)
+                        # walk.add_point_to_transport(p)
 
-                        next_location = MovementEngine.find_next_location(p)
-                        p.set_point_destination(next_location)
+                        # next_location = MovementEngine.find_next_location(p)
+                        # p.set_point_destination(next_location)
                     continue
                 if t - p.current_loc_leave > wait_lvl0 and t - p.current_loc_enter > wait_lvl0:
                     # todo change current transportation system to tuk tuk or taxi
@@ -293,10 +296,10 @@ class Location:
                             f"dt={t - p.current_loc_leave} "
                             f"Move {p.current_trans} "
                             f"ADD TO Tuktuk"
-                            , 'c'
+                            , 'd'
                         )
-                        tuktuk = get_random_element(Tuktuk.all_instances)
-                        tuktuk.add_point_to_transport(p)
+                        # tuktuk = get_random_element(Tuktuk.all_instances)
+                        # tuktuk.add_point_to_transport(p)
 
                         # next_location = MovementEngine.find_next_location(p)
                         # p.set_point_destination(next_location)
@@ -327,7 +330,7 @@ class Location:
         if can_go_out_containment and can_go_out_movement:
             p.set_point_destination(next_location)
             Logger.log(
-                f"{p.ID} move {p.get_current_location()} -> {next_location} ({transporting_location}) [{p.get_next_target()}]",
+                f"{p.ID} move; {p.get_current_location()} -> {next_location} ({transporting_location}) [{p.get_next_target()}]",
                 'd')
             transporting_location.enter_person(p)
             # p.in_inter_trans = True

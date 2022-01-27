@@ -1,11 +1,11 @@
 import numpy as np
 
-from backend.python.Logger import Logger
 from backend.python.enums import PersonFeatures
 
 
 class MovementEngine:
     min_v_cap_frac = 0.15
+
     @staticmethod
     def move_people(all_people):
         from backend.python.point.Person import Person
@@ -13,24 +13,25 @@ class MovementEngine:
 
         is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
 
-        vxy = _p.features[:, [PersonFeatures.vx.value,PersonFeatures.vy.value]]
+        vxy = _p.features[:, [PersonFeatures.vx.value, PersonFeatures.vy.value]]
         # new_v = 0.5*_p.all_velocities + (_p.all_velocities*0.25+1)*np.random.random((len(_p.all_velocities), 2))
-        new_v = np.expand_dims(_p.all_current_loc_vcap, -1) *(np.random.random((len(vxy), 2))*2 - 1) # TODO
+        new_v = np.expand_dims(_p.all_current_loc_vcap, -1) * (np.random.random((len(vxy), 2)) * 2 - 1)  # TODO
         # v might be too small
         new_v = np.sign(new_v) * np.clip(np.abs(new_v),
                                          np.expand_dims(_p.all_current_loc_vcap, -1) * MovementEngine.min_v_cap_frac,
                                          np.expand_dims(_p.all_current_loc_vcap, -1))
         vxy = new_v
 
-        xy = _p.features[:, [PersonFeatures.px.value,PersonFeatures.py.value]]
+        xy = _p.features[:, [PersonFeatures.px.value, PersonFeatures.py.value]]
         # inside location random movement
         new_xy = xy + vxy * is_in_loc_move
         is_outside = np.sum((new_xy - _p.all_current_loc_positions) ** 2, 1) > _p.all_current_loc_radii ** 2
         is_outside = is_outside * is_in_loc_move[:, 0]
         vxy[is_outside] = -(vxy[is_outside] + 1) / 2
-        new_xy[is_outside] = (np.random.random(xy.shape)*(2**0.5*np.expand_dims(_p.all_current_loc_radii, -1) ) + _p.all_current_loc_positions)[is_outside]
+        new_xy[is_outside] = (np.random.random(xy.shape) * (
+                2 ** 0.5 * np.expand_dims(_p.all_current_loc_radii, -1)) + _p.all_current_loc_positions)[is_outside]
 
-        _p.features[:, [PersonFeatures.vx.value,PersonFeatures.vy.value]] = vxy
+        _p.features[:, [PersonFeatures.vx.value, PersonFeatures.vy.value]] = vxy
 
         # movement to other location
         new_xy_inter_loc = np.where(
@@ -132,8 +133,12 @@ class MovementEngine:
             else:
                 path_1 = path_1 + [lc]
                 lc = lc.parent_location
-        # path = path_1 + [lc] + path_2  # this will add root of subtree to path!
-        path = path_1 + path_2[::-1]
+
+        if lc.depth != 0 and (len(path_2) == 0 or len(path_1) == 0):  # if not this will add root of tree to path!
+            path = path_1 + [lc] + path_2[::-1]
+        else:
+            path = path_1 + path_2[::-1]
+
         return path
 
     @staticmethod
@@ -157,7 +162,7 @@ class MovementEngine:
     def _get_time_to_move_adj(loc1, loc2, p):
         if loc1 == loc2:
             return 0
-        dist = loc1.get_distance_to(loc2)
+        dist = loc1.get_distance_to(loc2) * 1  # todo : what is the time to travel between locations
         if loc1.depth == loc2.depth:
             return dist / MovementEngine.get_movement_method(loc1.parent_location, p).vcap
         if loc1.depth < loc2.depth:
@@ -184,7 +189,7 @@ class MovementEngine:
             else:
                 pass
 
-        if p.home_loc == moving_loc or p.home_weekend_loc==moving_loc:
+        if p.home_loc == moving_loc or p.home_weekend_loc == moving_loc:
             trans = moving_loc.override_transport
         return trans
 

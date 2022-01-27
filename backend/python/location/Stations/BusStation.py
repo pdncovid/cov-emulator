@@ -1,19 +1,20 @@
+import numpy as np
+
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
-from backend.python.enums import Shape
 from backend.python.Time import Time
 from backend.python.functions import get_random_element
 from backend.python.location.Building import Building
 from backend.python.location.Cemetery import Cemetery
-from backend.python.location.Location import Location
-import numpy as np
+from itertools import cycle
 
 
 class BusStation(Building):
-    bus_routes = {}
-
+    # bus_routes = {}
+    # pass_through = None
     def get_suggested_sub_route(self, point, route_so_far):
-        t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else Time.get_time()
+        t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else np.random.rand() * Time.get_duration(
+            1) + Time.get_time()
 
         # goto bus station for a little while
         dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(route_so_far, point, self, t)
@@ -23,20 +24,17 @@ class BusStation(Building):
 
         from backend.python.point.BusDriver import BusDriver
         from backend.python.transport.Bus import Bus
-        bus = Bus()
+        bus = Bus.get_first_instance()
 
-        # if there is no route for the bus id, initialize a route. This route will be repeated each time the _work is
-        # called.
-        if point.ID not in BusStation.bus_routes.keys() and isinstance(point, BusDriver):
-            BusStation.bus_routes[point.ID] = []
+        if not Bus.pass_through:
             root = self.get_root()
             # pass_through = ['ResidentialZone', 'IndustrialZone', 'CommercialZone', 'EducationZone', 'MedicalZone']
 
             # select locations that do not have a override transport or a movement level worse than bus
             loc_wo_trans = root.get_locations_according_function(
-                lambda rr: rr.override_transport is None or
-                           (rr.override_transport.override_level >= bus.override_level)  # and
-                # (sum(_r.override_transport is not None for _r in rr.locations) > 0)
+                lambda rr: rr.override_transport is None
+                           or (rr.override_transport.override_level >= bus.override_level)
+                           # and (sum(_r.override_transport is not None for _r in rr.locations) > 0)
             )
 
             # if the children locations have an override transport, bus will pass through here.
@@ -53,28 +51,37 @@ class BusStation(Building):
                         children_of_wo_trans_locs.add(loc)
                 if n > 0:  # ==len(r.locations):
                     pass_through.append(r)
-            np.random.shuffle(pass_through)
+            # np.random.shuffle(pass_through)  # todo: shuffle????
+            Bus.pass_through = cycle(pass_through)
 
             # divide bus routes to separate depth levels
-            pass_through_depths = {}
-            for pass_through_loc in pass_through:
-                pass_through_depths[pass_through_loc.depth] = []
-            for pass_through_loc in pass_through:
-                pass_through_depths[pass_through_loc.depth].append(pass_through_loc)
+            # pass_through_depths = {}
+            # for pass_through_loc in pass_through:
+            #     pass_through_depths[pass_through_loc.depth] = []
+            # for pass_through_loc in pass_through:
+            #     pass_through_depths[pass_through_loc.depth].append(pass_through_loc)
 
-            pass_through_locs = get_random_element(list(pass_through_depths.values()))  # select bus route depth
-            pass_through_loc = get_random_element(pass_through_locs)    # select particular locationi
-            loc = point.find_closest(pass_through_loc, self, find_from_level=-1)
+        # if there is no route for the bus, initialize a route.
+        # This route will be repeated each time the _work is called.
+        if isinstance(point, BusDriver) and not point.route_rep:
+            point.route_rep = []
+            loc = next(Bus.pass_through)
+            # pass_through_locs = get_random_element(list(pass_through_depths.values()))  # select bus route depth
+            # pass_through_loc = get_random_element(pass_through_locs)    # select particular location
+            # loc = point.find_closest(pass_through_loc, self, find_from_level=-1)
             for ch in loc.locations:
                 if isinstance(ch, BusStation) or isinstance(ch, Cemetery):
                     continue
-                BusStation.bus_routes[point.ID].append(ch)  # pass through all the children
+                point.route_rep.append(ch)  # pass through all the children
+            point.route_rep.append(self.get_root())  # move all to root
             # BusStation.bus_routes[point.ID].append(loc)     # pass through the parent. But teleport once reached
 
-        bus_route = BusStation.bus_routes[point.ID]
+            point.route_rep_all_stops = RoutePlanningEngine.add_all_stops_in_route(point.route_rep)
 
-        route_so_far = point.get_random_route_through(route_so_far, bus_route, 1)
-        route_so_far = point.get_random_route_through(route_so_far, bus_route[::-1], 1)
+        bus_route = point.route_rep
+
+        route_so_far = point.get_random_route_through(route_so_far, bus_route, -1)
+        route_so_far = point.get_random_route_through(route_so_far, bus_route[::-1], -1)
 
         return route_so_far
 

@@ -1,8 +1,4 @@
-from backend.python.Logger import Logger
-from backend.python.MovementEngine import MovementEngine
-from backend.python.enums import Mobility
 from backend.python.Time import Time
-from backend.python.location.Location import Location
 from backend.python.point.Person import Person
 
 

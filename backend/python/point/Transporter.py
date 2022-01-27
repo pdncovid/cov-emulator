@@ -1,8 +1,8 @@
 from backend.python.Logger import Logger
+from backend.python.Time import Time
 from backend.python.enums import PersonFeatures
 
 from backend.python.point.Person import Person
-import numpy as np
 
 
 class Transporter(Person):
@@ -13,6 +13,7 @@ class Transporter(Person):
         self.latched_dst = []
         self.max_latches = 10
         self.is_latchable = True
+        Person.features[self.ID, PersonFeatures.is_transporter.value] = 1
 
     # def get_random_route(self, root, t,
     #                      target_classes_or_objs=None,
@@ -86,8 +87,6 @@ class Transporter(Person):
         while i < (len(self.latched_people)):
             loc.enter_person(self.latched_people[i])
             if self.latched_dst[i] == loc:
-                Logger.log(f"{self.latched_people[i].ID} reached latched destination {self.get_current_location()}"
-                           f"from  transporter {self.ID}", 'd')
                 self.delatch(i, loc)
                 do_check = True
                 i -= 1
@@ -105,7 +104,7 @@ class Transporter(Person):
     # override
     def set_infected(self, t, p, common_p):
         super(Transporter, self).set_infected(t, p, common_p)
-        self.is_latchable = False
+        self.is_latchable = True
 
     # override
     def set_dead(self):
@@ -123,6 +122,9 @@ class Transporter(Person):
     def set_susceptible(self):
         super(Transporter, self).set_susceptible()
         self.is_latchable = True
+
+    def set_tested_positive(self):
+        self.is_latchable = False
 
     # override
     def increment_target_location(self):
@@ -180,14 +182,18 @@ class Transporter(Person):
         # transport keep the main trans as the current transport. otherwise people will be stuck in another district.
         from backend.python.MovementEngine import MovementEngine
         if MovementEngine.find_lcp_location(p) != p.get_current_location(): # target is not here. have to go out.
-            trans = p.main_trans
-            trans.add_point_to_transport(p)
+            loc.leave_this_location(p)
+
+            # MovementEngine.find_next_location(p).enter_person(p)
+
+            # trans = p.main_trans
+            # trans.add_point_to_transport(p)
+        else:
+            MovementEngine.find_next_location(p).enter_person(p)
 
         # last mile problem. Transporter will drop at last closest location. But person has to goto one of the children
         # of the dropped location. Search for locations, and enter to that location.
         # Otherwise person cant go there (SOMETIMES)!.
-        from backend.python.transport.Walk import Walk
-        from backend.python.MovementEngine import MovementEngine
         # MovementEngine.find_next_location(p).enter_person(p, None)
         # p.get_current_location().add_to_next_location(p)
 

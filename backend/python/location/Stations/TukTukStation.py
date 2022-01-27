@@ -1,11 +1,9 @@
+import numpy as np
+
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
-from backend.python.enums import Shape
 from backend.python.Time import Time
-from backend.python.functions import get_random_element
 from backend.python.location.Building import Building
-from backend.python.location.Location import Location
-import numpy as np
 
 
 class TukTukStation(Building):
@@ -26,7 +24,7 @@ class TukTukStation(Building):
         for cls in pass_through:
             pass_through_objs.append(point.find_closest(cls, self, find_from_level=-1))
 
-        route_so_far = point.get_random_route_through(route_so_far, pass_through_objs, 1)
+        route_so_far = point.get_random_route_through(route_so_far, pass_through_objs, -1)
 
         # they come back to station most of the time
         dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(route_so_far, point, self, route_so_far[-1].leaving_time)

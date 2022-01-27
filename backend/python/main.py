@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import time
 
 import numpy as np
@@ -10,6 +9,7 @@ from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.CovEngine import CovEngine
 from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
+from backend.python.PersonFeatureEngine import PersonFeatureEngine
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.TestingEngine import TestingEngine
@@ -22,7 +22,9 @@ from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Location import Location
 from backend.python.location.Medical.MedicalZone import MedicalZone
 from backend.python.location.Residential.Home import Home
+from backend.python.location.Stations.BusStation import BusStation
 from backend.python.location.TestCenter import TestCenter
+from backend.python.point.BusDriver import BusDriver
 from backend.python.point.Person import Person
 from backend.python.point.Transporter import Transporter
 from backend.python.transport.Movement import Movement
@@ -162,10 +164,11 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
     for i in range(iterations):
         t = Time.get_time()
 
-        Logger.log(f"=========================Iteration: {t} {Time.i_to_time(t)}======================", 'c')
+        print(f"\r=========================Iteration: {t} {Time.i_to_time(t)}======================", end='')
 
         # reset day
         if t % Time.DAY == 0:
+            day_t_instances = np.array(day_t_instances)
             # disease progression within host
             CovEngine.process_recovery(people, t)
             CovEngine.process_death(people, t, cemetery)
@@ -178,7 +181,10 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
 
             if t > 0:
                 Logger.save_log_files(test_name, t, people, locations)
-
+                # process happiness index
+                Person.features[:, PersonFeatures.happiness.value] = PersonFeatureEngine.process_happiness(
+                    day_t_instances[:, 0, :], day_t_instances[:, 1, :], day_t_instances[:, 2, :].astype(int),
+                    Person.features[:, PersonFeatures.happiness.value], containment=args.containment)
             # loading route initializing probability matrices based on type of day in the week and containment strategy
             RoutePlanningEngine.set_parameters((t // Time.DAY) % 7, args.containment)
             bad = 0
@@ -188,7 +194,24 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             if bad > 0:
                 print(f"RESET FAILED {bad}/{len(people)}")
 
-            # process happiness index
+            # check transporter coverage
+            # covered_locations = {loc: False for loc in root.get_locations_according_function(lambda x: True)}
+            # for p in people:
+            #     if isinstance(p, BusDriver):
+            #         for trans_visit in p.route_rep:
+            #             covered_locations[trans_visit] = True
+            # covered_location_classes = {}
+            # for loc in covered_locations.keys():
+            #     loc_class = loc.__class__.__name__
+            #     if loc_class not in covered_location_classes.keys():
+            #         covered_location_classes[loc_class] = [0, 0]
+            #     covered_location_classes[loc_class][0] += 1
+            #     if covered_locations[loc]:
+            #         covered_location_classes[loc_class][1] += 1
+            # Logger.log(f"Coverage from bus {sum(covered_locations.values())}/{len(covered_locations)}", 'c')
+            # Logger.log('\n'.join(
+            #     [f"{key}:\t\t\t{covered_location_classes[key][1]} / {covered_location_classes[key][0]}" for key in
+            #      covered_location_classes.keys()]), 'c')
 
             # reset test centers
             for tc in test_centers:
@@ -217,7 +240,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.infect_r)
             process_disease_at += process_disease_freq
 
-            Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'e')
+            Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
 
         # process testing
         if t % testing_freq == 0:

@@ -1,18 +1,13 @@
 import numpy as np
 
-from backend.python.RoutePlanningEngine import RoutePlanningEngine
-from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.functions import get_random_element
 from backend.python.location.Industrial.GarmentBuilding import GarmentBuilding
 from backend.python.location.Industrial.GarmentCanteen import GarmentCanteen
 from backend.python.location.Industrial.GarmentOffice import GarmentOffice
 from backend.python.location.Location import Location
-from backend.python.point.BusDriver import BusDriver
 from backend.python.point.GarmentAdmin import GarmentAdmin
 from backend.python.point.GarmentWorker import GarmentWorker
-from backend.python.point.Student import Student
-from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Walk import Walk
 
 

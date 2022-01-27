@@ -1,8 +1,6 @@
-from backend.python.enums import Mobility
-from backend.python.point.Person import Person
 import numpy as np
 
-from backend.python.transport.SchoolBus import SchoolBus
+from backend.python.point.Person import Person
 
 
 class Student(Person):

@@ -693,6 +693,7 @@ function ResultsPage() {
 
                         var line_traces = [];
                         var hist_traces = [];
+                        var ratio_traces = [];
                         var axis = 1;
                         var subplots = [];
                         var annotations = []
@@ -701,6 +702,7 @@ function ResultsPage() {
                             if (axis == 1) {
                                 yaxis = 'y'
                             }
+                            
                             for (var Y = 0; Y < group_names.length; Y++) {
                                 var vals = _df_arr[X][Y].split(' ')//.map(Math.log)
                                 line_traces.push({
@@ -731,6 +733,20 @@ function ResultsPage() {
                                 yref: yaxis + " domain",
                             })
                             axis++
+                        }
+                        for (var X = 0; X < group_names.length; X++) {
+                            var temp = new Array( _df_arr[X][0].split(' ').length).fill(0);
+                            for (var Y = 0; Y < group_names.length; Y++) {
+                                var vals = _df_arr[Y][X].split(' ').map(parseFloat)
+                                for (var i=0;i<vals.length;i++){
+                                    temp[i]+= vals[i];
+                                }
+                            }
+                            ratio_traces.push({
+                                y: temp,
+                                name:group_names[X],
+                                type:"bar"
+                            })
                         }
                         Plotly.newPlot("infectionsTime2D", line_traces, {
                             title: 'Number of new infections for each group throughout time',
@@ -800,6 +816,70 @@ function ResultsPage() {
                             //     pad: 4
                             //   },
 
+                        })
+
+                        console.log(ratio_traces)
+                        Plotly.newPlot("infectionsCount",ratio_traces,{
+                            title: '# of new infections for each group throughout time',
+                            width: 800,
+                            height: 800,
+                            barmode:"stack",
+                            bargap: 0,
+                            xaxis: {
+                                title: 'Days',
+                            },
+                            yaxis: {
+                                title: '# of new infections',
+                            },
+                            
+                        })
+                        // console.log(ratio_traces)
+                        for (var i=0;i<ratio_traces.length;i++){
+                            for (var j=1;j<ratio_traces[i]['y'].length;j++){
+                                if (isNaN(ratio_traces[i]['y'][j-1]))
+                                    continue
+                                ratio_traces[i]['y'][j]+=ratio_traces[i]['y'][j-1]
+                            }
+                            console.log(ratio_traces[i])
+                        }
+                        Plotly.newPlot("infectionsCountCumSum",ratio_traces,{
+                            title: '# of infections for each group throughout time',
+                            width: 800,
+                            height: 800,
+                            barmode:"stack",
+                            bargap: 0,
+                            xaxis: {
+                                title: 'Days',
+                            },
+                            yaxis: {
+                                title: '# of infections',
+                            },
+                        })
+                        for (var j=0;j<ratio_traces[0].y.length;j++){
+                            var tot = 0
+                            for (var i=0;i<ratio_traces.length;i++){
+                                if (isNaN(ratio_traces[i].y[j]))
+                                    continue
+                                tot+=ratio_traces[i].y[j]
+                            }
+                            if (tot==0)
+                                continue
+                            for (var i=0;i<ratio_traces.length;i++){
+                                ratio_traces[i].y[j]=100*ratio_traces[i].y[j]/tot
+                            }                           
+                        }
+                        Plotly.newPlot("infectionsCountCumSumRatio",ratio_traces,{
+                            title: '% of infections for each group throughout time',
+                            width: 800,
+                            height: 800,
+                            barmode:"stack",
+                            bargap: 0,
+                            xaxis: {
+                                title: 'Days',
+                            },
+                            yaxis: {
+                                title: '% of infections',
+                            },
                         })
                         console.log("heatmap", heatMap)
                     })
@@ -1521,6 +1601,15 @@ function ResultsPage() {
                         </Grid>
                         <Grid container xs={6}>
                             <div id="infectionsHist2D"></div>
+                        </Grid>
+                        <Grid container xs={6}>
+                            <div id="infectionsCount"></div>
+                        </Grid>
+                        <Grid container xs={6}>
+                            <div id="infectionsCountCumSum"></div>
+                        </Grid>
+                        <Grid container xs={6}>
+                            <div id="infectionsCountCumSumRatio"></div>
                         </Grid>
                     </Grid>
 

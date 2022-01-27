@@ -290,9 +290,11 @@ class Person:
         self.route = self.home_loc.get_suggested_sub_route(self, [])
         self.route[0].enter_person(self)
 
-    def find_closest(self, target, cur, find_from_level=-1):
+    def find_closest(self, target, cur, find_from_level=0):  # todo optimize this
         if target is None:
             return None
+        if type(target) != type and type(target) != str:  # why are u searching for a loc if u know the loc?
+            return target
         # find closest (in tree) object to target
         if cur is None:
             cur = self.get_current_target().loc  # todo current target or current location
@@ -301,22 +303,23 @@ class Person:
         if len(_possible) > 0:
             possible_targets.append(_possible)
         while cur.parent_location is not None:
+            if find_from_level >= 0 and len(possible_targets) == find_from_level+1:
+                break
+
             _possible = find_in_subtree(cur.parent_location, target, cur)
             if len(_possible) > 0:
                 possible_targets.append(_possible)
-                if len(possible_targets) == find_from_level:
-                    break
             cur = cur.parent_location
         if len(possible_targets) == 0:
             # raise Exception(f"Could not find {target} in the tree!!!")
             Logger.log(f"Could not find {target} in the tree!!!", 'c')
             return self.home_loc
 
-        if find_from_level == -1:
+        if find_from_level < 0:
             level = int(np.floor(np.random.exponential()))
             level = min(level, len(possible_targets) - 1)
         else:
-            level = min(find_from_level - 1, len(possible_targets) - 1)
+            level = min(find_from_level, len(possible_targets) - 1)
 
         if level > 0:
             Logger.log(f"{self} is going to {target} that is at level {level}", 'd')
@@ -390,7 +393,7 @@ class Person:
         else:
             replace_from = self.current_target_idx + 1
         route_so_far = self.route[:replace_from]
-        route_so_far = self.get_random_route_through(route_so_far, new_route_classes, find_from_level=1)
+        route_so_far = self.get_random_route_through(route_so_far, new_route_classes, find_from_level=-1)
 
         # todo make sure current_target_idx is consistent with route
         # while len(self.route) > replace_from and time > self.route[replace_from].leaving_time:
@@ -492,6 +495,9 @@ class Person:
         self.features[self.ID, PersonFeatures.temp.value] = 25
         self.features[self.ID, PersonFeatures.vx.value] = 0
         self.features[self.ID, PersonFeatures.vy.value] = 0
+
+    def set_tested_positive(self):
+        pass
 
     def is_infected(self):
         return self.state == State.INFECTED.value

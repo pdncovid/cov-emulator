@@ -1,11 +1,7 @@
-from backend.python.Target import Target
-from backend.python.enums import Mobility, Shape
 from backend.python.functions import get_random_element
-from backend.python.Time import Time
 from backend.python.location.Education.School import School
 from backend.python.location.Location import Location
 from backend.python.point.Teacher import Teacher
-from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Walk import Walk
 
 
@@ -14,7 +10,6 @@ class EducationZone(Location):
 
     def get_suggested_sub_route(self, point, route_so_far):
 
-        from backend.python.point.BusDriver import BusDriver
         from backend.python.point.Student import Student
         if isinstance(point, Student):
 

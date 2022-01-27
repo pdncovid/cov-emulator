@@ -1,5 +1,3 @@
-from backend.python.Time import Time
-from backend.python.functions import bs
 from backend.python.location.Blocks.RuralBlock import RuralBlock
 from backend.python.location.Blocks.UrbanBlock import UrbanBlock
 from backend.python.location.Cemetery import Cemetery
@@ -19,7 +17,6 @@ from backend.python.location.Industrial.GarmentCanteen import GarmentCanteen
 from backend.python.location.Industrial.GarmentOffice import GarmentOffice
 from backend.python.location.Industrial.GarmentWorkArea import GarmentWorkArea
 from backend.python.location.Industrial.IndustrialZone import IndustrialZone
-from backend.python.location.Location import Location
 from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
 from backend.python.location.Medical.Hospital import Hospital
 from backend.python.location.Medical.MedicalZone import MedicalZone
@@ -40,8 +37,11 @@ from backend.python.point.SchoolBusDriver import SchoolBusDriver
 from backend.python.point.Student import Student
 from backend.python.point.Teacher import Teacher
 from backend.python.point.TuktukDriver import TuktukDriver
+from backend.python.location.Province.AvgProvince import AvgProvince
 
 default_infectiousness = {
+    AvgProvince: 0.7,
+
     DenseDistrict: 0.8,
     SparseDistrict: 0.8,
 
@@ -79,6 +79,48 @@ default_infectiousness = {
     Cemetery: 0.0,
     TestCenter: 0.9,
 }
+
+default_happiness_boost = {
+    AvgProvince: 0.0,
+
+    DenseDistrict: 0.0,
+    SparseDistrict: 0.0,
+
+    UrbanBlock: 0.8,
+    RuralBlock: 0.5,
+
+    BusStation: -0.1,
+    TukTukStation: -0.1,
+
+    CommercialBuilding: -0.3,
+    CommercialCanteen: 0.9,
+    CommercialWorkArea: -0.2,
+    CommercialZone: -0.3,
+
+    GarmentBuilding: -0.5,
+    GarmentCanteen: 0.9,
+    GarmentWorkArea: -0.3,
+    GarmentOffice: -0.5,
+    IndustrialZone: -0.3,
+
+    Classroom: -0.2,
+    School: 0.1,
+    SchoolCanteen: 0.99,
+    EducationZone: 0.1,
+
+    Hospital: -0.8,
+    COVIDQuarantineZone: -1.0,
+    MedicalZone: -0.85,
+
+    Home: 0.0,
+    ResidentialPark: 0.7,
+    ResidentialZone: 0.7,
+
+    GatheringPlace: 0.9,
+    Cemetery: 0.0,
+    TestCenter: -0.9,
+}
+
 work_map = {
     CommercialWorker: 'CommercialWorkArea',
     GarmentWorker: 'GarmentWorkArea',
@@ -90,5 +132,5 @@ work_map = {
     CommercialZoneBusDriver: 'CommercialBuilding',
     SchoolBusDriver: 'School',
     Retired: None,
-    Infant:None,
+    Infant: None,
 }

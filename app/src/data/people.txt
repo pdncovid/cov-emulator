@@ -1,12 +1,12 @@
-Student
-GarmentWorker
 Teacher
 Transporter
-BusDriver
-Infant
-CommercialZoneBusDriver
+GarmentWorker
 SchoolBusDriver
+Student
+BusDriver
 Retired
+CommercialZoneBusDriver
 TuktukDriver
+Infant
 GarmentAdmin
 CommercialWorker

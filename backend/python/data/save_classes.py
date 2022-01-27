@@ -1,7 +1,3 @@
-from backend.python.location.Districts.DenseDistrict import DenseDistrict
-from backend.python.location.Location import Location
-
-
 def all_subclasses(cls):
     s = set()
 

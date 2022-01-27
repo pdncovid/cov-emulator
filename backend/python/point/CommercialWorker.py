@@ -1,8 +1,6 @@
-from backend.python.enums import Mobility
-from backend.python.point.Person import Person
 import numpy as np
 
-from backend.python.transport.CommercialZoneBus import CommercialZoneBus
+from backend.python.point.Person import Person
 
 
 class CommercialWorker(Person):

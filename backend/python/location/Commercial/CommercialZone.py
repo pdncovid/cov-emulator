@@ -1,14 +1,11 @@
-from backend.python.RoutePlanningEngine import RoutePlanningEngine
-from backend.python.Target import Target
-from backend.python.enums import Mobility, Shape
-from backend.python.functions import get_random_element
+import numpy as np
+
 from backend.python.Time import Time
+from backend.python.functions import get_random_element
 from backend.python.location.Commercial.CommercialBuilding import CommercialBuilding
 from backend.python.location.Commercial.CommercialCanteen import CommercialCanteen
 from backend.python.location.Location import Location
-from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Walk import Walk
-import numpy as np
 
 
 class CommercialZone(Location):
@@ -16,9 +13,7 @@ class CommercialZone(Location):
 
     def get_suggested_sub_route(self, point, route_so_far):
 
-        from backend.python.point.BusDriver import BusDriver
         from backend.python.point.CommercialWorker import CommercialWorker
-        from backend.python.point.Student import Student
         if isinstance(point, CommercialWorker):
             canteens = self.get_children_of_class(CommercialCanteen)
             buildings = self.get_children_of_class(CommercialBuilding)

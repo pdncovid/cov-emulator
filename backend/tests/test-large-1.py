@@ -1,22 +1,19 @@
-import argparse
 import os
 import sys
-import time
 
 import numpy as np
-
-from backend.python.main import executeSim, set_parameters, get_args
 
 from backend.python.GatherEvent import GatherEvent
 from backend.python.Logger import Logger
 from backend.python.Time import Time
 from backend.python.const import work_map
-from backend.python.enums import Shape, Containment
+from backend.python.enums import Shape, PersonFeatures
 from backend.python.functions import get_random_element, separate_into_classes
 from backend.python.location.Cemetery import Cemetery
-from backend.python.location.Districts.SparseDistrict import SparseDistrict
+from backend.python.location.Districts.DenseDistrict import DenseDistrict
 from backend.python.location.GatheringPlace import GatheringPlace
 from backend.python.location.Residential.Home import Home
+from backend.python.main import executeSim, set_parameters, get_args
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
 from backend.python.point.GarmentAdmin import GarmentAdmin
@@ -28,11 +25,13 @@ from backend.python.point.TuktukDriver import TuktukDriver
 from backend.python.transport.Bus import Bus
 from backend.python.transport.Car import Car
 from backend.python.transport.Tuktuk import Tuktuk
+from backend.python.location.Province.AvgProvince import AvgProvince
+from backend.python.point.Person import Person
 
 
 def initialize():
     # initialize location tree
-    root = SparseDistrict(Shape.CIRCLE.value, 0, 0, "D1", r=500)
+    root = AvgProvince(Shape.CIRCLE.value, 0, 0, "P1", r=1500)
     root.add_sub_location(Cemetery(Shape.CIRCLE.value, 0, -80, "Cemetery", r=3))
     loc_classes = separate_into_classes(root)
     n_houses = len(loc_classes[Home])
@@ -53,6 +52,8 @@ def initialize():
     people += [TuktukDriver() for _ in range(int(0.05 * args.n))]
     # people += [CommercialZoneBusDriver() for _ in range(int(0.03 * args.n))]
     # people += [SchoolBusDriver() for _ in range(int(0.02 * args.n))]
+
+    Logger.log(f"Initialized people", 'c')
 
     for _ in range(int(args.i * args.n)):
         idx = np.random.randint(0, len(people))
@@ -88,8 +89,8 @@ if __name__ == "__main__":
     sys.setrecursionlimit(1000000)
     set_parameters(args)
 
-    print(f"Test Simulation: With 3 gathering events. No Vaccination. Days={args.days}")
-    n_events = 3
+    print(f"Test Simulation: With 10 gathering events. No Vaccination. Days={args.days}")
+    n_events = 10
     total_vaccination_days = 0
     vaccination_start_day = 1
     people, root = initialize()
@@ -98,7 +99,7 @@ if __name__ == "__main__":
     gather_places = root.get_locations_according_function(lambda l: isinstance(l, GatheringPlace))
     gather_criteria = [lambda x: isinstance(x, Student),
                        lambda x: isinstance(x, CommercialWorker),
-                       lambda x: 14 < x.age < 45]
+                       lambda x: 14 < Person.features[x.ID, PersonFeatures.age.value] < 45]
     gather_events = []
     for ge in range(n_events):
         gathering_place = get_random_element(gather_places)

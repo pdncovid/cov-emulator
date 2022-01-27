@@ -1,4 +1,3 @@
-from backend.python.enums import Mobility
 from backend.python.location.Location import Location
 from backend.python.transport.Walk import Walk
 

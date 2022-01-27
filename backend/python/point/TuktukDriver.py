@@ -1,9 +1,8 @@
-from backend.python.RoutePlanningEngine import RoutePlanningEngine
-from backend.python.Time import Time
+import numpy as np
+
 from backend.python.enums import Mobility
 from backend.python.point.Transporter import Transporter
 from backend.python.transport.Tuktuk import Tuktuk
-import numpy as np
 
 
 class TuktukDriver(Transporter):

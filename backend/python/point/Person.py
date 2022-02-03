@@ -80,10 +80,13 @@ class Person:
         tmp_feature_arr[PersonFeatures.fm_id.value] = -1
         tmp_feature_arr[PersonFeatures.is_transporter.value] = 0
         tmp_feature_arr[PersonFeatures.latched_id.value] = -1
-        tmp_feature_arr[PersonFeatures.happiness.value] = 50
+
+        tmp_feature_arr[PersonFeatures.base_happiness.value] = 50
+        tmp_feature_arr[PersonFeatures.happiness.value] = tmp_feature_arr[PersonFeatures.base_happiness.value]
         tmp_feature_arr[PersonFeatures.social_class.value] = 5
+
         tmp_feature_arr[PersonFeatures.daily_income.value] = 1500
-        tmp_feature_arr[PersonFeatures.daily_expense.value] = 800
+        tmp_feature_arr[PersonFeatures.economic_status.value] = 1000
 
         Person.features = np.append(Person.features, np.expand_dims(tmp_feature_arr, 0), axis=0)
 
@@ -133,7 +136,7 @@ class Person:
         self.latched_to = None
         self.latch_onto_hash = None
 
-        self.state = State.SUSCEPTIBLE.value  # current state of the point (infected/dead/recovered etc.)
+        # self.state = State.SUSCEPTIBLE.value  # current state of the point (infected/dead/recovered etc.)
 
         self.source = None  # infected source point
         self.infected_time = -1  # infected time
@@ -166,21 +169,29 @@ class Person:
 
     def get_description_dict(self):
         d = {'person': self.ID,
+             'person_class': ClassNameMaps.pc_map[self.class_name],
              'gender': self.features[self.ID, PersonFeatures.gender.value],
              'age': self.features[self.ID, PersonFeatures.age.value],
              'base_immunity': self.features[self.ID, PersonFeatures.base_immunity.value],
              'immunity_boost': self.features[self.ID, PersonFeatures.immunity_boost.value],
              'behaviour': self.features[self.ID, PersonFeatures.behaviour.value],
              'happiness': self.features[self.ID, PersonFeatures.happiness.value],
+             'base_happiness': self.features[self.ID, PersonFeatures.base_happiness.value],
              'social_class': self.features[self.ID, PersonFeatures.social_class.value],
+             'daily_income': self.features[self.ID, PersonFeatures.daily_income.value],
+             'economic_status': self.features[self.ID, PersonFeatures.economic_status.value],
              'character_vector': self.character_vector,
+
              'route': ' '.join(
                  map(str, RoutePlanningEngine.convert_route_to_occupancy_array(self.route, ClassNameMaps.lc_map, 5))),
+             'route_len': len(self.route),
+
              'home_loc': self.home_loc.ID,
              'home_weekend_loc': self.home_weekend_loc.ID if self.home_weekend_loc is not None else -1,
              'work_loc': self.work_loc.ID if self.work_loc is not None else -1,
              'main_trans': ClassNameMaps.mc_map[self.main_trans.class_name] if self.main_trans is not None else -1,
-             'state': self.state,
+
+             'state': self.features[self.ID, PersonFeatures.state.value],
              'disease_state': self.disease_state,
              'infected_time': self.infected_time,
              'infected_source_class': ClassNameMaps.pc_map[self.source.class_name] if self.source is not None else -1,
@@ -191,8 +202,6 @@ class Person:
              'is_asymptotic': int(self.is_asymptotic) if self.is_infected() else -1,
              'tested_positive_time': self.tested_positive_time,
              'temp': self.features[self.ID, PersonFeatures.temp.value],
-             'person_class': ClassNameMaps.pc_map[self.class_name],
-             'route_len': len(self.route),
              }
 
         return d
@@ -246,7 +255,7 @@ class Person:
                 f"{self.__repr__()}"
 
                 , 'c')
-            self.print()
+            # self.print()
             ret = False
 
         # removing all latched people from transporters because we can't have them
@@ -303,7 +312,7 @@ class Person:
         if len(_possible) > 0:
             possible_targets.append(_possible)
         while cur.parent_location is not None:
-            if find_from_level >= 0 and len(possible_targets) == find_from_level+1:
+            if find_from_level >= 0 and len(possible_targets) == find_from_level + 1:
                 break
 
             _possible = find_in_subtree(cur.parent_location, target, cur)
@@ -475,7 +484,7 @@ class Person:
                                   1 - self.features[self.ID, PersonFeatures.base_immunity.value])))
 
     def set_infected(self, t, p, common_p):
-        self.state = State.INFECTED.value
+        self.features[self.ID, PersonFeatures.state.value] = State.INFECTED.value
         self.infected_time = t
         self.source = p
         self.infected_location = p.get_current_location()
@@ -484,14 +493,14 @@ class Person:
         self.is_asymptotic = np.random.rand() < self.features[self.ID, PersonFeatures.asymptotic_chance.value]
 
     def set_recovered(self):
-        self.state = State.RECOVERED.value
+        self.features[self.ID, PersonFeatures.state.value] = State.RECOVERED.value
         self.disease_state = 0
 
     def set_susceptible(self):
-        self.state = State.SUSCEPTIBLE.value
+        self.features[self.ID, PersonFeatures.state.value] = State.SUSCEPTIBLE.value
 
     def set_dead(self):
-        self.state = State.DEAD.value
+        self.features[self.ID, PersonFeatures.state.value] = State.DEAD.value
         self.features[self.ID, PersonFeatures.temp.value] = 25
         self.features[self.ID, PersonFeatures.vx.value] = 0
         self.features[self.ID, PersonFeatures.vy.value] = 0
@@ -500,16 +509,16 @@ class Person:
         pass
 
     def is_infected(self):
-        return self.state == State.INFECTED.value
+        return self.features[self.ID, PersonFeatures.state.value] == State.INFECTED.value
 
     def is_recovered(self):
-        return self.state == State.RECOVERED.value
+        return self.features[self.ID, PersonFeatures.state.value] == State.RECOVERED.value
 
     def is_dead(self):
-        return self.state == State.DEAD.value
+        return self.features[self.ID, PersonFeatures.state.value] == State.DEAD.value
 
     def is_susceptible(self):
-        return self.state == State.SUSCEPTIBLE.value
+        return self.features[self.ID, PersonFeatures.state.value] == State.SUSCEPTIBLE.value
 
     def is_tested_positive(self):
         return self.tested_positive_time > 0

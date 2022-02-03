@@ -13,6 +13,7 @@ class Transporter(Person):
         self.latched_dst = []
         self.max_latches = 10
         self.is_latchable = True
+        self.route_rep = []
         Person.features[self.ID, PersonFeatures.is_transporter.value] = 1
 
     # def get_random_route(self, root, t,

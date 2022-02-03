@@ -14,6 +14,7 @@ function TopBar({ location }) {
           <Nav.Link href="/results" active={pathname == "/"}>Disease Analysis</Nav.Link>
           <Nav.Link href="/results2" active={pathname == "/"}>Mobility Analysis</Nav.Link>
           <Nav.Link href="/results3" active={pathname == "/"}>Performance Analysis</Nav.Link>
+          <Nav.Link href="/resultsdemo" active={pathname == "/"}>Demographic Analysis</Nav.Link>
         </Nav>
       </Navbar.Collapse>
     </Navbar>

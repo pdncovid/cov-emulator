@@ -31,6 +31,7 @@ class Logger:
     write_level_ = None
     # DAILY REPORT
     df_detailed_person = pd.DataFrame(columns=[])
+    df_contacts_person = pd.DataFrame(columns=[])
     df_detailed_covid = pd.DataFrame(columns=[])
     df_detailed_resource_usage = pd.DataFrame(columns=[])
     df_resource_usage = pd.DataFrame(columns=[])
@@ -106,6 +107,8 @@ class Logger:
                             _base+f"{int(t // Time.DAY) - 1:05d}_person_info.csv", index=False)
         pd.DataFrame.to_csv(pd.DataFrame([l.get_description_dict() for l in locations]),
                             _base+f"{int(t // Time.DAY) - 1:05d}_location_info.csv", index=False)
+        pd.DataFrame.to_csv(Logger.df_contacts_person,
+                            _base+f"{int(t // Time.DAY) - 1:05d}_contact_info.csv", index=False)
         pd.DataFrame.to_csv(Logger.df_detailed_person,
                             _base+f"{int(t // Time.DAY) - 1:05d}.csv", index=False)
         pd.DataFrame.to_csv(Logger.df_detailed_covid,
@@ -113,6 +116,7 @@ class Logger:
         pd.DataFrame.to_csv(Logger.df_detailed_resource_usage,
                             _base+f"{int(t // Time.DAY) - 1:05d}_resource_info.csv", index=False)
         Logger.df_detailed_person = pd.DataFrame(columns=[])
+        Logger.df_contacts_person = pd.DataFrame(columns=[])
         Logger.df_detailed_covid = pd.DataFrame(columns=[])
         Logger.df_detailed_resource_usage = pd.DataFrame(columns=[])
 
@@ -147,7 +151,7 @@ class Logger:
         covid_stats['VACCINATED_1'] = 0
         covid_stats['VACCINATED_2'] = 0
         for p in people:
-            covid_stats[State(p.state).name] += 1
+            covid_stats[State(p.features[p.ID, PersonFeatures.state.value]).name] += 1
             covid_stats['CUM_TESTED_POSITIVE'] += 1 if p.is_tested_positive() else 0
             covid_stats['IN_QUARANTINE_CENTER'] += 1 if isinstance(p.get_current_location(),
                                                                    COVIDQuarantineZone) else 0
@@ -158,16 +162,25 @@ class Logger:
                                    covid_stats[State.RECOVERED.name]
         Logger.df_detailed_covid = Logger.df_detailed_covid.append(pd.DataFrame([covid_stats]))
     @staticmethod
-    def update_person_log(people, n_con, contacts):
+    def update_person_log(people):
         mins = Time.i_to_minutes(Time.get_time())
         person_details_list = []
         for p in people:
-            cur = p.get_current_location()
             fine_details_p = p.get_fine_description_dict(mins)
-            fine_details_p['n_contacts'] = n_con[p.ID]
-            fine_details_p['contacts'] = ' '.join(map(str, contacts[p.ID]))  # directed edges from infected to sus
             person_details_list.append(fine_details_p)
         Logger.df_detailed_person = Logger.df_detailed_person.append(pd.DataFrame(person_details_list))
+
+    @staticmethod
+    def update_person_contact_log(people, n_con, contacts,t):
+        contact_details_list = []
+        for p in people:
+            contact_details = {'person':p.ID}
+            contact_details['n_contacts'] = n_con[p.ID]
+            contact_details['contacts'] = ' '.join(map(str, contacts[p.ID]))  # directed edges from infected to sus
+            contact_details['time'] = t
+            contact_details_list.append(contact_details)
+        Logger.df_contacts_person = Logger.df_contacts_person.append(pd.DataFrame(contact_details_list))
+
     @staticmethod
     def close():
         # Shut down the logger

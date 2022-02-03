@@ -80,8 +80,8 @@ class BusStation(Building):
 
         bus_route = point.route_rep
 
-        route_so_far = point.get_random_route_through(route_so_far, bus_route, -1)
-        route_so_far = point.get_random_route_through(route_so_far, bus_route[::-1], -1)
+        route_so_far = point.get_random_route_through(route_so_far, bus_route, 0)
+        route_so_far = point.get_random_route_through(route_so_far, bus_route[::-1], 0)
 
         return route_so_far
 

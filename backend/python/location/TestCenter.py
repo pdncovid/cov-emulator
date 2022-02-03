@@ -2,7 +2,7 @@ import numpy as np
 
 from backend.python.Time import Time
 from backend.python.Visualizer import Visualizer
-from backend.python.enums import State, TestSpawn
+from backend.python.enums import State, TestSpawn, PersonFeatures
 
 
 class TestCenter:
@@ -30,7 +30,7 @@ class TestCenter:
 
     def test(self, p, t):
         rnd = np.random.rand()
-        if p.state == State.INFECTED.value:
+        if p.features[p.ID, PersonFeatures.state.value] == State.INFECTED.value:
             if p.tested_positive_time > 0:
                 return
             else:

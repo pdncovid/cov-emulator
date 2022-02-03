@@ -2,6 +2,7 @@ import os
 import sys
 
 import numpy as np
+from tqdm import tqdm
 
 from backend.python.GatherEvent import GatherEvent
 from backend.python.Logger import Logger
@@ -69,7 +70,7 @@ def initialize():
     tuktuk = Tuktuk()
     main_trans = [bus, car]
 
-    for person in people:
+    for person in tqdm(people, desc='Setting Homes'):
         if person.main_trans is None:
             person.main_trans = get_random_element(main_trans)
         person.set_home_loc(get_random_element(loc_classes[Home]))  # todo

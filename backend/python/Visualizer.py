@@ -47,7 +47,7 @@ class Visualizer:
         zz = np.zeros_like(xx)
         dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
         for p in points:
-            if p.state == State.INFECTED.value:
+            if p.features[p.ID, PersonFeatures.state.value] == State.INFECTED.value:
                 x = p.features[p.ID, PersonFeatures.px.value]
                 y = p.features[p.ID, PersonFeatures.py.value]
                 if x > w or y > h:

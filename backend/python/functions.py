@@ -59,15 +59,16 @@ def find_in_subtree(c, tar, skip):
     def dfs(r):
         if r is None:
             return
-        if r == tar:
-            _all.append(r)
+        if r == skip:
+            return
         if type(tar) == type:
             if isinstance(r, tar):
                 _all.append(r)
-        if type(tar) == str:
+        elif type(tar) == str:
             if r.__class__.__name__ == tar:
                 _all.append(r)
-
+        elif r == tar:
+            _all.append(r)
         for child in r.locations:
             if child == skip:
                 continue

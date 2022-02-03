@@ -51,13 +51,6 @@ function ResultsPage() {
     const [selectedLogDir, setSelectedLogDir] = useState('');
     const [selectedDay, setSelectedDay] = useState('');
 
-    const [days, setDays] = useState([]);
-
-    // const [day_logs, setDayLogs] = useState([]);
-    // const [person_info_logs, setPersonInfoLogs] = useState([]);
-    // const [location_info_logs, setLocationInfoLogs] = useState([]);
-    // const [cov_info_logs, setCovInfoLogs] = useState([]);
-
     const [selectedGroup, setSelectedGroup] = useState('');
     const [selectedState, setSelectedState] = useState(1);
 
@@ -102,7 +95,6 @@ function ResultsPage() {
 
     useEffect(() => {
         drawStatesInDay()
-        plotLocationTree()
     }, [selectedDay])
 
     useEffect(() => {
@@ -111,9 +103,7 @@ function ResultsPage() {
 
         plotInfectionTree()
 
-        processPieChart()
-        processPopPyramid()
-
+        processPieData()
         plotPersonClassContacts();
         plotLocationClassContacts();
     }, [selectedLogDir])
@@ -128,6 +118,7 @@ function ResultsPage() {
 
 
     const handleSelectDir = function (_selectedLogDir) {
+        
         getColors(_selectedLogDir)
 
     }
@@ -141,11 +132,6 @@ function ResultsPage() {
 
         axios.post(api + "/flask/setpeopleclasses", { dir: selectedLogDir, classes: _selectedPeople.join(',') })
             .then(function (response) {
-                //handle success
-                processPieChart()
-                processPopPyramid()
-
-                plotLocationTree()
                 plotInfectionGraph();
                 drawCovidStateTimeline();
             })
@@ -161,7 +147,6 @@ function ResultsPage() {
     const getMovementArr = (arr) => { setMovement(arr) }
     const getGroupOptionsArr = (arr) => { setGroupOptions(arr) }
 
-    // import colors
     async function getColors(_selectedLogDir) {
         axios.post(api + "/flask/get_colors", { dir: _selectedLogDir })
             .then(function (response) {
@@ -208,13 +193,9 @@ function ResultsPage() {
                 setSelectedLogDir(_selectedLogDir)
             })
     }
-
-    // ===========================================================================================================================================
-    // show the population occupation pie chart
-    async function processPieChart() {
+    // get the population occupation pie data
+    async function processPieData() {
         console.log("loading data for pie chart of people")
-
-
         axios.post(api + "/flask/csvfile", {
             dir: selectedLogDir, d: '0',
             type: '_person_info', columns: "person|person_class"
@@ -250,139 +231,12 @@ function ResultsPage() {
                                 }
                             });
                             console.log("Pie data", pieData, pieLabels, colors)
-                            setpeoplePieData([{
-                                type: 'pie',
-                                values: pieData,
-                                marker: {
-                                    colors: colors
-                                },
-                                labels: pieLabels
-                            }])
-                            Plotly.newPlot("distributionpeople", [{
-                                type: 'pie',
-                                values: pieData,
-                                marker: {
-                                    colors: colors
-                                },
-                                labels: pieLabels
-                            }],
-                                {
-                                    title: 'Distribution of people',
-                                }
-                            )
+                           setpeoplePieData(pieData)
                         })
 
                 })
             })
     }
-
-    // show population pyramid
-    async function processPopPyramid() {
-        axios.post(api + "/flask/csvfile", {
-            dir: selectedLogDir, d: '0',
-            type: '_person_info', columns: "person_class|gender|age"
-        })
-            .then(function (response) {
-                const data = response.data.data;
-                csv2JSONarr(data, (pr) => { }).then((json_data) => {
-                    var sub_df = new DataFrame(json_data).castAll(Array(3).fill(Number))
-
-                    let m_bins = hist(sub_df.where(row => row.get('gender') == 1).toArray('age'), 10, 10);
-                    let f_bins = hist(sub_df.where(row => row.get('gender') == 0).toArray('age'), 10, 10);
-
-                    let trace1 = {
-                        uid: '9f2de8e2-01e2-44cf-9597-d8c9d17a223a',
-                        meta: {
-                            columnNames: {
-                                x: 'Men, x',
-                                y: 'Men, y; Women, y'
-                            }
-                        },
-                        name: 'Men',
-                        type: 'bar',
-                        x: m_bins.map((e) => e.count),
-                        y: m_bins.map((e) => e.minNum),
-                        marker: { color: 'powderblue' },
-                        text: m_bins.map((e) => e.count),
-                        hoverinfo: 'text',
-                        orientation: 'h'
-                    };
-                    let trace2 = {
-                        uid: '31653fd0-228e-4932-88af-340740cd1dea',
-                        meta: {
-                            columnNames: {
-                                x: 'Women, x',
-                                y: 'Men, y; Women, y',
-                                text: 'text'
-                            }
-                        },
-                        name: 'Women',
-                        type: 'bar',
-                        x: f_bins.map((e) => -e.count),
-                        y: f_bins.map((e) => e.minNum),
-                        marker: { color: 'seagreen' },
-                        text: f_bins.map((e) => e.count),
-                        textcolor: 'black',
-                        hoverinfo: 'text',
-                        orientation: 'h'
-                    };
-                    let data = [trace1, trace2];
-                    Plotly.newPlot("popPyramid", data, {
-                        title: 'Population pyramid',
-                        xaxis: {
-
-                            type: 'linear',
-                            title: { text: 'Number' },
-                        },
-                        yaxis: {
-                            type: 'linear',
-                            range: [-5, 95],
-                            title: { text: 'Age' },
-                            autorange: true
-                        },
-                        bargap: 0.1,
-                        barmode: 'relative',
-                        autosize: true
-                    })
-                })
-            })
-    }
-
-    // draw location treemap
-    async function plotLocationTree() {
-
-        axios.post(api + "/flask/csvfile", {
-            dir: selectedLogDir, d: selectedDay.toString(),
-            type: '_location_info', columns: "parent_id|children_ids|id|name"
-        })
-            .then(function (response) {
-                const data = response.data.data;
-                csv2JSONarr(data, (pr) => { }).then((json_data) => {
-                    var sub_df = new DataFrame(json_data)//.castAll(Array(5).fill(Number))
-                    var data = [
-                        {
-                            type: "treemap", //sunburst
-                            ids: sub_df.toArray('id'),
-                            labels: sub_df.toArray('name'),
-                            parents: sub_df.toArray('parent_id').map((e) => {
-                                if (e == -1) {
-                                    return ""
-                                } else {
-                                    return e
-                                }
-                            })
-                        }
-                    ];
-
-                    Plotly.newPlot("locTree", data, {
-                        title: 'Location Tree Structure',
-                        width: 800,
-                        height: 800
-                    })
-                })
-            })
-    }
-
     // ===========================================================================================================================================
     // draw covid data timeline
     async function drawCovidStateTimeline() {
@@ -702,7 +556,7 @@ function ResultsPage() {
                             if (axis == 1) {
                                 yaxis = 'y'
                             }
-                            
+
                             for (var Y = 0; Y < group_names.length; Y++) {
                                 var vals = _df_arr[X][Y].split(' ')//.map(Math.log)
                                 line_traces.push({
@@ -735,17 +589,17 @@ function ResultsPage() {
                             axis++
                         }
                         for (var X = 0; X < group_names.length; X++) {
-                            var temp = new Array( _df_arr[X][0].split(' ').length).fill(0);
+                            var temp = new Array(_df_arr[X][0].split(' ').length).fill(0);
                             for (var Y = 0; Y < group_names.length; Y++) {
                                 var vals = _df_arr[Y][X].split(' ').map(parseFloat)
-                                for (var i=0;i<vals.length;i++){
-                                    temp[i]+= vals[i];
+                                for (var i = 0; i < vals.length; i++) {
+                                    temp[i] += vals[i];
                                 }
                             }
                             ratio_traces.push({
                                 y: temp,
-                                name:group_names[X],
-                                type:"bar"
+                                name: group_names[X],
+                                type: "bar"
                             })
                         }
                         Plotly.newPlot("infectionsTime2D", line_traces, {
@@ -819,11 +673,11 @@ function ResultsPage() {
                         })
 
                         console.log(ratio_traces)
-                        Plotly.newPlot("infectionsCount",ratio_traces,{
+                        Plotly.newPlot("infectionsCount", ratio_traces, {
                             title: '# of new infections for each group throughout time',
                             width: 800,
                             height: 800,
-                            barmode:"stack",
+                            barmode: "stack",
                             bargap: 0,
                             xaxis: {
                                 title: 'Days',
@@ -831,22 +685,22 @@ function ResultsPage() {
                             yaxis: {
                                 title: '# of new infections',
                             },
-                            
+
                         })
                         // console.log(ratio_traces)
-                        for (var i=0;i<ratio_traces.length;i++){
-                            for (var j=1;j<ratio_traces[i]['y'].length;j++){
-                                if (isNaN(ratio_traces[i]['y'][j-1]))
+                        for (var i = 0; i < ratio_traces.length; i++) {
+                            for (var j = 1; j < ratio_traces[i]['y'].length; j++) {
+                                if (isNaN(ratio_traces[i]['y'][j - 1]))
                                     continue
-                                ratio_traces[i]['y'][j]+=ratio_traces[i]['y'][j-1]
+                                ratio_traces[i]['y'][j] += ratio_traces[i]['y'][j - 1]
                             }
                             console.log(ratio_traces[i])
                         }
-                        Plotly.newPlot("infectionsCountCumSum",ratio_traces,{
+                        Plotly.newPlot("infectionsCountCumSum", ratio_traces, {
                             title: '# of infections for each group throughout time',
                             width: 800,
                             height: 800,
-                            barmode:"stack",
+                            barmode: "stack",
                             bargap: 0,
                             xaxis: {
                                 title: 'Days',
@@ -855,24 +709,24 @@ function ResultsPage() {
                                 title: '# of infections',
                             },
                         })
-                        for (var j=0;j<ratio_traces[0].y.length;j++){
+                        for (var j = 0; j < ratio_traces[0].y.length; j++) {
                             var tot = 0
-                            for (var i=0;i<ratio_traces.length;i++){
+                            for (var i = 0; i < ratio_traces.length; i++) {
                                 if (isNaN(ratio_traces[i].y[j]))
                                     continue
-                                tot+=ratio_traces[i].y[j]
+                                tot += ratio_traces[i].y[j]
                             }
-                            if (tot==0)
+                            if (tot == 0)
                                 continue
-                            for (var i=0;i<ratio_traces.length;i++){
-                                ratio_traces[i].y[j]=100*ratio_traces[i].y[j]/tot
-                            }                           
+                            for (var i = 0; i < ratio_traces.length; i++) {
+                                ratio_traces[i].y[j] = 100 * ratio_traces[i].y[j] / tot
+                            }
                         }
-                        Plotly.newPlot("infectionsCountCumSumRatio",ratio_traces,{
+                        Plotly.newPlot("infectionsCountCumSumRatio", ratio_traces, {
                             title: '% of infections for each group throughout time',
                             width: 800,
                             height: 800,
-                            barmode:"stack",
+                            barmode: "stack",
                             bargap: 0,
                             xaxis: {
                                 title: 'Days',
@@ -922,7 +776,7 @@ function ResultsPage() {
                                     max_v = Math.max(max_v, vals[Z])
                                     tot_con += parseInt(vals[Z])
                                 }
-                                heatMap[heatMap.length - 1].push(tot_con/count_df_arr[X]/vals.length)
+                                heatMap[heatMap.length - 1].push(tot_con / count_df_arr[X] / vals.length)
                             }
                         }
                         let plotData = [{
@@ -1434,21 +1288,6 @@ function ResultsPage() {
 
                 <Button onClick={exportAllImages} variant="contained" color="primary">Save All Images</Button>
 
-                {/* ====================================================================================== Demographic information */}
-                <div>
-                    <h4>Demographic information</h4>
-                    <Grid container spacing={0} padding='30px'>
-                        <Grid container xs={6}>
-                            <div id="popPyramid"></div>
-                        </Grid>
-
-                        <Grid container xs={6}>
-                            <div id="distributionpeople"></div>
-                        </Grid>
-                    </Grid>
-                    <div id="locTree"></div>
-
-                </div>
 
 
 

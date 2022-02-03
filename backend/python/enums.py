@@ -20,7 +20,7 @@ PersonFeatures = Enum('Person Features',
                       "cm_id cm_enter_t "
                       "fm_id "
                       "is_transporter latched_id "
-                      "happiness social_class daily_income daily_expense")
+                      "happiness base_happiness social_class daily_income economic_status ")
 # LocationFeatures = Enum('Location features',
 #                         "id loc px py shape depth ex ey parent_id capacity radius "
 #                         "recovery_p infectious social_distance hygiene_boost quarantined quarantined_time "

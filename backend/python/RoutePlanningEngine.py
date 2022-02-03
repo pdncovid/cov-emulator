@@ -9,7 +9,7 @@ from backend.python.MovementEngine import MovementEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.enums import Containment, PersonFeatures
-from backend.python.functions import get_idx_most_likely, get_random_element
+from backend.python.functions import get_idx_most_likely, get_random_element, bs
 
 
 class RoutePlanningEngine:
@@ -89,7 +89,7 @@ class RoutePlanningEngine:
         elif containment == Containment.LOCKDOWN.value:
             raise NotImplementedError()
         elif containment == Containment.QUARANTINE.value:
-            raise NotImplementedError()
+            pass#raise NotImplementedError()
         elif containment == Containment.QUARANTINECENTER.value:
             raise NotImplementedError()
         return p1, p2
@@ -113,7 +113,7 @@ class RoutePlanningEngine:
         elif containment == Containment.LOCKDOWN.value:
             raise NotImplementedError()
         elif containment == Containment.QUARANTINE.value:
-            raise NotImplementedError()
+            pass#raise NotImplementedError()
         elif containment == Containment.QUARANTINECENTER.value:
             raise NotImplementedError()
         return p1, p2
@@ -327,13 +327,15 @@ class RoutePlanningEngine:
     @staticmethod
     def get_dur_for_p_in_loc_at_t(route_so_far, p, loc, t): # TODO too slow
         if p.features[p.ID, PersonFeatures.is_transporter.value] == 1:
-            return Time.get_duration(0.5)
+            return Time.get_duration(0.1)  # todo this changes a lot check
 
         RoutePlanningEngine.check_loaded_df(route_so_far, p, t)
         loc_name = RoutePlanningEngine.get_loc_name(loc, p)
+
         weights = RoutePlanningEngine.df_o.loc[loc_name].values.astype('float')
-        dt = Time.get_duration(choices(RoutePlanningEngine._values, weights)[0]/120)
-        dt = min(dt,Time.get_duration(1))
+        # dt = Time.get_duration(choices(RoutePlanningEngine._values, weights)[0]/120)
+        dt = bs(weights, np.random.rand()*weights.max())
+        dt = min(dt, Time.get_duration(1))
         # dt = Time.get_duration(1/6)
         return dt
 

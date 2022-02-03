@@ -5,11 +5,11 @@ import time
 import numpy as np
 from tqdm import tqdm
 
+from backend.python.CharacterEngine import CharacterEngine
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.CovEngine import CovEngine
 from backend.python.Logger import Logger
 from backend.python.MovementEngine import MovementEngine
-from backend.python.PersonFeatureEngine import PersonFeatureEngine
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.TestingEngine import TestingEngine
@@ -46,7 +46,8 @@ def get_args(name):
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
     parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
-    parser.add_argument('--containment', help='containment strategy used ', type=int, default=Containment.NONE.value)
+    parser.add_argument('--containment', help='containment strategy used ', type=int,
+                        default=Containment.QUARANTINE.value)
     parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
     parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
     parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)
@@ -93,8 +94,8 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
     integrity_test = False
     record_fine_covid = True
     record_fine_person = True
-    process_disease_freq = 1  # Time.get_duration(2)
-    process_disease_at = process_disease_freq
+    # process_disease_freq = 1  # Time.get_duration(2)
+    # process_disease_at = process_disease_freq
     days = args.days
     iterations = int(days * 1440 / Time._scale)
 
@@ -157,8 +158,6 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
     Logger.log(f"{len(people)} {count_graph_n(root)}", 'c')
     Logger.log_graph(root)
 
-    contacts, n_con, new_infected = {_i: [] for _i in range(len(people))}, np.zeros(len(people)), []
-
     day_t_instances = []
     # main iteration loop
     for i in range(iterations):
@@ -169,11 +168,21 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
         # reset day
         if t % Time.DAY == 0:
             day_t_instances = np.array(day_t_instances)
-            # disease progression within host
+
+            if t > 0:
+                # ================================================================================= process transmission
+                n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.infect_r)
+                Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
+
+                # ======================================================================== process happiness and economy
+                delta_eco_status = CharacterEngine.update_economy(people, args)
+                CharacterEngine.update_happiness(people, delta_eco_status, day_t_instances[:, 2, :].astype(int), args)
+
+            # ===========================================================================disease progression within host
             CovEngine.process_recovery(people, t)
             CovEngine.process_death(people, t, cemetery)
 
-            # vaccination
+            # ============================================================================================== vaccination
             day = t // Time.DAY
             for vaccinate_event in vaccinate_events:
                 if vaccinate_event[0] == day:
@@ -181,20 +190,17 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
 
             if t > 0:
                 Logger.save_log_files(test_name, t, people, locations)
-                # process happiness index
-                Person.features[:, PersonFeatures.happiness.value] = PersonFeatureEngine.process_happiness(
-                    day_t_instances[:, 0, :], day_t_instances[:, 1, :], day_t_instances[:, 2, :].astype(int),
-                    Person.features[:, PersonFeatures.happiness.value], containment=args.containment)
+
             # loading route initializing probability matrices based on type of day in the week and containment strategy
             RoutePlanningEngine.set_parameters((t // Time.DAY) % 7, args.containment)
             bad = 0
-            for p in tqdm(people, desc='Resetting day'):
+            for p in tqdm(people, desc=f'Resetting day {day}'):
                 if not p.reset_day(t):
                     bad += 1
             if bad > 0:
                 print(f"RESET FAILED {bad}/{len(people)}")
 
-            # check transporter coverage
+            # =============================================================================== check transporter coverage
             # covered_locations = {loc: False for loc in root.get_locations_according_function(lambda x: True)}
             # for p in people:
             #     if isinstance(p, BusDriver):
@@ -213,11 +219,11 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             #     [f"{key}:\t\t\t{covered_location_classes[key][1]} / {covered_location_classes[key][0]}" for key in
             #      covered_location_classes.keys()]), 'c')
 
-            # reset test centers
+            # ======================================================================================= reset test centers
             for tc in test_centers:
                 tc.on_reset_day()
 
-            # check for gather events on this day and update the routes accordingly.
+            # ==================================== check for gather events on this day and update the routes accordingly
             for event in gather_events:
                 if event.day == t // Time.DAY:
                     Logger.log(f'Holding event {event} on this day', 'i')
@@ -230,23 +236,16 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             # clear data
             day_t_instances = []
 
-        # process movement
+        # ============================================================================================= process movement
         MovementEngine.process_people_switching(root, t)
         MovementEngine.move_people(Person.all_people)
         day_t_instances.append(get_instance(Person.all_people))
 
-        # process transmission and recovery
-        if t > process_disease_at:
-            n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.infect_r)
-            process_disease_at += process_disease_freq
-
-            Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
-
-        # process testing
+        # ============================================================================================== process testing
         if t % testing_freq == 0:
             TestingEngine.testing_procedure(people, test_centers, t)
 
-        # spawn new test centers
+        # ======================================================================================= spawn new test centers
         # if t % test_center_spawn_check_freq == 0:
         #     test_center = TestCenter.spawn_test_center(test_center_spawn_method, people, test_centers, root.radius,
         #                                                root.radius, args.test_center_r, test_center_spawn_threshold)
@@ -254,20 +253,20 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
         #         print(f"Added new TEST CENTER at {test_center.x} {test_center.y}")
         #         test_centers.append(test_center)
 
-        # check locations for any changes to quarantine state
+        # ========================================================== check locations for any changes to quarantine state
         ContainmentEngine.check_location_state_updates(root, t)
 
         update_point_parameters(args)
 
-        # change routes randomly for some people
+        # ======================================================================= change routes randomly for some people
         # RoutePlanningEngine.update_routes(root, t)
 
-        # overriding daily routes if necessary. (tested positives, etc)
+        # ================================================ overriding daily routes if necessary. (tested positives, etc)
         # for p in people:
         #     if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
         #         break
 
-        # =================================== integrity check ======================================================
+        # ============================================================================================== integrity check
         if integrity_test:
             for p in people:
                 if p.is_dead():
@@ -283,11 +282,10 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
                             assert p.current_trans == trans_loc.override_transport
 
         # ====================================================================================== record in daily report
-
         Logger.update_resource_usage_log()
         if record_fine_covid:
             Logger.update_covid_log(people)
         if record_fine_person:
-            Logger.update_person_log(people, n_con, contacts)
+            Logger.update_person_log(people)
 
         Time.increment_time_unit()

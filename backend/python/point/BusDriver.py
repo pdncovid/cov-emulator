@@ -11,7 +11,6 @@ class BusDriver(Transporter):
         super().__init__()
         self.main_trans = Bus(Mobility.RANDOM.value)
         self.max_latches = 60
-        self.route_rep = []
 
     def initialize_age(self):
         return np.random.randint(25, 50)

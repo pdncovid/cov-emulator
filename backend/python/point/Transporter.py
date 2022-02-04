@@ -14,6 +14,7 @@ class Transporter(Person):
         self.max_latches = 10
         self.is_latchable = True
         self.route_rep = []
+        self.route_rep_all_stops = []
         Person.features[self.ID, PersonFeatures.is_transporter.value] = 1
 
     # def get_random_route(self, root, t,
@@ -75,7 +76,7 @@ class Transporter(Person):
 
     def on_enter_home(self):
         # self.current_trans = self.home_loc.override_transport
-        if len(self.latched_people) != 0:
+        if len(self.latched_people) != 0 and self.current_target_idx == len(self.route) - 1:
             Logger.log(f"People ({len(self.latched_people)}) are latched to transporter when the transporter is going home!", 'c')
             self.force_delatch_and_teleport_all()
 

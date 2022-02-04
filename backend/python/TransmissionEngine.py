@@ -21,7 +21,7 @@ class TransmissionEngine:
         n_contacts = [0 for _ in range(len(state))]
         contacts = {i:[] for i in range(len(state))}
         new_infected = []
-        for t in tqdm(dfg.groups.keys(), desc="Checking for infection"):
+        for t in tqdm(dfg.groups.keys(), desc="Checking for virus transmission events"):
             dft = dfg.get_group(t)
             x = dft['x'].values
             y = dft['y'].values

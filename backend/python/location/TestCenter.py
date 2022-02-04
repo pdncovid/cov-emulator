@@ -6,9 +6,9 @@ from backend.python.enums import State, TestSpawn, PersonFeatures
 
 
 class TestCenter:
-    asymptotic_t = -1
-    test_acc = -1
     testresultdelay = Time.get_duration(24)
+    test_freq_days = 3
+
     def __init__(self, x, y, r):
         self.x = x
         self.y = y
@@ -20,27 +20,27 @@ class TestCenter:
         self.max_tests = 100
         self.daily_tests = 0
 
-    @staticmethod
-    def set_parameters(asymptotic_t, test_acc):
-        TestCenter.asymptotic_t = asymptotic_t
-        TestCenter.test_acc = test_acc
-
     def on_reset_day(self):
         self.daily_tests = 0
 
-    def test(self, p, t):
-        rnd = np.random.rand()
+    def test(self, p, t, test_type='PCR'):
+        mu = 7
+        sig = 2
         if p.features[p.ID, PersonFeatures.state.value] == State.INFECTED.value:
             if p.tested_positive_time > 0:
                 return
-            else:
-                boost_by_infected_period = min(TestCenter.asymptotic_t, t - p.infected_time) / TestCenter.asymptotic_t
-                result = True if rnd < TestCenter.test_acc * boost_by_infected_period else False
+            if t - p.last_tested_time < TestCenter.test_freq_days * Time.DAY:
+                return
+            rnd = np.random.rand()
+            test_acc = np.exp(
+                -np.power((t - p.infected_time) / Time.DAY - mu, 2.) / (2 * np.power(sig, 2.)))
+            result = True if rnd < test_acc else False
         else:
             result = False  # True if rnd > args.test_acc else False
         if result:
             p.set_tested_positive()
-            p.tested_positive_time = t+TestCenter.testresultdelay
+            p.tested_positive_time = t + TestCenter.testresultdelay
+        p.last_tested_time = t
 
     @staticmethod
     def spawn_test_center(method, points, test_centers, h, w, r, threshold):

@@ -9,7 +9,7 @@ Mobility = Enum('Mobility', "RANDOM BROWNIAN")
 State = Enum('State', "SUSCEPTIBLE INFECTED RECOVERED DEAD")
 Shape = Enum('Shape', "POLYGON CIRCLE")
 TestSpawn = Enum('Test center spawning method', 'RANDOM HEATMAP')
-Containment = Enum('Containment strategy', "NONE LOCKDOWN QUARANTINE QUARANTINECENTER")
+Containment = Enum('Containment strategy', "NONE LOCKDOWN QUARANTINE QUARANTINECENTER ROSTER")
 PersonFeatures = Enum('Person Features',
                       "id occ gender age base_immunity immunity_boost behaviour asymptotic_chance is_asymptotic "
                       "social_d hygiene_p temp "

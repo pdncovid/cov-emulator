@@ -1,3 +1,5 @@
+import math
+
 from backend.python.enums import Containment
 from backend.python.Time import Time
 
@@ -54,3 +56,26 @@ class ContainmentEngine:
 
         from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
         return [COVIDQuarantineZone]
+
+    @staticmethod
+    def assign_roster_days(people, root, args):
+        roster_groups = args.roster_groups
+        work_groups = {}
+        for p in people:
+            wl = p.work_loc
+            if wl in work_groups.keys():
+                work_groups[wl].append(p)
+            else:
+                work_groups[wl] = [p]
+        for wl in work_groups.keys():
+            n = len(work_groups[wl])
+            # group_size = math.ceil(n / roster_groups)
+            for i in range(n):
+                group_start = i%roster_groups
+                while group_start < 7:
+                    work_groups[wl][i].roster_days.append(group_start)
+                    if n <= roster_groups:
+                        group_start += n
+                    else:
+                        group_start += roster_groups
+

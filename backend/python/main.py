@@ -46,15 +46,12 @@ def get_args(name):
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
     parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
-    parser.add_argument('--containment', help='containment strategy used ', type=int,
-                        default=Containment.QUARANTINE.value)
+    parser.add_argument('--containment', help='containment strategy used', type=int, default=Containment.ROSTER.value)
+    parser.add_argument('--roster_groups', help='Number of groups ', type=int, default=2, choices=range(1, 6))
+
     parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
     parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
-    parser.add_argument('--test_acc', help='Test accuracy', type=float, default=0.80)
     parser.add_argument('--test_center_r', help='Mean radius of coverage from the test center', type=int, default=20)
-    parser.add_argument('--asymptotic_t',
-                        help='Mean asymptotic period. (Test acc gradually increases with disease age)',
-                        type=int, default=14)
 
     parser.add_argument('--initialize',
                         help='How to initialize the positions (0-Random, 1-From file 2-From probability map)',
@@ -65,8 +62,6 @@ def get_args(name):
 
 def set_parameters(args):
     Logger('logs', time.strftime(args.name + '%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
-
-    TestCenter.set_parameters(args.asymptotic_t, args.test_acc)
 
     # initialize simulator timer
     Time.init()
@@ -105,7 +100,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
     # initialize graphs and people
     locations = root.get_locations_according_function(lambda x: True)
 
-    # check house density
+    # ============================================================================================== check house density
     loc_classes = separate_into_classes(root)
     for loc_class in loc_classes.keys():
         if str(Home.__name__) in loc_class.__name__:
@@ -117,7 +112,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
                     'c')
                 exit(-1)
 
-    # save initial parameters
+    # ========================================================================================== save initial parameters
     loc_classes = all_subclasses(Location)
     people_classes = all_subclasses(Person)
     movement_classes = all_subclasses(Movement)
@@ -138,7 +133,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
     save_array("../../app/src/data/locs.txt", loc_classes)
     save_array("../../app/src/data/people.txt", people_classes)
 
-    # add test centers to medical zones
+    # ================================================================================ add test centers to medical zones
     test_centers = []
     classes = separate_into_classes(root)
     if MedicalZone in classes.keys():
@@ -146,10 +141,10 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             test_center = TestCenter(mz.px, mz.py, mz.radius)
             test_centers.append(test_center)
 
-    # find cemeteries
+    # ================================================================================================== find cemeteries
     cemetery = classes[Cemetery]
 
-    # initial iterations to initialize positions of the people
+    # ========================================================= initial iterations to initialize positions of the people
     for t in range(5):
         print(f"initializing {t}")
         MovementEngine.move_people(Person.all_people)
@@ -159,7 +154,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
     Logger.log_graph(root)
 
     day_t_instances = []
-    # main iteration loop
+    # ============================================================================================== main iteration loop
     for i in range(iterations):
         t = Time.get_time()
 
@@ -183,7 +178,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             CovEngine.process_death(people, t, cemetery)
 
             # ============================================================================================== vaccination
-            day = t // Time.DAY
+            day = int(t // Time.DAY)
             for vaccinate_event in vaccinate_events:
                 if vaccinate_event[0] == day:
                     CovEngine.vaccinate_people(vaccinate_event[1], vaccinate_event[2], people)

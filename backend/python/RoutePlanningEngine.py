@@ -1,4 +1,3 @@
-
 import os
 from random import choices
 
@@ -84,14 +83,6 @@ class RoutePlanningEngine:
         else:
             raise NotImplementedError()
 
-        if containment == Containment.NONE.value:
-            pass
-        elif containment == Containment.LOCKDOWN.value:
-            raise NotImplementedError()
-        elif containment == Containment.QUARANTINE.value:
-            pass#raise NotImplementedError()
-        elif containment == Containment.QUARANTINECENTER.value:
-            raise NotImplementedError()
         return p1, p2
 
     @staticmethod
@@ -108,14 +99,6 @@ class RoutePlanningEngine:
         p1 = os.path.join(p, "p_dtLocPersonTime.csv")
         p2 = os.path.join(p, "p_dtLocPersonTime.csv")
 
-        if containment == Containment.NONE.value:
-            pass
-        elif containment == Containment.LOCKDOWN.value:
-            raise NotImplementedError()
-        elif containment == Containment.QUARANTINE.value:
-            pass#raise NotImplementedError()
-        elif containment == Containment.QUARANTINECENTER.value:
-            raise NotImplementedError()
         return p1, p2
 
     @staticmethod
@@ -138,10 +121,12 @@ class RoutePlanningEngine:
         if RoutePlanningEngine.df_loc_o_1 is None:
             RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o1).set_index('location').groupby('person')
 
-        RoutePlanningEngine.df_loc_p = pd.read_csv(p1).set_index('location').groupby('person') #RoutePlanningEngine.df_loc_p_1
+        RoutePlanningEngine.df_loc_p = pd.read_csv(p1).set_index('location').groupby(
+            'person')  # RoutePlanningEngine.df_loc_p_1
         RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p2).set_index('location').groupby('person')
 
-        RoutePlanningEngine.df_loc_o = pd.read_csv(o1).set_index('location').groupby('person')#RoutePlanningEngine.df_loc_o_1
+        RoutePlanningEngine.df_loc_o = pd.read_csv(o1).set_index('location').groupby(
+            'person')  # RoutePlanningEngine.df_loc_o_1
         RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o2).set_index('location').groupby('person')
 
         RoutePlanningEngine.loaded_day_of_week = day_of_week
@@ -161,12 +146,12 @@ class RoutePlanningEngine:
     def plot_curves(to_plot, titles):
         n = len(to_plot)
 
-        fig, axs = plt.subplots(int(n**0.5), int(n**0.5)+1)
+        fig, axs = plt.subplots(int(n ** 0.5), int(n ** 0.5) + 1)
         for i in range(len(axs)):
             for j in range(len(axs[i])):
                 try:
-                    axs[i, j].plot(to_plot[i*len(axs[i]) + j])
-                    axs[i, j].set_title(titles[i*len(axs[i]) + j])
+                    axs[i, j].plot(to_plot[i * len(axs[i]) + j])
+                    axs[i, j].set_title(titles[i * len(axs[i]) + j])
                 except:
                     break
         plt.show()
@@ -276,27 +261,40 @@ class RoutePlanningEngine:
         if RoutePlanningEngine.loaded_person != p.__class__.__name__:
             RoutePlanningEngine.loaded_person = p.__class__.__name__
 
-            RoutePlanningEngine.df_p_1 = RoutePlanningEngine.df_loc_p_1.get_group(p.__class__.__name__).drop(columns=['person']).astype(float)
-            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(p.__class__.__name__).drop(columns=['person']).astype(float)
+            RoutePlanningEngine.df_p_1 = RoutePlanningEngine.df_loc_p_1.get_group(p.__class__.__name__).drop(
+                columns=['person']).astype(float)
+            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(p.__class__.__name__).drop(
+                columns=['person']).astype(float)
 
-            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_loc_o_1.get_group(p.__class__.__name__).drop(columns=['person']).astype(float)
-            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(p.__class__.__name__).drop(columns=['person']).astype(float)
+            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_loc_o_1.get_group(p.__class__.__name__).drop(
+                columns=['person']).astype(float)
+            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(p.__class__.__name__).drop(
+                columns=['person']).astype(float)
 
             RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_o_1.cumsum()
             RoutePlanningEngine.df_o = RoutePlanningEngine.df_o.cumsum()
 
     @staticmethod
     def get_loc_for_p_at_t(route_so_far, p, t):
+        if RoutePlanningEngine.loaded_containment == Containment.LOCKDOWN.value:
+            return [p.home_loc]
+        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINECENTER.value:
+            if p.is_tested_positive():
+                return ['COVIDQuarantineZone']
+        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.value:
+            if p.is_tested_positive():
+                return [p.home_loc]
         RoutePlanningEngine.check_loaded_df(route_so_far, p, t)
 
         day = t // Time.DAY
         t = Time.i_to_minutes(t) % 1440
         t = str(t)
         tnow = Time.get_time()
-        if day == tnow//Time.DAY:
+        if day == tnow // Time.DAY:
             idx = get_idx_most_likely(RoutePlanningEngine.df_p[t].values, method=0, scale=0.2)
         else:
-            idx = get_idx_most_likely(RoutePlanningEngine.df_p_1[t].values, method=0, scale=0.2)  # we dont come here because we stop the day around 11 pm
+            idx = get_idx_most_likely(RoutePlanningEngine.df_p_1[t].values, method=0,
+                                      scale=0.2)  # we dont come here because we stop the day around 11 pm
 
         # if len(route_so_far) > 0:
         #     loc_name = RoutePlanningEngine.get_loc_name(route_so_far[-1].loc, p)
@@ -317,6 +315,9 @@ class RoutePlanningEngine:
         if location == '_work':
             if p.work_loc is None:
                 return []
+            if RoutePlanningEngine.loaded_containment == Containment.ROSTER.value:
+                if not p.is_roster_day:
+                    return [p.home_loc]
             return [p.work_loc]
         if location == '_w_home':
             if p.home_weekend_loc is None:
@@ -325,7 +326,15 @@ class RoutePlanningEngine:
         return [location]
 
     @staticmethod
-    def get_dur_for_p_in_loc_at_t(route_so_far, p, loc, t): # TODO too slow
+    def get_dur_for_p_in_loc_at_t(route_so_far, p, loc, t):
+        if RoutePlanningEngine.loaded_containment == Containment.LOCKDOWN.value:
+            return Time.get_duration(20)
+        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINECENTER.value:
+            if p.is_tested_positive():
+                return Time.get_duration(20)
+        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.value:
+            if p.is_tested_positive():
+                return Time.get_duration(20)
         if p.features[p.ID, PersonFeatures.is_transporter.value] == 1:
             return Time.get_duration(0.1)  # todo this changes a lot check
 
@@ -334,7 +343,7 @@ class RoutePlanningEngine:
 
         weights = RoutePlanningEngine.df_o.loc[loc_name].values.astype('float')
         # dt = Time.get_duration(choices(RoutePlanningEngine._values, weights)[0]/120)
-        dt = bs(weights, np.random.rand()*weights.max())
+        dt = bs(weights, np.random.rand() * weights.max())
         dt = min(dt, Time.get_duration(1))
         # dt = Time.get_duration(1/6)
         return dt

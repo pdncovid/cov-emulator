@@ -14,6 +14,7 @@ class Person:
     _id = 0
     all_people = []
     features = np.zeros((0, len(PersonFeatures) + 1))
+    roster_ratio = 3/7
     # all_positions = np.zeros((0, 2))
     # all_velocities = np.zeros((0, 2))
 
@@ -144,6 +145,10 @@ class Person:
         self.disease_state = 0  # disease state, higher value means bad for the patient # todo add to repr
 
         self.tested_positive_time = -1  # tested positive time
+        self.last_tested_time = -1
+
+        self.roster_days = []#[i for i in range(7) if np.random.rand() < Person.roster_ratio]
+        self.is_roster_day = True
 
         # self.social_distance = 0.0
         # self.hygeinic_p = 1.0  # TODO
@@ -265,6 +270,8 @@ class Person:
 
         self.is_day_finished = False
         self.current_target_idx = 0
+        self.is_roster_day = t//Time.DAY//7 in self.roster_days
+
         from backend.python.RoutePlanningEngine import RoutePlanningEngine
 
         RoutePlanningEngine.set_route(self, t)
@@ -424,10 +431,11 @@ class Person:
     def set_route(self, route, t, move2first=True):
 
         route = RoutePlanningEngine.optimize_route(route)
-        if route[0].loc != self.home_loc and route[0].loc != self.home_weekend_loc:
-            raise Exception("Initial location invalid!")
-        if route[-1].loc != self.home_loc and route[-1].loc != self.home_weekend_loc:
-            raise Exception("Last location invalid!")
+        if not self.is_tested_positive():
+            if route[0].loc != self.home_loc and route[0].loc != self.home_weekend_loc:
+                raise Exception("Initial location invalid!")
+            if route[-1].loc != self.home_loc and route[-1].loc != self.home_weekend_loc:
+                raise Exception("Last location invalid!")
         self.route = route
         if move2first:
             self.current_target_idx = 0

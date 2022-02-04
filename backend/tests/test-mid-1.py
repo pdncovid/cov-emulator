@@ -3,11 +3,12 @@ import sys
 
 import numpy as np
 
+from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.GatherEvent import GatherEvent
 from backend.python.Logger import Logger
 from backend.python.Time import Time
 from backend.python.const import work_map
-from backend.python.enums import Shape, PersonFeatures
+from backend.python.enums import Shape, PersonFeatures, Containment
 from backend.python.functions import get_random_element, separate_into_classes
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Districts.DenseDistrict import DenseDistrict
@@ -76,7 +77,8 @@ def initialize():
         else:
             person.work_loc = person.find_closest(work_map[person.__class__], person.home_loc,
                                                   find_from_level=-1)  # todo
-
+    if args.containment == Containment.ROSTER.value:
+        ContainmentEngine.assign_roster_days(people, root, args)
     return people, root
 
 

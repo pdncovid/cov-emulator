@@ -28,12 +28,10 @@ from backend.python.location.Stations.TukTukStation import TukTukStation
 from backend.python.location.TestCenter import TestCenter
 from backend.python.point.BusDriver import BusDriver
 from backend.python.point.CommercialWorker import CommercialWorker
-from backend.python.point.CommercialZoneBusDriver import CommercialZoneBusDriver
 from backend.python.point.GarmentAdmin import GarmentAdmin
 from backend.python.point.GarmentWorker import GarmentWorker
 from backend.python.point.Infant import Infant
 from backend.python.point.Retired import Retired
-from backend.python.point.SchoolBusDriver import SchoolBusDriver
 from backend.python.point.Student import Student
 from backend.python.point.Teacher import Teacher
 from backend.python.point.TuktukDriver import TuktukDriver
@@ -129,8 +127,6 @@ work_map = {
     Teacher: 'Classroom',
     BusDriver: 'BusStation',
     TuktukDriver: 'TukTukStation',
-    CommercialZoneBusDriver: 'CommercialBuilding',
-    SchoolBusDriver: 'School',
     Retired: None,
     Infant: None,
 }

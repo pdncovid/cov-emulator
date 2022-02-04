@@ -183,14 +183,15 @@ class MovementEngine:
         trans = p.main_trans
 
         from backend.python.point.Transporter import Transporter
-        if moving_loc.override_transport is not None and not isinstance(p, Transporter):
-            if moving_loc.override_transport.override_level <= p.main_trans.override_level:
+        if isinstance(p, Transporter):
+            if p.is_day_finished:
                 trans = moving_loc.override_transport
-            else:
-                pass
-
-        if p.home_loc == moving_loc or p.home_weekend_loc == moving_loc:
-            trans = moving_loc.override_transport
+        else:
+            if moving_loc.override_transport is not None:
+                if moving_loc.override_transport.override_level <= p.main_trans.override_level:
+                    trans = moving_loc.override_transport
+            if p.home_loc == moving_loc or p.home_weekend_loc == moving_loc:
+                trans = moving_loc.override_transport
         return trans
 
     # @staticmethod

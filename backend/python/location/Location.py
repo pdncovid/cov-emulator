@@ -369,7 +369,6 @@ class Location:
         self.points.append(p)
         self.is_visiting.append(p.get_next_target().loc != self)
         p.set_current_location(self, t)
-        MovementEngine.set_movement_method(self, p)
 
         if p.latched_to is None:
             latched_text = ''
@@ -400,6 +399,7 @@ class Location:
         p.current_loc_leave = current_loc_leave
 
         # following lines should be always after the above code
+        MovementEngine.set_movement_method(self, p)
         p.on_enter_location(self, t)  # transporters try to latch others here
 
         if self.capacity is not None:

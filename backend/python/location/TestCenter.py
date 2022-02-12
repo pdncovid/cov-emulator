@@ -27,20 +27,18 @@ class TestCenter:
         mu = 7
         sig = 2
         if p.features[p.ID, PersonFeatures.state.value] == State.INFECTED.value:
-            if p.tested_positive_time > 0:
+            if p.is_tested_positive():
                 return
-            if t - p.last_tested_time < TestCenter.test_freq_days * Time.DAY:
+            if t - p.features[p.ID, PersonFeatures.last_tested_time.value] < TestCenter.test_freq_days * Time.DAY:
                 return
             rnd = np.random.rand()
-            test_acc = np.exp(
-                -np.power((t - p.infected_time) / Time.DAY - mu, 2.) / (2 * np.power(sig, 2.)))
+            test_acc = np.exp(-np.power((t - p.features[p.ID, PersonFeatures.infected_time.value]) / Time.DAY - mu, 2.) / (2 * np.power(sig, 2.)))
             result = True if rnd < test_acc else False
         else:
             result = False  # True if rnd > args.test_acc else False
         if result:
-            p.set_tested_positive()
-            p.tested_positive_time = t + TestCenter.testresultdelay
-        p.last_tested_time = t
+            p.features[p.ID, PersonFeatures.tested_positive_time.value] = t + TestCenter.testresultdelay
+        p.features[p.ID, PersonFeatures.last_tested_time.value] = t
 
     @staticmethod
     def spawn_test_center(method, points, test_centers, h, w, r, threshold):

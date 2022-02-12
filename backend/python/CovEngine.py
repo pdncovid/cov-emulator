@@ -41,8 +41,8 @@ class CovEngine:
                         p.set_recovered()
                 else:
                     if np.random.rand() < CovEngine.get_recovery_p(p, t):
-                        p.disease_state -= 1
-                        if p.disease_state == 0:
+                        p.features[p.ID, PersonFeatures.disease_state.value] -= 1
+                        if p.features[p.ID, PersonFeatures.disease_state.value] == 0:
                             p.set_recovered()
 
     @staticmethod
@@ -54,11 +54,11 @@ class CovEngine:
                         p.set_dead()
                 else:
                     if np.random.rand() < CovEngine.get_worsen_p(p, t):
-                        p.disease_state += 1
-                        if p.disease_state == CovEngine.dead_disease_state:
+                        p.features[p.ID, PersonFeatures.disease_state.value] += 1
+                        if p.features[p.ID, PersonFeatures.disease_state.value] == CovEngine.dead_disease_state:
                             p.set_dead()
 
-                if t - p.infected_time > CovEngine.recover_after and np.random.rand() < 0.5:  # todo find this value
+                if t - p.features[p.ID, PersonFeatures.infected_time.value] > CovEngine.recover_after and np.random.rand() < 0.5:  # todo find this value
                     p.set_recovered()
                 if p.is_dead():
                     Logger.log(f"DEAD {p.ID}", 'c')
@@ -73,10 +73,10 @@ class CovEngine:
             x = dt / 60 / 24
             return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
             # return np.exp(-abs(np.random.normal(7, 2, len(dt)) - dt))
-
+        infected_time = p.features[p.ID, PersonFeatures.infected_time.value]
         lp = p.get_current_location().recovery_p
-        tp = duration_f(t - p.infected_time)
-        if t - p.infected_time < CovEngine.recover_after and p.disease_state == 0:
+        tp = duration_f(t - infected_time)
+        if t - infected_time < CovEngine.recover_after and p.features[p.ID, PersonFeatures.disease_state.value] == 0:
             # too early to recover
             return 0
         return CovEngine.base_recovery_p * tp * lp * p.get_effective_immunity()
@@ -92,10 +92,11 @@ class CovEngine:
             # return np.exp(-abs(np.random.normal(7, 2, len(dt)) - dt))
         def age_f(a):
             return (np.tanh((a - 60) / 20) + 1) / 2
+        infected_time = p.features[p.ID, PersonFeatures.infected_time.value]
         lp = p.get_current_location().recovery_p
-        tp = duration_f(t - p.infected_time)
+        tp = duration_f(t - infected_time)
         ageP = age_f(p.features[p.ID, PersonFeatures.age.value])
-        if t - p.infected_time < CovEngine.die_after and p.disease_state == CovEngine.dead_disease_state-1:
+        if t - infected_time < CovEngine.die_after and p.features[p.ID, PersonFeatures.disease_state.value] == CovEngine.dead_disease_state-1:
             # too early to die
             return 0
         return (1 - CovEngine.base_recovery_p) * tp * ageP * (1 - lp) * (1 - p.get_effective_immunity()) * 0.1

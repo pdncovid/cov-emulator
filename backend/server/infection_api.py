@@ -2,7 +2,7 @@ from flask_restful import Resource, reqparse
 
 from .constants import log_base_dir, selected_people_classes
 from .file_api import Loader, getMap
-from anytree import Node, RenderTree
+from anytree import Node
 from anytree.exporter import JsonExporter
 import os
 import pandas as pd
@@ -108,9 +108,9 @@ class ContactHandler(Resource):
                 day_info.append(f)
         day_info.sort()
 
-        df_p = Loader.getFile(request_dir, 0, '_person_info')
+        df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
         df_p = df_p.set_index('person')
-        df_l = Loader.getFile(request_dir, 0, '_location_info')
+        df_l = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_location_info')
 
         def pID2requesetGroupMap(ID):
             # map from ID of the person to requested group
@@ -142,7 +142,7 @@ class ContactHandler(Resource):
             for group_name1 in group_names:
                 for group_name2 in group_names:
                     con_df.loc[group_name1, group_name2] += ' ' + str(day_con_df.loc[group_name1, group_name2])
-        df = Loader.getFile(request_dir, 0, '_person_info')
+        df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
         for pid in df['person']:
             count_df.loc[pID2requesetGroupMap(pid), 'count'] += 1
         m = getMap(request_group, request_dir)
@@ -178,14 +178,15 @@ class LocationContactHandler(Resource):
                 day_info.append(f)
         day_info.sort()
 
-        df_p = Loader.getFile(request_dir, 0, '_person_info')
-        df_l = Loader.getFile(request_dir, 0, '_location_info')
+        df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
+        df_l = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_location_info')
 
         con_df = pd.DataFrame({'location': df_l['id'], 'contacts': [[0] for _ in range(len(df_l))]})
         con_df = con_df.set_index('location')
         df_l = df_l.set_index('id')
 
         for pi in day_info:
+            print("Processing", pi)
             df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '')
             df = df[['person', 'current_location_id', 'current_location_class']]
             dfc = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '_contact_info')[
@@ -250,14 +251,15 @@ class PersonContactHandler(Resource):
                 day_info.append(f)
         day_info.sort()
 
-        df_p = Loader.getFile(request_dir, 0, '_person_info')
-        df_l = Loader.getFile(request_dir, 0, '_location_info')
+        df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
+        df_l = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_location_info')
 
         con_df = pd.DataFrame({'person': df_p['person'], 'contacts': [[0] for _ in range(len(df_p))]})
         con_df = con_df.set_index('person')
         df_p = df_p.set_index('person')
 
         for pi in day_info:
+            print("Processing", pi)
             df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '')
             df = df[['person', 'current_location_id', 'current_location_class']]
             dfc = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '_contact_info')[
@@ -326,7 +328,7 @@ class InfectionHandler(Resource):
                 day_info.append(f)
         day_info.sort()
 
-        df_p = Loader.getFile(request_dir, 0, '_person_info')
+        df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
         df_p = df_p.set_index('person')
         to_check_people = [True for _ in range(len(df_p.index))]
 
@@ -342,7 +344,12 @@ class InfectionHandler(Resource):
 
         group_names = df_p.index.map(pID2requesetGroupMap).unique()
         inf_df = pd.DataFrame(index=group_names, columns=group_names).fillna('')
-        count_df = pd.DataFrame(index=group_names, columns=['infected']).fillna('')
+        count_df = pd.DataFrame(index=group_names, columns=['infected', 'total_count', 'total_infected']).fillna('')
+        count_df['total_count'] = [0]*len(group_names)
+
+        for p_id in df_p.index:
+            _r = pID2requesetGroupMap(p_id)
+            count_df.loc[_r, 'total_count'] += 1
 
         for pi in day_info:
             print(f'Processing day {pi}')
@@ -356,7 +363,7 @@ class InfectionHandler(Resource):
                 if row['state'] > 1:  # infected person
                     p_id = int(row['person'])
                     s_id = int(row['infected_source_id'])
-                    if s_id == -1:
+                    if s_id < 0:
                         s_id = p_id
                     _r = pID2requesetGroupMap(p_id)
                     _s = pID2requesetGroupMap(s_id)
@@ -367,7 +374,8 @@ class InfectionHandler(Resource):
                 count_df.loc[group_name1, 'infected'] += ' ' + str(day_count_df.loc[group_name1, 'infected'])
                 for group_name2 in group_names:
                     inf_df.loc[group_name1, group_name2] += ' ' + str(day_con_df.loc[group_name1, group_name2])
-
+        for group_name1 in group_names:
+            count_df.loc[group_name1, 'total_infected'] = sum(map(int,count_df.loc[group_name1, 'infected'].split()))
         m = getMap(request_group, request_dir)
         if m is None:
             m = {i: i for i in inf_df.index}

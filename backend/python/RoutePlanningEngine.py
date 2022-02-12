@@ -103,7 +103,7 @@ class RoutePlanningEngine:
 
     @staticmethod
     def get_loc_name(loc, p):
-        loc_name = loc.__class__.__name__
+        loc_name = loc.class_name
         if loc == p.home_loc:
             loc_name = '_home'
         elif loc == p.home_weekend_loc:
@@ -116,18 +116,23 @@ class RoutePlanningEngine:
     def set_parameters(day_of_week, containment):
         p1, p2 = RoutePlanningEngine.process_loc_p(day_of_week, containment)
         o1, o2 = RoutePlanningEngine.process_loc_o(day_of_week, containment)
+        from backend.python.point.Person import Person
+        def load_df(path):
+            df = pd.read_csv(path).set_index('location')
+            df['person'] = df['person'].map(Person.class_df.set_index('p_class')['index'])
+            df = df.groupby('person')
+            return df
+
         if RoutePlanningEngine.df_loc_p_1 is None:
-            RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p1).set_index('location').groupby('person')
+            RoutePlanningEngine.df_loc_p_1 = load_df(p1)
         if RoutePlanningEngine.df_loc_o_1 is None:
-            RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o1).set_index('location').groupby('person')
+            RoutePlanningEngine.df_loc_o_1 = load_df(o1)
 
-        RoutePlanningEngine.df_loc_p = pd.read_csv(p1).set_index('location').groupby(
-            'person')  # RoutePlanningEngine.df_loc_p_1
-        RoutePlanningEngine.df_loc_p_1 = pd.read_csv(p2).set_index('location').groupby('person')
+        RoutePlanningEngine.df_loc_p = load_df(p1)
+        RoutePlanningEngine.df_loc_p_1 = load_df(p2)
 
-        RoutePlanningEngine.df_loc_o = pd.read_csv(o1).set_index('location').groupby(
-            'person')  # RoutePlanningEngine.df_loc_o_1
-        RoutePlanningEngine.df_loc_o_1 = pd.read_csv(o2).set_index('location').groupby('person')
+        RoutePlanningEngine.df_loc_o = load_df(o1)
+        RoutePlanningEngine.df_loc_o_1 = load_df(o2)
 
         RoutePlanningEngine.loaded_day_of_week = day_of_week
         RoutePlanningEngine.loaded_containment = containment
@@ -257,18 +262,19 @@ class RoutePlanningEngine:
         return r1 + r2
 
     @staticmethod
-    def check_loaded_df(route_so_far, p, t):
-        if RoutePlanningEngine.loaded_person != p.__class__.__name__:
-            RoutePlanningEngine.loaded_person = p.__class__.__name__
+    def check_loaded_df(p):
+        occ = p.features[p.ID, PersonFeatures.occ.value]
+        if RoutePlanningEngine.loaded_person != occ:
+            RoutePlanningEngine.loaded_person = occ
 
-            RoutePlanningEngine.df_p_1 = RoutePlanningEngine.df_loc_p_1.get_group(p.__class__.__name__).drop(
+            RoutePlanningEngine.df_p_1 = RoutePlanningEngine.df_loc_p_1.get_group(occ).drop(
                 columns=['person']).astype(float)
-            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(p.__class__.__name__).drop(
+            RoutePlanningEngine.df_p = RoutePlanningEngine.df_loc_p.get_group(occ).drop(
                 columns=['person']).astype(float)
 
-            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_loc_o_1.get_group(p.__class__.__name__).drop(
+            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_loc_o_1.get_group(occ).drop(
                 columns=['person']).astype(float)
-            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(p.__class__.__name__).drop(
+            RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(occ).drop(
                 columns=['person']).astype(float)
 
             RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_o_1.cumsum()
@@ -284,7 +290,7 @@ class RoutePlanningEngine:
         if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.value:
             if p.is_tested_positive():
                 return [p.home_loc]
-        RoutePlanningEngine.check_loaded_df(route_so_far, p, t)
+        RoutePlanningEngine.check_loaded_df(p)
 
         day = t // Time.DAY
         t = Time.i_to_minutes(t) % 1440
@@ -335,10 +341,10 @@ class RoutePlanningEngine:
         if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.value:
             if p.is_tested_positive():
                 return Time.get_duration(20)
-        if p.features[p.ID, PersonFeatures.is_transporter.value] == 1:
+        if p.is_transporter == 1:
             return Time.get_duration(0.1)  # todo this changes a lot check
 
-        RoutePlanningEngine.check_loaded_df(route_so_far, p, t)
+        RoutePlanningEngine.check_loaded_df(p)
         loc_name = RoutePlanningEngine.get_loc_name(loc, p)
 
         weights = RoutePlanningEngine.df_o.loc[loc_name].values.astype('float')
@@ -354,9 +360,9 @@ class RoutePlanningEngine:
         t = 0
         for tar in route:
             while t < Time.i_to_minutes(tar.leaving_time) % 1440:
-                arr.append(loc_map[tar.loc.__class__.__name__])
+                arr.append(loc_map[tar.loc.class_name])
                 t += dt
         while t < 1440:
-            arr.append(loc_map[route[0].loc.__class__.__name__])
+            arr.append(loc_map[route[0].loc.class_name])
             t += dt
         return arr

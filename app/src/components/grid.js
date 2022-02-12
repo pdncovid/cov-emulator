@@ -26,7 +26,7 @@ const MyGrid = ({ canvas_width, canvas_height, x_axis_distance_grid_lines, y_axi
         console.log('Drawing grid');
         // grid lines along Y-axis
         for (var i = 0; i <= num_lines_y; i++) {
-            var lineWidth = 2;
+            var lineWidth = 1;
             // If line represents Y-axis draw in different color
             if (i == Math.floor(y_axis_distance_grid_lines))
                 var strokeStyle = "#000000";

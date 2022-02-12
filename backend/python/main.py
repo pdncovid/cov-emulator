@@ -20,11 +20,7 @@ from backend.python.enums import TestSpawn, ClassNameMaps, Containment, PersonFe
 from backend.python.functions import count_graph_n, separate_into_classes
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Location import Location
-from backend.python.location.Medical.MedicalZone import MedicalZone
-from backend.python.location.Residential.Home import Home
-from backend.python.location.Stations.BusStation import BusStation
 from backend.python.location.TestCenter import TestCenter
-from backend.python.point.BusDriver import BusDriver
 from backend.python.point.Person import Person
 from backend.python.point.Transporter import Transporter
 from backend.python.transport.Movement import Movement
@@ -46,7 +42,7 @@ def get_args(name):
     parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
     parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
 
-    parser.add_argument('--containment', help='containment strategy used', type=int, default=Containment.ROSTER.value)
+    parser.add_argument('--containment', help='containment strategy used', type=int, default=Containment.NONE.value)
     parser.add_argument('--roster_groups', help='Number of groups ', type=int, default=2, choices=range(1, 6))
 
     parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
@@ -56,6 +52,9 @@ def get_args(name):
     parser.add_argument('--initialize',
                         help='How to initialize the positions (0-Random, 1-From file 2-From probability map)',
                         type=int, default=0)
+
+    parser.add_argument('--load_log_root', help='Log root location to load', type=str, default=None)
+    parser.add_argument('--load_log_day', help='Log day to load', type=int, default=-1)
 
     return parser.parse_args()
 
@@ -97,13 +96,15 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
     test_name = time.strftime(args.name + '%Y.%m.%d-%H.%M.%S', time.localtime())
     os.makedirs('../../app/src/data/' + test_name)
 
+    Logger.save_class_info(test_name)
+
     # initialize graphs and people
     locations = root.get_locations_according_function(lambda x: True)
 
     # ============================================================================================== check house density
     loc_classes = separate_into_classes(root)
     for loc_class in loc_classes.keys():
-        if str(Home.__name__) in loc_class.__name__:
+        if 'Home' == loc_class:
             print(loc_class, len(loc_classes[loc_class]))
             pph = len(people) / len(loc_classes[loc_class])
             if pph > 4.5:
@@ -112,37 +113,15 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
                     'c')
                 exit(-1)
 
-    # ========================================================================================== save initial parameters
-    loc_classes = all_subclasses(Location)
-    people_classes = all_subclasses(Person)
-    movement_classes = all_subclasses(Movement)
-    for p in people:
-        people_classes.add(p.class_name)
-    for l in locations:
-        loc_classes.add(l.class_name)
-    lc_map = {x: i for i, x in enumerate(loc_classes)}
-    pc_map = {x: i for i, x in enumerate(people_classes)}
-    mc_map = {x: i for i, x in enumerate(movement_classes)}
-    lc_map[None], pc_map[None], mc_map[None], = -1, -1, -1
-    ClassNameMaps.lc_map = lc_map
-    ClassNameMaps.pc_map = pc_map
-    ClassNameMaps.mc_map = mc_map
-    save_array('../../app/src/data/' + test_name + '/locs.txt', loc_classes)
-    save_array('../../app/src/data/' + test_name + '/people.txt', people_classes)
-    save_array('../../app/src/data/' + test_name + '/movement.txt', movement_classes)
-    save_array("../../app/src/data/locs.txt", loc_classes)
-    save_array("../../app/src/data/people.txt", people_classes)
-
     # ================================================================================ add test centers to medical zones
     test_centers = []
-    classes = separate_into_classes(root)
-    if MedicalZone in classes.keys():
-        for mz in classes[MedicalZone]:
+    if 'MedicalZone' in loc_classes.keys():
+        for mz in loc_classes['MedicalZone']:
             test_center = TestCenter(mz.px, mz.py, mz.radius)
             test_centers.append(test_center)
 
     # ================================================================================================== find cemeteries
-    cemetery = classes[Cemetery]
+    cemetery = loc_classes['Cemetery']
 
     # ========================================================= initial iterations to initialize positions of the people
     for t in range(5):
@@ -151,10 +130,23 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
 
     Logger.log(f"{len(people)} {count_graph_n(root)}", 'i')
     Logger.log(f"{len(people)} {count_graph_n(root)}", 'c')
-    Logger.log_graph(root)
 
-    day_t_instances = []
+    # ========================================================================================== save initial parameters
+    loc_classes = Location.class_df['l_class']
+    people_classes = Person.class_df['p_class']
+    movement_classes = Movement.class_df['m_class']
+    lc_map = {x: i for i, x in enumerate(loc_classes)}
+    pc_map = {x: i for i, x in enumerate(people_classes)}
+    mc_map = {x: i for i, x in enumerate(movement_classes)}
+    lc_map[None], pc_map[None], mc_map[None], = -1, -1, -1
+    ClassNameMaps.lc_map = lc_map
+    ClassNameMaps.pc_map = pc_map
+    ClassNameMaps.mc_map = mc_map
+    save_array("../../app/src/data/locs.txt", loc_classes)
+    save_array("../../app/src/data/people.txt", people_classes)
+
     # ============================================================================================== main iteration loop
+    day_t_instances = []
     for i in range(iterations):
         t = Time.get_time()
 
@@ -164,7 +156,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
         if t % Time.DAY == 0:
             day_t_instances = np.array(day_t_instances)
 
-            if t > 0:
+            if i > 0:
                 # ================================================================================= process transmission
                 n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.infect_r)
                 Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
@@ -183,7 +175,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
                 if vaccinate_event[0] == day:
                     CovEngine.vaccinate_people(vaccinate_event[1], vaccinate_event[2], people)
 
-            if t > 0:
+            if i > 0:
                 Logger.save_log_files(test_name, t, people, locations)
 
             # loading route initializing probability matrices based on type of day in the week and containment strategy
@@ -203,7 +195,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             #             covered_locations[trans_visit] = True
             # covered_location_classes = {}
             # for loc in covered_locations.keys():
-            #     loc_class = loc.__class__.__name__
+            #     loc_class = loc.class_name
             #     if loc_class not in covered_location_classes.keys():
             #         covered_location_classes[loc_class] = [0, 0]
             #     covered_location_classes[loc_class][0] += 1

@@ -108,7 +108,7 @@ class TransmissionEngine:
         infected_duration = []
         age = Person.features[validsourceid, PersonFeatures.age.value]
         for i in validsourceid:
-            infected_duration.append(t - points[i].infected_time)
+            infected_duration.append(t - points[i].features[points[i].ID, PersonFeatures.infected_time.value])
 
         infected_duration = np.array(infected_duration)
         age = np.array(age)
@@ -128,7 +128,8 @@ class TransmissionEngine:
             trans_p = TransmissionEngine.get_transport_transmission_p(contact_person, infected_person)
 
             if rand[i] < tr_p[i] * trans_p * location_p * behaviour_p * immunity_p:
-                contact_person.set_infected(t, infected_person, TransmissionEngine.common_fever_p)
+                contact_person.set_infected(t, infected_person, contact_person.get_current_location(),
+                                            TransmissionEngine.common_fever_p)
                 c.append(contact_person.ID)
         return c
 
@@ -167,4 +168,4 @@ class TransmissionEngine:
             return 0
         # todo implement infection within latched people only! (in MovementByTransporter)
 
-        return p1.current_trans.get_in_transport_transmission_p()
+        return p1.current_trans.infectiousness

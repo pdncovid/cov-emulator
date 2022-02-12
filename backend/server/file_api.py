@@ -1,6 +1,8 @@
+import json
+
 from flask import Flask, send_from_directory
 from flask_restful import Api, Resource, reqparse, abort
-from .constants import log_base_dir, selected_people_classes
+from .constants import log_base_dir, selected_people_classes, data_path
 
 from flask_cors import CORS  # comment this on deployment
 import os
@@ -8,6 +10,7 @@ import pathlib
 import pandas as pd
 import numpy as np
 import re
+
 
 class Loader:
 
@@ -21,27 +24,24 @@ class Loader:
 
     @staticmethod
     def getLocationList(rdir):
-        f_name = "locs.txt"
-        fh = open(log_base_dir.joinpath(rdir).joinpath(f_name), 'r')
-        return fh.read().split('\n')
+        path = data_path if rdir == '' else log_base_dir.joinpath(rdir)
+        return list(pd.read_csv(path.joinpath("location_classes.csv"))['l_class'].values)
 
     @staticmethod
     def getPeopleList(rdir):
-        f_name = "people.txt"
-        print(log_base_dir.joinpath(rdir).joinpath(f_name))
-        fh = open(log_base_dir.joinpath(rdir).joinpath(f_name), 'r')
-        return fh.read().split('\n')
+        path = data_path if rdir == '' else log_base_dir.joinpath(rdir)
+        return list(pd.read_csv(path.joinpath("person_classes.csv"))['p_class'].values)
 
     @staticmethod
     def getMovementList(rdir):
-        f_name = "movement.txt"
-        fh = open(log_base_dir.joinpath(rdir).joinpath(f_name), 'r')
-        return fh.read().split('\n')
+        path = data_path if rdir == '' else log_base_dir.joinpath(rdir)
+        return list(pd.read_csv(path.joinpath("movement_classes.csv"))['m_class'].values)
 
     @staticmethod
     def getResourceLog(rdir):
         f_name = "resource_info.csv"
         return pd.read_csv(log_base_dir.joinpath(rdir).joinpath(f_name))
+
 
 def getMap(name, dir):
     if 'person_class' in name:
@@ -50,6 +50,7 @@ def getMap(name, dir):
         return Loader.getLocationList(dir)
     if 'movement_class' in name:
         return Loader.getMovementList(dir)
+
 
 class PostTextFileHandler(Resource):
     def post(self):
@@ -86,6 +87,21 @@ class LogListHandler(Resource):
             'message': ",".join(map(str, fols[1:]))
         }
 
+
+class MatrixListHandler(Resource):
+    def get(self):
+        fols = []
+        for (dirpath, dirnames, filenames) in os.walk(data_path):
+            fols.extend(filenames)
+            break
+        fols = filter(lambda x: 'class' not in x, fols)
+        print(fols)
+        return {
+            'status':'Success',
+            'data':'|'.join(fols)
+        }
+
+
 class PostCSVasJSONHandler(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -105,6 +121,11 @@ class PostCSVasJSONHandler(Resource):
             status = "Success"
             if request_type == "resource_log":
                 df = Loader.getResourceLog(request_dir)
+            elif 'csv' in request_type:
+                if request_dir == '':
+                    df = pd.read_csv(data_path.joinpath(request_type))
+                else:
+                    df = pd.read_csv(log_base_dir.joinpath(request_dir).joinpath(request_type), low_memory=False)
             else:
                 df = Loader.getFile(request_dir, int(request_day), request_type)
             if len(request_cols) > 0:
@@ -121,5 +142,40 @@ class PostCSVasJSONHandler(Resource):
             abort(500)
 
         final_ret = {"status": status, "data": message}
+
+        return final_ret
+
+
+class SaveCSVJSONHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        parser.add_argument('filename', type=str)
+        parser.add_argument('data', type=str)
+        args = parser.parse_args()
+
+        request_dir = args['dir']
+        request_data = args['data']
+        request_type = args['filename']
+
+        try:
+            status = "Success"
+            arr = json.loads(request_data)
+            df = pd.DataFrame(columns=list(arr[0].keys()))
+            for row in arr:
+                df = df.append(row, ignore_index=True)
+            if "[object Object]" in df.columns:
+                df = df.drop("[object Object]", axis=1)
+            print(df)
+            if dir == '':
+                df.to_csv(path_or_buf=data_path.joinpath(request_type), index=False)
+            else:
+                df.to_csv(path_or_buf=data_path.joinpath(request_dir).joinpath(request_type), index=False)
+            message = "Saved"
+        except Exception as e:
+            status = "Error"
+            message = str(e)
+            abort(500)
+        final_ret = {"status": status, "message": message}
 
         return final_ret

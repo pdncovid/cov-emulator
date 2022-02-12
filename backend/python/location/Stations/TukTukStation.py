@@ -5,12 +5,12 @@ import numpy as np
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
-from backend.python.location.Building import Building
 from backend.python.location.Cemetery import Cemetery
+from backend.python.location.Location import Location
 
 
-class TukTukStation(Building):
-
+class TukTukStation(Location):
+    pass_through = []
     def get_suggested_sub_route(self, point, route_so_far):
         t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else np.random.rand() * Time.get_duration(
             1) + Time.get_time()
@@ -21,11 +21,12 @@ class TukTukStation(Building):
 
         # if the route is defined for the tuktuk, repeat the same route. otherwise define it first
 
-        from backend.python.point.TuktukDriver import TuktukDriver
-        from backend.python.transport.Tuktuk import Tuktuk
-        tuktuk = Tuktuk.get_first_instance()
+        # from backend.python.point.TuktukDriver import TuktukDriver
+        # from backend.python.transport.Tuktuk import Tuktuk
+        from backend.python.transport.Movement import Movement
+        tuktuk = Movement.all_instances['Tuktuk']
 
-        if not Tuktuk.pass_through:
+        if not TukTukStation.pass_through:
             root = self.get_root()
             # pass_through = ['ResidentialZone', 'IndustrialZone', 'CommercialZone', 'EducationZone', 'MedicalZone']
 
@@ -51,7 +52,7 @@ class TukTukStation(Building):
                 if n > 0:  # ==len(r.locations):
                     pass_through.append(r)
             # np.random.shuffle(pass_through)  # todo: shuffle????
-            Tuktuk.pass_through = cycle(pass_through)
+            TukTukStation.pass_through = cycle(pass_through)
 
             # divide tuktuk routes to separate depth levels
             # pass_through_depths = {}
@@ -62,9 +63,9 @@ class TukTukStation(Building):
 
         # if there is no route for the tuktuk, initialize a route.
         # This route will be repeated each time the _work is called.
-        if isinstance(point, TuktukDriver) and not point.route_rep:
+        if point.class_name == 'TuktukDriver' and not point.route_rep:
             point.route_rep = []
-            loc = next(Tuktuk.pass_through)
+            loc = next(TukTukStation.pass_through)
             # pass_through_locs = get_random_element(list(pass_through_depths.values()))  # select tuktuk route depth
             # pass_through_loc = get_random_element(pass_through_locs)    # select particular location
             # loc = point.find_closest(pass_through_loc, self, find_from_level=-1)
@@ -84,5 +85,5 @@ class TukTukStation(Building):
 
         return route_so_far
 
-    def __init__(self, shape, x, y, name, **kwargs):
-        super().__init__(shape, x, y, name, **kwargs)
+    def __init__(self, class_info, spawn_sub, **kwargs):
+        super().__init__(class_info, spawn_sub, **kwargs)

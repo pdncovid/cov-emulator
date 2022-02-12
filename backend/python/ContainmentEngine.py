@@ -1,5 +1,3 @@
-import math
-
 from backend.python.enums import Containment
 from backend.python.Time import Time
 
@@ -34,9 +32,8 @@ class ContainmentEngine:
                 # p.update_route(root, 0, ContainmentEngine.get_containment_route_for_tested_positives(p), replace=True)
                 return False
             elif containment == Containment.QUARANTINECENTER.value:
-                from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
                 for tar in p.route:
-                    if isinstance(tar.loc, COVIDQuarantineZone):
+                    if tar.loc.class_name=='COVIDQuarantineZone':
                         return False
                 p.update_route(root, t, ContainmentEngine.get_containment_route_for_tested_positives(p), replace=True)
                 return False
@@ -53,9 +50,7 @@ class ContainmentEngine:
 
     @staticmethod
     def get_containment_route_for_tested_positives(p):
-
-        from backend.python.location.Medical.COVIDQuarantineZone import COVIDQuarantineZone
-        return [COVIDQuarantineZone]
+        return ['COVIDQuarantineZone']
 
     @staticmethod
     def assign_roster_days(people, root, args):

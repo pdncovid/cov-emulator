@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 
+
 from .file_api import *
 from .demographic_api import *
 from .constants import *
@@ -9,24 +10,30 @@ app = Flask(__name__, static_url_path='', static_folder='frontend/build')
 CORS(app)  # comment this on deployment
 api = Api(app)
 
+class RunSim(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        args = parser.parse_args()
+        request_dir = args['dir']
+        os.system("python runner.py")
 
 class NDaysHandler(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('dir', type=str)
-
         args = parser.parse_args()
-
         request_dir = args['dir']
+
         files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(request_dir))]
 
-        days = 0
+        days = []
         for f in files:
-            if 'person_info' in f.__str__():
-                days += 1
+            if 'person_info' in str(f):
+                days += [str(int(re.search("[0-9]{5}", str(f)).group()))]
         return {
             'resultStatus': 'SUCCESS',
-            'message': str(days)
+            'message': '|'.join(days)
         }
 
 
@@ -125,15 +132,21 @@ def serve(path):
     return send_from_directory(app.static_folder, 'index.html')
 
 
+api.add_resource(RunSim, '/flask/run')
+
 api.add_resource(LogListHandler, '/flask/dirs')
 api.add_resource(PostTextFileHandler, '/flask/textfile')
 api.add_resource(PostCSVasJSONHandler, '/flask/csvfile')
+api.add_resource(SaveCSVJSONHandler, '/flask/savecsvfile')
+
 api.add_resource(NDaysHandler, '/flask/n_days')
 api.add_resource(InfectionTreeHandler, '/flask/infectiontree')
 api.add_resource(LocationTreeHandler, '/flask/locationtree')
 api.add_resource(SetPeopleClassesHandler, '/flask/setpeopleclasses')
 
 api.add_resource(GetColors, '/flask/get_colors')
+
+api.add_resource(MatrixListHandler, '/flask/matrix_names')
 
 api.add_resource(PossibleGroupsHandler, '/flask/possible_groups')
 api.add_resource(ContactHandler, '/flask/contacts')

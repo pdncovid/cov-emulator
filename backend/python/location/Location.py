@@ -8,8 +8,9 @@ from backend.python.enums import Shape, ClassNameMaps
 from backend.python.functions import get_random_element
 from backend.python.Time import Time
 import numpy as np
-
+import pandas as pd
 from backend.python.point.Transporter import Transporter
+from backend.python.transport.Movement import Movement
 
 
 class Location:
@@ -17,11 +18,10 @@ class Location:
     all_locations = []
     _id = 0
     # features = np.zeros((0, len(LocationFeatures)+1))
+    class_df = pd.read_csv('../python/data/location_classes.csv').reset_index()
 
-    def __init__(self, shape, x, y, name, **kwargs):
-        from backend.python.const import default_infectiousness
-        from backend.python.const import default_happiness_boost
-        self.class_name = self.__class__.__name__
+    def __init__(self, class_info, spawn_sub=True, **kwargs):
+        self.class_name = class_info['l_class']
         self.ID = Location._id
         Location._id += 1
         # tmp_feature_arr = np.zeros(len(LocationFeatures) + 1)
@@ -40,61 +40,65 @@ class Location:
         # tmp_feature_arr[LocationFeatures.quarantined_time.value] = -1
         # tmp_feature_arr[LocationFeatures.parent_id.value] = -1
         # tmp_feature_arr[LocationFeatures.om.value] = -1
+        self.px = kwargs.get('x')
+        self.py = kwargs.get('y')
+        self.shape = kwargs.get('shape', Shape.CIRCLE.value)
+        self.radius = kwargs.get('r', np.random.randint(class_info['r_min'],class_info['r_max']))
+        exit_dist = kwargs.get('exitdist', 0.9)
+        exit_theta = kwargs.get('exittheta', 0.0)
 
-        exitdist = kwargs.get('exitdist', 0.9)
-        if shape == Shape.CIRCLE.value:
-            exittheta = kwargs.get('exittheta', 0.0)
-            self.radius = kwargs.get('r')
+        if self.shape == Shape.CIRCLE.value:
+
             # tmp_feature_arr[LocationFeatures.radius.value] = kwargs.get('r')
-            if self.radius is None:
-                raise Exception("Please provide radius")
-            self.ex = x + np.cos(exittheta) * kwargs.get('r') * exitdist
-            self.ey = y + np.sin(exittheta) * kwargs.get('r') * exitdist
-            # tmp_feature_arr[LocationFeatures.ex.value] = x + np.cos(exittheta) * kwargs.get('r') * exitdist
-            # tmp_feature_arr[LocationFeatures.ey.value] = y + np.sin(exittheta) * kwargs.get('r') * exitdist
-        elif shape == Shape.POLYGON.value:
-            self.boundary = kwargs.get('b')
+            self.ex = self.px + np.cos(exit_theta) * self.radius * exit_dist
+            self.ey = self.py + np.sin(exit_theta) * self.radius * exit_dist
+            # tmp_feature_arr[LocationFeatures.ex.value] = x + np.cos(exit_theta) * kwargs.get('r') * exit_dist
+            # tmp_feature_arr[LocationFeatures.ey.value] = y + np.sin(exit_theta) * kwargs.get('r') * exit_dist
+        elif self.shape == Shape.POLYGON.value:
+            self.boundary = kwargs.get('boundary')
             if self.boundary is None:
                 raise Exception("Please provide boundary")
             # TODO add exit point here
             # tmp_feature_arr[LocationFeatures.px.value] = np.average(self.boundary[:, 0])
             # tmp_feature_arr[LocationFeatures.px.value] = np.average(self.boundary[:, 1])
-            # tmp_feature_arr[LocationFeatures.ex.value] = tmp_feature_arr[LocationFeatures.px.value] * (1 - exitdist) + \
-            #                                              self.boundary[0][0] * exitdist
-            # tmp_feature_arr[LocationFeatures.ey.value] = tmp_feature_arr[LocationFeatures.py.value] * (1 - exitdist) + \
-            #                                              self.boundary[0][1] * exitdist
+            # tmp_feature_arr[LocationFeatures.ex.value] = tmp_feature_arr[LocationFeatures.px.value] * (1 - exit_dist) + \
+            #                                              self.boundary[0][0] * exit_dist
+            # tmp_feature_arr[LocationFeatures.ey.value] = tmp_feature_arr[LocationFeatures.py.value] * (1 - exit_dist) + \
+            #                                              self.boundary[0][1] * exit_dist
             self.px = np.average(self.boundary[:, 0])
             self.py = np.average(self.boundary[:, 1])
-            self.ex = self.px * (1 - exitdist) + self.boundary[0][0] * exitdist
-            self.ey = self.py * (1 - exitdist) + self.boundary[0][1] * exitdist
+            self.ex = self.px * (1 - exit_dist) + self.boundary[0][0] * exit_dist
+            self.ey = self.py * (1 - exit_dist) + self.boundary[0][1] * exit_dist
 
         # Location.features = np.append(Location.features, np.expand_dims(tmp_feature_arr, 0), axis=0)
-        self.px = x
-        self.py = y
-        self.shape = shape
+
         self.depth = 0
         self.capacity = kwargs.get('capacity')
-        self.recovery_p = 0.1  # todo find this, add to repr
+        self.recovery_p = kwargs.get('recovery_p', 0.1)  # todo find this, add to repr
 
-        self.infectious = default_infectiousness[self.__class__] if kwargs.get(
-            'infectiousness') is None else kwargs.get('infectiousness')
-        self.social_distance = 0.0
-        self.hygiene_boost = 0
-
-        self.happiness_boost = default_happiness_boost[self.__class__]
-
+        self.infectious = kwargs.get('infectiousness', 0.8)
+        self.social_distance = kwargs.get('social_distance', 0.0)
+        self.hygiene_boost = kwargs.get('hygiene_boost', 0)
+        self.happiness_boost = kwargs.get('happiness_boost', class_info['happiness_boost'])
         self.quarantined = kwargs.get('quarantined', False)
         self.quarantined_time = -1
 
-        self.boundary = []  # list of polygon points of the boundary [(x1,y1),(x2,y2), ...]
         self.points = []
         self.is_visiting = []
 
         self.parent_location = None
         self.locations = []
-        self.override_transport = None
-        self.name = name
+        override_transport = class_info['override_transport']
+        self.override_transport = None if pd.isna(override_transport) else Movement.all_instances[override_transport]
+        self.name = kwargs.get('name', self.class_name[:3]+str(self.ID))
         Location.all_locations.append(self)
+
+        if spawn_sub and not pd.isna(class_info['default_spawns']):
+            for spawn_class in class_info['default_spawns'].split('|'):
+                spawn_class_name, n_loc = spawn_class.split('#')
+                n_loc = int(n_loc)
+                spawn_class_info = Location.class_df.loc[Location.class_df['l_class']==spawn_class_name].iloc[0]
+                self.spawn_sub_locations(spawn_class_info, n_loc, **kwargs)
 
     def __repr__(self):
         d = self.get_description_dict()
@@ -115,15 +119,16 @@ class Location:
             'class': ClassNameMaps.lc_map[self.class_name],
             'id': self.ID, 'x': self.px, 'y': self.py,
             'depth': self.depth, 'capacity': self.capacity,
-            'override_transport': ClassNameMaps.mc_map[
-                self.override_transport.class_name] if self.override_transport is not None else -1,
+            'override_transport': Movement.class_df.loc[Movement.class_df['m_class'] ==
+                                                        self.override_transport.class_name].index[
+                0] if self.override_transport is not None else -1,
             'infectious': self.infectious,
             'quarantined': 1 if self.quarantined else 0,
             'parent_id': self.parent_location.ID if self.parent_location is not None else -1,
 
             'children_ids': ' '.join([str(ch.ID) for ch in self.locations]),
             'quarantined_time': self.quarantined_time,
-            'exit': ' '.join([str(e) for e in [self.ex,self.ey]]),
+            'exit': ' '.join([str(e) for e in [self.ex, self.ey]]),
             'name': self.name,
         }
 
@@ -134,16 +139,25 @@ class Location:
 
         return d
 
-    def spawn_sub_locations(self, cls, n_sub_loc, r_sub_loc, **kwargs):
+    def spawn_sub_locations(self, class_info, n_sub_loc, **kwargs):
         if n_sub_loc <= 0:
             return
+        r_sub_loc = int(class_info['r_max'])
         assert r_sub_loc > 0
         xs, ys = self.get_suggested_positions(n_sub_loc, r_sub_loc)
-        print(f"Automatically creating {len(xs)}/{n_sub_loc} {cls.__name__} for {self.__class__.__name__} {self.name}")
-        kwargs['r'] = r_sub_loc
+        cls = class_info['l_class']
+        print(f"Automatically creating {len(xs)}/{n_sub_loc} {cls} for {self.class_name} {self.name}")
+
         i = 0
         for x, y in zip(xs, ys):
-            building = cls(Shape.CIRCLE.value, x, y, self.name + '-' + cls.__name__[:3] + str(i), **kwargs)
+            if cls == 'BusStation':
+                from backend.python.location.Stations.BusStation import BusStation
+                building = BusStation(class_info, True, x=x,y=y,name=self.name + '-' + cls[:3] + str(i))
+            elif cls == 'TukTukStation':
+                from backend.python.location.Stations.TukTukStation import TukTukStation
+                building = TukTukStation(class_info, True, x=x, y=y, name=self.name + '-' + cls[:3] + str(i))
+            else:
+                building = Location(class_info, True, x=x, y=y, name=self.name + '-' + cls[:3] + str(i))
             self.add_sub_location(building)
             i += 1
 
@@ -270,14 +284,13 @@ class Location:
                     continue
                 # waiting too long in this place!!!
                 if t - p.current_loc_leave > wait_lvl1 and t - p.current_loc_enter > wait_lvl1:
-                    from backend.python.transport.Walk import Walk
-                    if not isinstance(p.current_trans, Walk):
+                    if not p.current_trans.class_name == 'Walk':
                         Logger.log(
-                            f"OT {p} @ {p.get_current_location().name} -> {MovementEngine.find_next_location(p)} [{p.get_next_target()}] "
-                            f"({p.current_target_idx}/{len(p.route)}) "
-                            f"dt={t - p.current_loc_leave} "
-                            f"Move {p.current_trans} "
-                            f"ADD TO Walk"
+                            f"OT {p} @ {p.get_current_location().name} since {Time.i_to_datetime(p.current_loc_enter)} "
+                            f"for {Time.i_to_minutes(t - p.current_loc_leave)} "
+                            f"-> {MovementEngine.find_next_location(p)} [{p.get_next_target().loc.name}] "
+                            f"({p.current_target_idx}/{len(p.route)-1}) "
+                            f"Movement {p.current_trans} -> Walk"
                             , 'e'
                         )
                         # walk = get_random_element(Walk.all_instances)
@@ -288,15 +301,14 @@ class Location:
                     continue
                 if t - p.current_loc_leave > wait_lvl0 and t - p.current_loc_enter > wait_lvl0:
                     # todo change current transportation system to tuk tuk or taxi
-                    from backend.python.transport.Tuktuk import Tuktuk
-                    if not isinstance(p.current_trans, Tuktuk):
+                    if not p.current_trans.class_name == 'Tuktuk':
                         Logger.log(
-                            f"OT {p} @ {p.get_current_location().name} -> ({p.get_next_target()}) "
-                            f"({p.current_target_idx}/{len(p.route)}) "
-                            f"dt={t - p.current_loc_leave} "
-                            f"Move {p.current_trans} "
-                            f"ADD TO Tuktuk"
-                            , 'd'
+                            f"OT {p} @ {p.get_current_location().name} since {Time.i_to_datetime(p.current_loc_enter)} "
+                            f"for {Time.i_to_minutes(t - p.current_loc_leave)} "
+                            f"-> {MovementEngine.find_next_location(p)} [{p.get_next_target().loc.name}] "
+                            f"({p.current_target_idx}/{len(p.route) - 1}) "
+                            f"Movement {p.current_trans} -> Tuktuk"
+                            , 'e'
                         )
                         # tuktuk = get_random_element(Tuktuk.all_instances)
                         # tuktuk.add_point_to_transport(p)
@@ -389,6 +401,8 @@ class Location:
                 Logger.log(f"{self.ID} finished daily route!", 'd')
             else:
                 p.increment_target_location()
+            if p.is_day_finished:
+                p.on_enter_home()
             current_loc_leave = self.get_leaving_time(p, t)  # new leaving time after incrementing target
         elif p.get_current_target().loc == self:
             pass

@@ -17,6 +17,11 @@ class Time:
         Time.DAY = Time.get_duration(24)
 
     @staticmethod
+    def set_t(t):
+        Time.t = t
+        Time.t_minutes = Time._shift_hrs*60 + Time._scale*t
+
+    @staticmethod
     def increment_time_unit():
         Time.t += 1
         Time.t_minutes += Time._scale

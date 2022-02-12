@@ -1,71 +1,23 @@
 from backend.python.Logger import Logger
-from backend.python.Time import Time
 from backend.python.enums import PersonFeatures
 
 from backend.python.point.Person import Person
+from backend.python.transport.Movement import Movement
 
 
 class Transporter(Person):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, class_info, **kwargs):
+        from backend.python.transport.MovementByTransporter import MovementByTransporter
+        super().__init__(class_info, **kwargs)
         self.latched_people = []
         self.latched_dst = []
-        self.max_latches = 10
+        self.max_latches = kwargs.get('max_latches', class_info['max_passengers'])
         self.is_latchable = True
         self.route_rep = []
         self.route_rep_all_stops = []
-        Person.features[self.ID, PersonFeatures.is_transporter.value] = 1
-
-    # def get_random_route(self, root, t,
-    #                      target_classes_or_objs=None,
-    #                      possible_override_trans=None,
-    #                      ending_time=np.random.randint(Time.get_time_from_datetime(18, 0),
-    #                                                    Time.get_time_from_datetime(23, 0))):
-    #     if target_classes_or_objs is None:
-    #         target_classes_or_objs = []
-    #     if possible_override_trans is None:
-    #         possible_override_trans = []
-    #     arr_locs = []
-    #
-    #     def dfs(rr):
-    #         if rr.override_transport is None:
-    #             arr_locs.append(rr)
-    #         for tra in possible_override_trans:
-    #             if isinstance(rr.override_transport, tra):
-    #                 arr_locs.append(rr)
-    #                 break
-    #         for tar in target_classes_or_objs:
-    #             if rr == tar:
-    #                 arr_locs.append(rr)
-    #             if type(tar) == type:
-    #                 if isinstance(rr, tar):
-    #                     arr_locs.append(rr)
-    #         for child in rr.locations:
-    #             dfs(child)
-    #
-    #     dfs(root)
-    #
-    #     route, final_time = [], t
-    #     old_loc = self.home_loc
-    #     _route, final_time = self.get_random_route_through(final_time, [old_loc], False)
-    #     route += _route
-    #     while True:
-    #         loc = get_random_element(get_random_element(arr_locs).locations)  # TODO get from closest to furthest.
-    #         if loc == root:  # if we put root to route, people will drop at root. then he/she will get stuck
-    #             continue
-    #
-    #         _route, final_time = self.get_random_route_through(final_time, [loc], force_dt=True)
-    #         route += _route
-    #         dist = old_loc.get_distance_to(loc)
-    #         old_loc = loc
-    #         final_time += dist / self.main_trans.vcap
-    #
-    #         if final_time > ending_time:
-    #             break
-    #
-    #     route = RoutePlanningEngine.add_stops_as_targets_in_route(route, self)
-    #     return route
+        self.is_transporter = 1
+        self.set_movement(Movement.all_instances[class_info['main_trans']])
 
     # override
     def on_enter_location(self, loc, t):
@@ -104,9 +56,9 @@ class Transporter(Person):
             latched_p.set_position(new_x, new_y, True)
 
     # override
-    def set_infected(self, t, p, common_p):
-        super(Transporter, self).set_infected(t, p, common_p)
-        self.is_latchable = True
+    def set_infected(self, t, p, loc, common_p):
+        super(Transporter, self).set_infected(t, p, loc, common_p)
+        self.is_latchable = False # todo this should be false after tested positive
 
     # override
     def set_dead(self):
@@ -124,9 +76,6 @@ class Transporter(Person):
     def set_susceptible(self):
         super(Transporter, self).set_susceptible()
         self.is_latchable = True
-
-    def set_tested_positive(self):
-        self.is_latchable = False
 
     # override
     def increment_target_location(self):

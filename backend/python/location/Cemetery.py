@@ -1,16 +1,16 @@
 from backend.python.location.Location import Location
-from backend.python.transport.Walk import Walk
+from backend.python.transport.Movement import Movement
 
 
 class Cemetery(Location):
     def get_suggested_sub_route(self, point, route_so_far):
         return route_so_far
 
-    def __init__(self, shape, x, y, name,
-                 **kwargs):
-        super().__init__(shape, x, y, name, **kwargs)
+    def __init__(self, x, y, name,**kwargs):
+        class_info = Location.class_df.loc[Location.class_df['l_class']=='Cemetery'].iloc[0]
+        super().__init__(class_info, x=x, y=y, name=name, **kwargs)
         self.set_quarantined(False, 0)
-        self.override_transport = Walk()
+        self.override_transport = Movement.all_instances['Walk']
 
     def set_quarantined(self, quarantined, t, recursive=False):
         self.quarantined = False

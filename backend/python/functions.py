@@ -42,9 +42,9 @@ def separate_into_classes(root):
     classes = {}
 
     def dfs(rr):
-        if rr.__class__ not in classes.keys():
-            classes[rr.__class__] = []
-        classes[rr.__class__].append(rr)
+        if rr.class_name not in classes.keys():
+            classes[rr.class_name] = []
+        classes[rr.class_name].append(rr)
         for child in rr.locations:
             dfs(child)
 
@@ -65,7 +65,7 @@ def find_in_subtree(c, tar, skip):
             if isinstance(r, tar):
                 _all.append(r)
         elif type(tar) == str:
-            if r.__class__.__name__ == tar:
+            if r.class_name == tar:
                 _all.append(r)
         elif r == tar:
             _all.append(r)

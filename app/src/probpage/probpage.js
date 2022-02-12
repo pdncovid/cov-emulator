@@ -16,40 +16,81 @@ import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
 import InputLabel from '@material-ui/core/InputLabel';
 
+import Snackbar from '@material-ui/core/Snackbar';
+import IconButton from '@material-ui/core/IconButton';
+import CloseIcon from '@material-ui/icons/Close';
+
+import DataFrame from 'dataframe-js';
+
+import * as Plotly from 'plotly.js';
+
+import Table from "../components/table"
+import axios from 'axios'
+import { api } from '../utils/constants';
+import { csvJSON, csv2JSONarr, strip_text } from "../utils/files";
+
 import Alert from "react-bootstrap/Alert";
 import randomColor from "randomcolor";
 import { Stage, Layer, Line, Text } from "react-konva";
 import MyGrid from "../components/grid";
 import { ExportToCsv } from 'export-to-csv';
-import people_file from "../data/people.txt";
-import locs_file from "../data/locs.txt";
-import { csvJSON } from "../utils/files";
-import { strip_text } from "../utils/files";
+
+function loadData(csvFileName, setDataFunc, setColumnsFunc) {
+    axios.post(api + "/flask/csvfile", { dir: '', type: csvFileName })
+        .then(function (response) {
+            let data = response.data.data;
+            csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                var _data = []
+                var _columns = []
+                for (var i in json_data) {
+                    _columns.push({
+                        Header: i,
+                        accessor: i,
+                    })
+                }
+                for (var i = 0; i < json_data[_columns[0].accessor].length; i++) {
+                    var _row = {}
+                    for (var col in _columns) {
+                        _row[_columns[col].accessor] = json_data[_columns[col].accessor][i]
+                    }
+                    _data.push(_row)
+                }
+                setColumnsFunc(_columns)
+                setDataFunc(_data)
+
+            })
+        })
+
+}
+
+
+
+
 function ProbDensePage() {
     const classes = useStyles();
     const [initialLoad, setInitialLoad] = useState(true);
     const stageEl = React.createRef();
     const layerEl = React.createRef();
-    const csvLink = React.createRef();
-    const getRandomInt = max => {
-        return Math.floor(Math.random() * Math.floor(max));
-    };
+    // const csvLink = React.createRef();
 
-    var canvas_width = 1500;
-    var canvas_height = 600;
+    var canvas_width = 1000;
+    var canvas_height = 500;
 
-    const [gs_y, setGSY] = useState(500);
-    const [gs_x, setGSX] = useState(60);
-    var x_axis_distance_grid_lines = (canvas_height - 50) / gs_y;
+    const [gs_y, setGSY] = useState(400);
+    const [gs_x, setGSX] = useState(30);
+    var x_axis_distance_grid_lines = (canvas_height - 40) / gs_y;
     var y_axis_distance_grid_lines = 0.5 / (gs_x / 60);
 
-    const [mode, setMode] = useState("p_go");
+    const [snackopen, setSnackOpen] = React.useState(false);
+
+    const [matrixNames, setMatrixNames] = useState([]);
 
     const [selectedLines, setSelectedLines] = useState([]);
     const [highlightedLines, setHighlightedLines] = useState([]);
-    const [selectedPerson, setSelectedPerson] = useState(0);
-    const [selectedLoc, setSelectedLoc] = useState(0);
+    const [selectedPerson, setSelectedPerson] = useState('');
+    const [selectedLoc, setSelectedLoc] = useState('');
     const [allData, setAllData] = useState({});
+    const [updateHeatmap, setUpdateHeatMap] = useState(false)
 
     const [isDown, setIsDown] = useState(false);
     const [consoleText, setConsoleText] = useState("HSW");
@@ -67,6 +108,19 @@ function ProbDensePage() {
 
     const [people, setpeople] = useState([]);
     const [locs, setlocs] = useState(['_home', '_w_home', '_work']);
+
+    // table states
+    const [locationcolumns, setlocationColumns] = useState([])
+    const [locationdata, setlocationData] = useState([])
+    const [skiplocationPageReset, setSkiplocationPageReset] = useState(false)
+
+    const [personcolumns, setpersonColumns] = useState([])
+    const [persondata, setpersonData] = useState([])
+    const [skippersonPageReset, setSkippersonPageReset] = useState(false)
+
+    const [movementcolumns, setmovementColumns] = useState([])
+    const [movementdata, setmovementData] = useState([])
+    const [skipmovementPageReset, setSkipmovementPageReset] = useState(false)
 
     const columns = [{ Header: 'person', accessor: 'person' }, { Header: 'location', accessor: 'location' }]
     for (let time = 0; time < 60 * 24; time++) {
@@ -92,56 +146,51 @@ function ProbDensePage() {
 
         console.log("Initializing Prob page")
         console.log("loading people, location classes");
+        loadData('location_classes.csv', setlocationData, setlocationColumns)
+        loadData('person_classes.csv', setpersonData, setpersonColumns)
+        loadData('movement_classes.csv', setmovementData, setmovementColumns)
 
-        fetch(locs_file)
-            .then(r => r.text())
-            .then(text => {
-                let arr = text.split('\n');
-                arr.forEach(element => {
-                    if (element.length > 0) {
-                        if (locs.indexOf(strip_text(element)) == -1)
-                            addLoc(element);
-                    }
-                });
-            }).then(() => {
-                fetch(people_file)
-                    .then(r => r.text())
-                    .then(text => {
-                        console.log('text decoded:', text.split('\n'));
-                        let arr = text.split('\n');
-                        arr.forEach(element => {
-                            if (element.length > 0) {
-                                if (people.indexOf(strip_text(element)) == -1)
-                                    addPerson(element);
-                            }
-                        });
-                    }).then(() => {
-                        for (let i = 0; i < people.length; i++) {
-                            for (let j = 0; j < locs.length; j++) {
-                                console.log("Initializing array for ", people[i], locs[j], i, j)
-                                allData[[people[i], locs[j]]] = Array(24 * 60).fill(0);
-                            }
-                        }
-                        console.log(allData)
-                    });
-            })
+        refreshClasses()
 
-
-        // window.onscroll = () => {
-        //     posx = Math.round(stageEl.current.getContainer().getBoundingClientRect().left * 1000) / 1000;
-        //     posy = Math.round(stageEl.current.getContainer().getBoundingClientRect().top * 1000) / 1000;
-        // }
     }, [initialLoad])
 
+
     useEffect(() => {
-        if (mode == 'p_go') {
-            setGSY(500)
-            setGSX(60)
-        } else if (mode == 'p_dt') {
-            setGSY(500)
-            setGSX(600)
+        if (updateHeatmap) {
+            var graphDiv = document.getElementById("matrixHeatMap")
+            var _data = []
+            var _ylabels = []
+            var _xlabels = []
+            selectedLines.forEach(key => {
+                _data.push(allData[key])
+                _ylabels.push(key.toString())
+                _xlabels = [...Array(allData[key].length).keys()]
+            })
+            // if (graphDiv.data == undefined) {
+            console.log("heatmap", _data, graphDiv)
+            Plotly.newPlot(graphDiv, [{
+                x: _xlabels,
+                y: _ylabels,
+                z: _data,
+                type: 'heatmap'
+            }], {
+                title: 'Selected location-person pairs',
+                width: 800,
+                height: 600,
+                yaxis: {
+                    tickangle: -45,
+                    automargin: true,
+                },
+                autosize: false,
+
+            })
+            // } else {
+            //     console.log("heatmap update", _data, graphDiv.data)
+            //     Plotly.update(graphDiv, { x: _xlabels, y: _ylabels, z: _data, }, {} )
+            // }
+            setUpdateHeatMap(false)
         }
-    }, [mode])
+    }, [updateHeatmap])
 
     useEffect(() => {
         let ps = []
@@ -158,6 +207,87 @@ function ProbDensePage() {
 
     }, [gs_x, gs_y])
 
+    useEffect(() => {
+        for (var p_idx = 0; p_idx < lines.length; p_idx++) {
+            lines[p_idx].values = allData[lines[p_idx].key]
+            var points = lines[p_idx].points
+            for (var i=0;i<points.length/2;i++){
+                lines[p_idx].points[2 * i + 1] = converty2py(lines[p_idx].values[i])
+            }            
+        }
+        setUpdateHeatMap(true)
+
+    }, [allData])
+
+    React.useEffect(() => {
+        setSkiplocationPageReset(false)
+    }, [locationdata])
+    React.useEffect(() => {
+        setSkippersonPageReset(false)
+    }, [persondata])
+    React.useEffect(() => {
+        setSkipmovementPageReset(false)
+    }, [movementdata])
+
+
+    function refreshClasses() {
+        // load matrix names
+        axios.get(api + "/flask/matrix_names").then((response) => {
+            setMatrixNames(response.data.data.split('|'))
+        })
+        // Loading Locations
+        axios.post(api + "/flask/csvfile", { dir: '', type: 'location_classes.csv' })
+            .then(function (response) {
+                let data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var _df = new DataFrame(json_data)
+                    _df.select('l_class').toArray().map(e => e[0]).forEach((e) => {
+                        if (e.length > 0) {
+                            if (locs.indexOf(strip_text(e)) == -1)
+                                addLoc(e);
+                        }
+                    })
+
+                    // Loading People
+                    axios.post(api + "/flask/csvfile", { dir: '', type: 'person_classes.csv' })
+                        .then(function (response) {
+                            let data = response.data.data;
+                            csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                                var _df = new DataFrame(json_data)
+                                console.log(_df);
+                                _df.select('p_class').toArray().map(e => e[0]).forEach(element => {
+                                    if (element.length > 0) {
+                                        if (people.indexOf(strip_text(element)) == -1)
+                                            addPerson(element);
+                                    }
+                                })
+                                var _allData = {}
+                                for (let i = 0; i < people.length; i++) {
+                                    for (let j = 0; j < locs.length; j++) {
+                                        // console.log("Initializing array for ", people[i], locs[j], i, j)
+                                        _allData[[people[i], locs[j]]] = Array(24 * 60).fill(0);
+                                    }
+                                }
+                                setAllData(_allData)
+                            })
+
+                        })
+                })
+            })
+
+
+    }
+
+    function saveData(csvFileName, toSaveData) {
+        axios.post(api + "/flask/savecsvfile", { dir: '', filename: csvFileName, data: JSON.stringify(toSaveData) }).then((response) => {
+            console.log(response)
+            if (response.data.status == "Success") {
+                setSnackOpen(true)
+            }
+        }
+        )
+
+    }
 
     function findxy(res, e) {
 
@@ -227,6 +357,8 @@ function ProbDensePage() {
 
                 _y = Math.min(_y, 1);
                 _y = Math.max(_y, 0);
+                if (2 * i + 1 >= _line.length)
+                    continue
                 _line[2 * i + 1] = converty2py(_y);
                 _val[i] = _y;
                 if (isNaN(_line[2 * i + 1])) {
@@ -243,6 +375,8 @@ function ProbDensePage() {
                 }
                 _y = Math.min(_y, 1);
                 _y = Math.max(_y, 0);
+                if (2 * i + 1 >= _line.length)
+                    continue
                 _line[2 * i + 1] = converty2py(_y);
                 _val[i] = _y;
                 if (isNaN(_line[2 * i + 1])) {
@@ -251,11 +385,14 @@ function ProbDensePage() {
 
             }
             lines[p_idx].values = _val;
+            allData[lines[p_idx].key] = _val
             stageEl.current.children[1].children[p_idx].setPoints(_line);
         }
+        setUpdateHeatMap(true)
     }
+
     function init_line(p, l, data) {
-        console.log("Initializing line for " + p + " " + l)
+        // console.log("Initializing line for " + p + " " + l)
         var _line = Array(24 * 60 * 2).fill(0);
         for (var i = 0; i < 24 * 60; i++) {
             _line[i * 2] = convertx2px(i / 60);
@@ -273,12 +410,13 @@ function ProbDensePage() {
         return to_add;
 
     }
+
     function addLine(p, l) {
         if (p == undefined || l == undefined) {
             console.log("Person or location not selected")
             return
         }
-        console.log("Adding line ", p, l);
+        console.log("Adding line ", p, l, selectedLines);
         for (var i = 0; i < selectedLines.length; i++) {
             if (selectedLines[i][0] == p && selectedLines[i][1] == l) {
                 console.log("Exists")
@@ -286,21 +424,23 @@ function ProbDensePage() {
             }
         }
         selectedLines.push([p, l]);
+
         if (allData.hasOwnProperty([p, l]) && allData[[p, l]] != undefined) {
             const line = init_line(p, l, allData[[p, l]]);
-            var _lines = lines;
+
             for (let i = 0; i < lines.length; i++) {
-                if (lines.key == [p, l]) {
-                    _lines[i] = line;
+                if (lines[i].key[0] == p && lines[i].key[1] == l) {
+                    lines[i] = line;
+                    return
                 }
             }
-            _lines.push(line);
-            setLines(_lines);
+            lines.push(line);
         } else {
             console.log("ERROR", allData);
             return
         }
-        console.log("Added line ", p, l);
+        setUpdateHeatMap(true)
+
     }
 
     function removeLine(pl_key) {
@@ -350,10 +490,6 @@ function ProbDensePage() {
         }))
     }
 
-    const handleModeChange = function (e) {
-        setMode(e.target.value);
-    }
-
     const handlePersonClick = function (e) {
 
         setSelectedPerson(e.target.value);
@@ -397,18 +533,18 @@ function ProbDensePage() {
     };
 
     const handleSaveClick = (event) => {
-        const options = {
-            filename: mode + 'LocPersonTime',
-            fieldSeparator: ',',
-            quoteStrings: '',
-            decimalSeparator: '.',
-            showLabels: true,
-            showTitle: false,
-            useTextFile: false,
-            useBom: true,
-            useKeysAsHeaders: true,
-            // headers: ['Column 1', 'Column 2', etc...] <-- Won't work with useKeysAsHeaders present!
-        };
+        // const options = {
+        //     filename: mode + 'LocPersonTime',
+        //     fieldSeparator: ',',
+        //     quoteStrings: '',
+        //     decimalSeparator: '.',
+        //     showLabels: true,
+        //     showTitle: false,
+        //     useTextFile: false,
+        //     useBom: true,
+        //     useKeysAsHeaders: true,
+        //     // headers: ['Column 1', 'Column 2', etc...] <-- Won't work with useKeysAsHeaders present!
+        // };
 
 
         var data_to_download = []
@@ -427,69 +563,70 @@ function ProbDensePage() {
 
 
         }
-        console.log(data_to_download, csvLink)
+        console.log("SAVE", data_to_download)
 
-        const csvExporter = new ExportToCsv(options);
-        csvExporter.generateCsv(data_to_download);
+        // saveData("test.csv", data_to_download)
+        saveData(document.getElementById("select-matrix").value, data_to_download)
+
+        // const csvExporter = new ExportToCsv(options);
+        // csvExporter.generateCsv(data_to_download);
 
     }
     const handleLoadClick = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-            /* Parse data */
-            const bstr = evt.target.result;
-            //   const wb = XLSX.read(bstr, { type: 'binary' });
-            //   /* Get first worksheet */
-            //   const wsname = wb.SheetNames[0];
-            //   const ws = wb.Sheets[wsname];
-            //   /* Convert array of arrays */
-            //   const data = XLSX.utils.sheet_to_csv(ws, { header: 1 });
-            //   processData(data);
-            const data = csvJSON(bstr);
-            var _allData = {};
-            console.log(data.length, data);
-            for (let i = 0; i < data.length; i++) {
-                if (data[i]['person'] == undefined || data[i]['location'] == undefined) {
-                    continue
-                }
-                let person = data[i]['person'];
-                let location = data[i]['location'];
-                let p = people.indexOf(person);
-                let l = locs.indexOf(location);
-                // console.log(data[i]['person'], p, data[i]['location'], l, people, locs)
-                if (p == -1) {
-                    addPerson(person);
-                    p = people.length - 1;
-                }
-                if (l == -1) {
-                    addLoc(location);
-                    l = locs.length - 1;
-                }
-
-                let arr = [];
-                for (let t = 0; t < 60 * 24; t++) {
-                    arr.push(parseFloat(data[i][t]));
-                }
-                _allData[[person, location]] = arr;
-
-
-
-            }
-            for (let i = 0; i < people.length; i++) {
-                for (let j = 0; j < locs.length; j++) {
-                    if (_allData.hasOwnProperty([people[i], locs[j]])) {
+        // const file = e.target.files[0];
+        // const reader = new FileReader();
+        // reader.onload = (evt) => {
+        // const bstr = evt.target.result;
+        // const data = csvJSON(bstr);
+        axios.post(api + "/flask/csvfile", { dir: '', type: e.target.value }).then(function (response) {
+            let data = response.data.data;
+            csv2JSONarr(data, (pr) => { }).then((data) => {
+                var df = new DataFrame(data)
+                var personlocation = df.select('person', 'location')
+                df = df.toArray()
+                console.log("Loaded", df)
+                var _allData = {};
+                for (let i = 0; i < df.length; i++) {
+                    if (personlocation.getRow(i).get('person') == undefined || personlocation.getRow(i).get('location') == undefined) {
                         continue
                     }
-                    _allData[[people[i], locs[j]]] = Array(24 * 60).fill(0);
-                }
-            }
+                    let person = personlocation.getRow(i).get('person');
+                    let location = personlocation.getRow(i).get('location');
+                    let p = people.indexOf(person);
+                    let l = locs.indexOf(location);
+                    // console.log(data[i]['person'], p, data[i]['location'], l, people, locs)
+                    if (p == -1) {
+                        addPerson(person);
+                        p = people.length - 1;
+                    }
+                    if (l == -1) {
+                        addLoc(location);
+                        l = locs.length - 1;
+                    }
 
-            console.log(_allData);
-            setAllData(_allData)
-        };
-        // reader.readAsBinaryString(file);
-        reader.readAsText(file);
+                    let arr = [];
+                    for (let t = 0; t < 60 * 24; t++) {
+                        arr.push(parseFloat(df[i][t]));
+                    }
+                    _allData[[person, location]] = arr;
+
+
+
+                }
+                for (let i = 0; i < people.length; i++) {
+                    for (let j = 0; j < locs.length; j++) {
+                        if (_allData.hasOwnProperty([people[i], locs[j]])) {
+                            continue
+                        }
+                        _allData[[people[i], locs[j]]] = Array(24 * 60).fill(0);
+                    }
+                }
+
+                console.log(_allData)
+                setAllData(_allData)
+            })
+        })
+        // reader.readAsText(file);
     }
     const handleSliderChange = (event, newValue) => {
         setGSX(newValue);
@@ -508,81 +645,112 @@ function ProbDensePage() {
             allData[[selectedCopyToClass, locs[l]]] = arr;
         }
     }
+    const handleClose = (event, reason) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+        setSnackOpen(false);
+    };
+
     return (
         <div className="prob-page" >
+            <Snackbar
+                open={snackopen}
+                autoHideDuration={6000}
+                onClose={handleClose}
+                message="Saved"
+                action={(
+                    <React.Fragment>
+                        <IconButton size="small" aria-label="close" color="inherit" onClick={handleClose}                        >
+                            <CloseIcon fontSize="small" />
+                        </IconButton>
+                    </React.Fragment>
+                )}
+            />
 
-            <Grid container xs={10} direction="column" alignContent="center">
-                <Grid container direction="row" xs={11}>
-                    <Grid container xs={4}>
-                        <FormControl component="fieldset">
-                            <RadioGroup aria-label="mode" row name="mode1" value={mode} onChange={handleModeChange}>
-                                <FormControlLabel value="p_go" control={<Radio />} label="Visit Probability Matrix" />
-                                <FormControlLabel value="p_dt" control={<Radio />} label="Occupancy Probability Matrix" />
-                                {/* <FormControlLabel value="disabled" disabled control={<Radio />} label="(Disabled option)" /> */}
-                            </RadioGroup>
-                        </FormControl>
-                    </Grid>
-                    <Grid container xs={4}>
+            <Grid container xs={12} direction="column" alignContent="center">
+                <Grid container direction="row" xs={12} spacing={3} style={{padding:10}}>
+                    
+                    <Grid item xs={4}>
                         <Typography>Zoom</Typography>
                         <Slider
                             onChange={handleSliderChange}
                             aria-labelledby="gs-slider"
                             valueLabelDisplay="auto"
-                            step={10}
+                            step={1}
                             marks
-                            min={60}
+                            min={30}
                             max={600}
                         />
                     </Grid>
-                    <Grid container xs={4}>
+                    <Grid item xs={4}>
                         <Button variant="contained" onClick={(e) => handleSaveClick(e)}>Save</Button>
-                        <input
+                        <Button variant="contained" onClick={(e) => refreshClasses()}>Refresh Classes</Button>
+                        <Select
+                            native
+                            onChange={(e) => handleLoadClick(e)}
+                            style={{ width: 300 }}
+                            id="select-matrix"
+
+                        >
+                            {matrixNames.map((element) => (
+                                <option key={element} value={element}>
+                                    {element}
+                                </option>
+                            ))}
+                        </Select>
+                        {/* <input
                             type="file"
                             accept=".csv,.xlsx,.xls"
                             onChange={handleLoadClick}
                             style={{ padding: 10 }}
-                        />
+                        /> */}
 
                     </Grid>
                 </Grid>
-                <Grid container xs={10}>
-                    <Stage
-                        width={canvas_width}
-                        height={canvas_height}
-                        ref={stageEl}
-                        onMouseDown={e => {
-                            findxy('down', e);
-                        }}
-                        onMouseMove={e => {
-                            findxy('move', e);
-                        }}
-                        onMouseUp={e => {
-                            findxy('up', e);
-                        }}
-                        onMouseOut={e => {
-                            findxy('out', e);
-                        }}
 
+                <Grid container xs={12}>
+                    <Grid container xs={6}>
+                        <Stage
+                            width={canvas_width}
+                            height={canvas_height}
+                            ref={stageEl}
+                            onMouseDown={e => {
+                                findxy('down', e);
+                            }}
+                            onMouseMove={e => {
+                                findxy('move', e);
+                            }}
+                            onMouseUp={e => {
+                                findxy('up', e);
+                            }}
+                            onMouseOut={e => {
+                                findxy('out', e);
+                            }}
+                        >
+                            <MyGrid canvas_width={canvas_width}
+                                canvas_height={canvas_height}
+                                x_axis_distance_grid_lines={x_axis_distance_grid_lines}
+                                y_axis_distance_grid_lines={y_axis_distance_grid_lines}
+                                gs_y={gs_y}
+                                gs_x={gs_x}
+                                convertx2px={convertx2px}
+                                converty2py={converty2py} />
+                            <Layer ref={layerEl}>
+                                {lines.map((line, i) => {
+                                    return (
+                                        <Line key={i} {...line} />
+                                    );
+                                })}
+                            </Layer>
+                        </Stage>
 
-                    >
-                        <MyGrid canvas_width={canvas_width}
-                            canvas_height={canvas_height}
-                            x_axis_distance_grid_lines={x_axis_distance_grid_lines}
-                            y_axis_distance_grid_lines={y_axis_distance_grid_lines}
-                            gs_y={gs_y}
-                            gs_x={gs_x}
-                            convertx2px={convertx2px}
-                            converty2py={converty2py} />
-                        <Layer ref={layerEl}>
-                            {lines.map((line, i) => {
-                                return (
-                                    <Line key={i} {...line} />
-                                );
-                            })}
-                        </Layer>
-                    </Stage>
-
+                    </Grid>
+                    <Grid container xs={6}>
+                        <div id="matrixHeatMap"></div>
+                    </Grid>
                 </Grid>
+
             </Grid>
 
             <Alert>
@@ -700,22 +868,93 @@ function ProbDensePage() {
                 </Grid>
             </Grid>
 
+            <h2>Location Classes</h2>
+            <Table
+                columns={locationcolumns}
+                data={locationdata}
+                updateMyData={(rowIndex, columnId, value) => {
+                    // We also turn on the flag to not reset the page
+                    setSkiplocationPageReset(true)
+                    setlocationData(old =>
+                        old.map((row, index) => {
+                            if (index === rowIndex) {
+                                return {
+                                    ...old[rowIndex],
+                                    [columnId]: value,
+                                }
+                            }
+                            return row
+                        })
+                    )
+                }}
+                skipPageReset={skiplocationPageReset}
+                addNewRow={() => {
+                    setSkiplocationPageReset(true)
+                    setlocationData(old => [...old, locationcolumns.reduce((dict, el, idx) => (dict[el] = "", dict), {})])
+                }}
+                onSave={() => {
+                    saveData('location_classes.csv', locationdata)
+                }}
+            />
 
+            <h2>Person Classes</h2>
+            <Table
+                columns={personcolumns}
+                data={persondata}
+                updateMyData={(rowIndex, columnId, value) => {
+                    // We also turn on the flag to not reset the page
+                    setSkippersonPageReset(true)
+                    setpersonData(old =>
+                        old.map((row, index) => {
+                            if (index === rowIndex) {
+                                return {
+                                    ...old[rowIndex],
+                                    [columnId]: value,
+                                }
+                            }
+                            return row
+                        })
+                    )
+                }}
+                skipPageReset={skippersonPageReset}
+                addNewRow={() => {
+                    setSkippersonPageReset(true)
+                    setpersonData(old => [...old, personcolumns.reduce((dict, el, idx) => (dict[el] = "", dict), {})])
+                }}
+                onSave={() => {
+                    saveData('person_classes.csv', persondata)
+                }}
 
+            />
 
-
-
-            {/* <ButtonGroup variant="contained" color="primary" aria-label="text primary button group" flexWrap="wrap" orientation='vertical'>
-                {locs.map((bt, i) => {
-                    return (<Button variant="contained" key={bt} onClick={(e) => handleLocClick(bt, e)}>{bt}</Button>)
-                })}
-            </ButtonGroup> */}
-            <br></br>
-
-
-
-            {/* <Button variant="contained" onClick={(e) => handleLoadClick(e)} accept="file">Load</Button> */}
-
+            <h2>Movement Classes</h2>
+            <Table
+                columns={movementcolumns}
+                data={movementdata}
+                updateMyData={(rowIndex, columnId, value) => {
+                    // We also turn on the flag to not reset the page
+                    setSkipmovementPageReset(true)
+                    setmovementData(old =>
+                        old.map((row, index) => {
+                            if (index === rowIndex) {
+                                return {
+                                    ...old[rowIndex],
+                                    [columnId]: value,
+                                }
+                            }
+                            return row
+                        })
+                    )
+                }}
+                skipPageReset={skipmovementPageReset}
+                addNewRow={() => {
+                    setSkipmovementPageReset(true)
+                    setmovementData(old => [...old, movementcolumns.reduce((dict, el, idx) => (dict[el] = "", dict), {})])
+                }}
+                onSave={() => {
+                    saveData('movement_classes.csv', movementdata)
+                }}
+            />
 
         </div>
     );

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from 'axios'
 import { api } from '../utils/constants';
-import { strip_text } from "../utils/files";
+import { csvJSON, csv2JSONarr, strip_text } from "../utils/files";
 
 import Grid from '@material-ui/core/Grid';
 import FormHelperText from '@material-ui/core/FormHelperText';
@@ -16,6 +16,7 @@ import Select from '@material-ui/core/Select';
 
 import Button from '@material-ui/core/Button';
 
+import DataFrame from 'dataframe-js';
 import randomColor from "randomcolor";
 const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeopleArr, getMovementArr, getGroupOptionsArr }) => {
 
@@ -64,45 +65,49 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
 
         // loading number of days
         axios.post(api + '/flask/n_days', { dir: _selectedLogDir }).then(response => {
-            let _days = response.data.message
-
-            setDays([...Array(parseInt(_days)).keys()])
+            let _days = response.data.message.split('|')
+            console.log("Days " + _days)
+            setDays(_days)
         })
 
         // Loading Locations
-        axios.post(api + "/flask/textfile", { dir: _selectedLogDir, filename: 'locs.txt' })
+        axios.post(api + "/flask/csvfile", { dir: _selectedLogDir, type: 'location_classes.csv' })
             .then(function (response) {
-                //handle success
-                const data = response.data.data;
-                var locs_str = data.split("\n");
-                getLocsArr(locs_str);
-                console.log(locs_str);
+                let data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var _df = new DataFrame(json_data)
+                    console.log(_df);
+                    getLocsArr(_df.select('l_class').toArray().map(e => e[0]));
+                })
             })
 
         // Loading People
-        axios.post(api + "/flask/textfile", { dir: _selectedLogDir, filename: 'people.txt' })
+        axios.post(api + "/flask/csvfile", { dir: _selectedLogDir, type: 'person_classes.csv' })
             .then(function (response) {
-                const data = response.data.data;
-                var people_str = data.split("\n").map((e) => strip_text(e));
-                people_str.forEach(element => {
-                    peopleCheckedState[element] = true;
-                });
-                setPeople(people_str);
-                setSelectedPeople(people_str);
+                let data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var _df = new DataFrame(json_data)
+                    console.log(_df);
+                    var peopleArr = _df.select('p_class').toArray().map(e => e[0])
+                    peopleArr.forEach(element => {
+                        peopleCheckedState[element] = true;
+                    });
+                    setPeople(peopleArr);
+                    setSelectedPeople(peopleArr);
+                    getPeopleArr(peopleArr);
+                })
 
-                getPeopleArr(people_str);
-                console.log(people_str);
             })
 
         // Loading Movement
-        axios.post(api + "/flask/textfile", { dir: _selectedLogDir, filename: 'movement.txt' })
+        axios.post(api + "/flask/csvfile", { dir: _selectedLogDir, type: 'movement_classes.csv' })
             .then(function (response) {
-                //handle success
-                const data = response.data.data;
-                var movement_str = data.split("\n");
-
-                getMovementArr(movement_str);
-                console.log(movement_str);
+                let data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var _df = new DataFrame(json_data)
+                    console.log(_df);
+                    getMovementArr(_df.select('m_class').toArray().map(e => e[0]));
+                })
             })
 
         // loading grouping options
@@ -150,21 +155,21 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
                 </FormControl>
 
                 <FormGroup row style={{ maxWidth: 1000, padding: 30 }}>
-                {people.map((p) => {
-                    return (
-                        <FormControlLabel
-                            control={<Checkbox checked={peopleCheckedState[p]} onChange={handlePeopleCheckChange} name={p} key={p} />}
-                            label={p}
-                        />
-                    )
-                })}
+                    {people.map((p) => {
+                        return (
+                            <FormControlLabel
+                                control={<Checkbox checked={peopleCheckedState[p]} onChange={handlePeopleCheckChange} name={p} key={p} />}
+                                label={p}
+                            />
+                        )
+                    })}
 
-                <Button  onClick={handleAnalyzePeopleClick}>Analyze only selected people</Button>
-            </FormGroup>
+                    <Button onClick={handleAnalyzePeopleClick}>Analyze only selected people</Button>
+                </FormGroup>
             </Grid>
 
 
-            
+
 
 
 

@@ -27,8 +27,8 @@ class MovementByTransporter(Movement):
     #
     #     super().transport_point(point, destination_xy)
 
-    def __init__(self, velocity_cap: float, mobility_pattern: Mobility):
-        super().__init__(velocity_cap, mobility_pattern)
+    def __init__(self, class_info, **kwargs):
+        super().__init__(class_info, **kwargs)
         MovementByTransporter.all_instances.append(self)
 
     def find_feasibility(self, tr, path2next_tar):

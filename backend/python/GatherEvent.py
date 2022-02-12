@@ -1,5 +1,3 @@
-from backend.python.location.GatheringPlace import GatheringPlace
-
 
 class GatherEvent:
     def __init__(self, day, time, duration, loc, capacity, select_criteria):
@@ -16,7 +14,7 @@ class GatherEvent:
             if not self.select_criteria(p) or p.is_dead():
                 continue
             for tar in p.route:
-                if isinstance(tar.loc, GatheringPlace):
+                if tar.loc.class_name=='GatheringPlace':
                     break
             else:
                 selected.append(p)

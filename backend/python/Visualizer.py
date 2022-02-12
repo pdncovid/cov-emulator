@@ -2,43 +2,8 @@ import numpy as np
 
 from backend.python.Logger import Logger
 from backend.python.enums import State, PersonFeatures
-from backend.python.transport import Walk, Bus
-from backend.python.transport.CommercialZoneBus import CommercialZoneBus
-from backend.python.transport.SchoolBus import SchoolBus
-from backend.python.transport.Tuktuk import Tuktuk
-
 
 class Visualizer:
-    point_colors = {State.SUSCEPTIBLE.value: 'b',
-                    State.INFECTED.value: 'r',
-                    State.RECOVERED.value: 'g',
-                    State.DEAD.value: 'k'}
-
-    point_edgecolors = {Bus.__name__.split('.')[-1]: [0, 1, 1, 0.1],
-                        CommercialZoneBus.__name__.split('.')[-1]: [0, 0.5, 1, 0.1],
-                        Tuktuk.__name__.split('.')[-1]: [0.5, 0, 1, 0.1],
-                        Walk.__name__.split('.')[-1]: [1, 0, 1, 0.1],
-                        SchoolBus.__name__.split('.')[-1]: [0.5, 0.5, 0, 0.1]}
-
-    point_names = {State.SUSCEPTIBLE.value: State.SUSCEPTIBLE.name,
-                   State.INFECTED.value: State.INFECTED.name,
-                   State.RECOVERED.value: State.RECOVERED.name,
-                   State.DEAD.value: State.DEAD.name}
-    test_center_color = 'yellow'
-    location_palette = {}
-    loc_cls2id = {}
-
-    info_fig = None
-    info_axs = []
-
-    map_fig = None
-    map_ax = None
-    hm = None
-    sc = None
-
-    timeline_fig = None
-    timeline_axs = []
-    scale = 1000
 
     @staticmethod
     def get_heatmap(points, h, w):

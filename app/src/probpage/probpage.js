@@ -596,10 +596,12 @@ function ProbDensePage() {
                     let l = locs.indexOf(location);
                     // console.log(data[i]['person'], p, data[i]['location'], l, people, locs)
                     if (p == -1) {
+                        continue // SKIP IF NOT IN PERSON LIST!!!
                         addPerson(person);
                         p = people.length - 1;
                     }
                     if (l == -1) {
+                        continue // SKIP IF NOT IN LOCATION LIST!!!
                         addLoc(location);
                         l = locs.length - 1;
                     }

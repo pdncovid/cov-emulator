@@ -78,7 +78,7 @@ const EditableCell = ({
         setValue(initialValue)
     }, [initialValue])
 
-    return <input value={value} onChange={onChange} onBlur={onBlur} />
+    return <input value={value} onChange={onChange} onBlur={onBlur} style={{width:100}} />
 }
 
 // Set our editable cell renderer as the default Cell renderer
@@ -216,7 +216,7 @@ const Table = ({ columns, data, updateMyData, skipPageReset, addNewRow, onSave }
                             const page = e.target.value ? Number(e.target.value) - 1 : 0
                             gotoPage(page)
                         }}
-                        style={{ width: '100px' }}
+                        style={{ width: '50px' }}
                     />
                 </span>{' '}
                 <select

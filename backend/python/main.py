@@ -15,7 +15,6 @@ from backend.python.Target import Target
 from backend.python.TestingEngine import TestingEngine
 from backend.python.Time import Time
 from backend.python.TransmissionEngine import TransmissionEngine
-from backend.python.data.save_classes import all_subclasses, save_array
 from backend.python.enums import TestSpawn, ClassNameMaps, Containment, PersonFeatures
 from backend.python.functions import count_graph_n, separate_into_classes
 from backend.python.location.Cemetery import Cemetery
@@ -32,41 +31,35 @@ test_center_spawn_method = TestSpawn.HEATMAP.value
 test_center_spawn_threshold = 100
 
 
-def get_args(name):
-    parser = argparse.ArgumentParser(description='Create emulator for COVID-19 pandemic')
-    parser.add_argument('--name', help="Name of the simulation", default=name)
-    parser.add_argument('-n', help='target population', default=100)
-    parser.add_argument('-i', help='initial infected %', type=int, default=0.01)
-    parser.add_argument('-days', help='Number of simulation days', type=int, default=60)
-
-    parser.add_argument('--infect_r', help='infection radius', type=float, default=1)
-    parser.add_argument('--common_p', help='common fever probability', type=float, default=0.1)
-
-    parser.add_argument('--containment', help='containment strategy used', type=int, default=Containment.NONE.value)
-    parser.add_argument('--roster_groups', help='Number of groups ', type=int, default=2, choices=range(1, 6))
-
-    parser.add_argument('--testing', help='testing strategy used (0-Random, 1-Temperature based)', type=int, default=1)
-    parser.add_argument('--test_centers', help='Number of test centers', type=int, default=3)
-    parser.add_argument('--test_center_r', help='Mean radius of coverage from the test center', type=int, default=20)
-
-    parser.add_argument('--initialize',
-                        help='How to initialize the positions (0-Random, 1-From file 2-From probability map)',
-                        type=int, default=0)
-
-    parser.add_argument('--load_log_root', help='Log root location to load', type=str, default=None)
-    parser.add_argument('--load_log_day', help='Log day to load', type=int, default=-1)
-
-    return parser.parse_args()
-
 
 def set_parameters(args):
-    Logger('logs', time.strftime(args.name + '%Y.%m.%d-%H.%M.%S', time.localtime()) + '.log', print=True, write=False)
+    Logger('logs', time.strftime(args.name + '%Y.%m.%d-%H.%M.%S', time.localtime()), print=True, write=False)
+    os.makedirs('../../app/src/data/' + Logger.test_name)
+    # ========================================================================================== save initial parameters
+    loc_classes = Location.class_df['l_class']
+    people_classes = Person.class_df['p_class']
+    movement_classes = Movement.class_df['m_class']
+    lc_map = {x: i for i, x in enumerate(loc_classes)}
+    pc_map = {x: i for i, x in enumerate(people_classes)}
+    mc_map = {x: i for i, x in enumerate(movement_classes)}
+    lc_map[None], pc_map[None], mc_map[None], = -1, -1, -1
+    ClassNameMaps.lc_map = lc_map
+    ClassNameMaps.pc_map = pc_map
+    ClassNameMaps.mc_map = mc_map
+    # save_array("../../app/src/data/locs.txt", loc_classes)
+    # save_array("../../app/src/data/people.txt", people_classes)
+
+    TransmissionEngine.override_social_dist = float(args.social_distance)
+    TransmissionEngine.override_hygiene_p = float(args.hygiene_p)
+
+    TransmissionEngine.base_transmission_p = float(args.base_transmission_p)
+    TransmissionEngine.incubation_days = float(args.incubation_days)
 
     # initialize simulator timer
     Time.init()
 
     # initialize route planner
-    RoutePlanningEngine.set_parameters((Time.get_time() // Time.DAY) % 7, args.containment)
+    RoutePlanningEngine.set_parameters((Time.get_time() // Time.DAY) % 7)
 
 
 # ==================================== END PARAMETERS ====================================================
@@ -74,7 +67,7 @@ def set_parameters(args):
 
 def update_point_parameters(args):
     for p in Person.all_people:
-        p.update_temp(args.common_p)
+        p.update_temp(args.common_fever_p)
 
 
 def get_instance(people):
@@ -84,19 +77,19 @@ def get_instance(people):
     return x, y, ploc_ids
 
 
-def executeSim(people, root, gather_events, vaccinate_events, args):
+def executeSim(people, root, containment_events, gather_events, vaccinate_events, args):
     integrity_test = False
     record_fine_covid = True
     record_fine_person = True
     # process_disease_freq = 1  # Time.get_duration(2)
     # process_disease_at = process_disease_freq
-    days = args.days
+    days = args.sim_days
     iterations = int(days * 1440 / Time._scale)
+    n_overtime = 0
+    Logger.save_class_info()
+    Logger.save_args(args)
 
-    test_name = time.strftime(args.name + '%Y.%m.%d-%H.%M.%S', time.localtime())
-    os.makedirs('../../app/src/data/' + test_name)
 
-    Logger.save_class_info(test_name)
 
     # initialize graphs and people
     locations = root.get_locations_according_function(lambda x: True)
@@ -115,10 +108,11 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
 
     # ================================================================================ add test centers to medical zones
     test_centers = []
-    if 'MedicalZone' in loc_classes.keys():
-        for mz in loc_classes['MedicalZone']:
-            test_center = TestCenter(mz.px, mz.py, mz.radius)
-            test_centers.append(test_center)
+    if args.testing_strategy == "HOSPITAL":
+        if 'MedicalZone' in loc_classes.keys():
+            for mz in loc_classes['MedicalZone']:
+                test_center = TestCenter(mz.px, mz.py, args.r_test_centers)
+                test_centers.append(test_center)
 
     # ================================================================================================== find cemeteries
     cemetery = loc_classes['Cemetery']
@@ -131,34 +125,39 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
     Logger.log(f"{len(people)} {count_graph_n(root)}", 'i')
     Logger.log(f"{len(people)} {count_graph_n(root)}", 'c')
 
-    # ========================================================================================== save initial parameters
-    loc_classes = Location.class_df['l_class']
-    people_classes = Person.class_df['p_class']
-    movement_classes = Movement.class_df['m_class']
-    lc_map = {x: i for i, x in enumerate(loc_classes)}
-    pc_map = {x: i for i, x in enumerate(people_classes)}
-    mc_map = {x: i for i, x in enumerate(movement_classes)}
-    lc_map[None], pc_map[None], mc_map[None], = -1, -1, -1
-    ClassNameMaps.lc_map = lc_map
-    ClassNameMaps.pc_map = pc_map
-    ClassNameMaps.mc_map = mc_map
-    save_array("../../app/src/data/locs.txt", loc_classes)
-    save_array("../../app/src/data/people.txt", people_classes)
-
     # ============================================================================================== main iteration loop
     day_t_instances = []
-    for i in range(iterations):
+    new_infected = []
+    for iteration in range(iterations):
         t = Time.get_time()
+        day = int(t // Time.DAY)
 
-        print(f"\r=========================Iteration: {t} {Time.i_to_time(t)}======================", end='')
+        print(f"\r=========================Iteration: {t} {Time.i_to_time(t)}====================== nOT={n_overtime}",
+              end='')
 
-        # reset day
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! reset day !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if t % Time.DAY == 0:
             day_t_instances = np.array(day_t_instances)
 
-            if i > 0:
+            # set today's containment strategy
+            ces = []
+            for ce in containment_events.keys():
+                ces.append(containment_events[ce])
+            ces.sort(key=lambda x: int(x["startday"]))
+
+            for ce in ces:
+                if int(ce["startday"]) == day:
+                    ContainmentEngine.current_strategy = ce["containment_strategy"]
+                    Logger.log(f"Containment strategy changed to {ContainmentEngine.current_strategy}", 'c')
+                    if ce["containment_strategy"] == Containment.ROSTER.name:
+                        ContainmentEngine.assign_roster_days(people, int(ce["roster_groups"]))
+                    else:
+                        ContainmentEngine.current_rosters = 1
+
+
+            if iteration > 0:
                 # ================================================================================= process transmission
-                n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.infect_r)
+                n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.inf_radius)
                 Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
 
                 # ======================================================================== process happiness and economy
@@ -170,16 +169,16 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             CovEngine.process_death(people, t, cemetery)
 
             # ============================================================================================== vaccination
-            day = int(t // Time.DAY)
+
             for vaccinate_event in vaccinate_events:
                 if vaccinate_event[0] == day:
                     CovEngine.vaccinate_people(vaccinate_event[1], vaccinate_event[2], people)
 
-            if i > 0:
-                Logger.save_log_files(test_name, t, people, locations)
+            if iteration > 0:
+                Logger.save_log_files(t, people, locations)
 
             # loading route initializing probability matrices based on type of day in the week and containment strategy
-            RoutePlanningEngine.set_parameters((t // Time.DAY) % 7, args.containment)
+            RoutePlanningEngine.set_parameters((t // Time.DAY) % 7)
             bad = 0
             for p in tqdm(people, desc=f'Resetting day {day}'):
                 if not p.reset_day(t):
@@ -213,7 +212,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             # ==================================== check for gather events on this day and update the routes accordingly
             for event in gather_events:
                 if event.day == t // Time.DAY:
-                    Logger.log(f'Holding event {event} on this day', 'i')
+                    Logger.log(f'Holding event {event} on this day', 'c')
                     for selected_person in event.select_people(people):
                         new_route = RoutePlanningEngine.add_target_to_route(
                             selected_person.route, Target(event.loc, t + event.time + event.duration, None),
@@ -224,7 +223,8 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
             day_t_instances = []
 
         # ============================================================================================= process movement
-        MovementEngine.process_people_switching(root, t)
+
+        n_overtime = MovementEngine.process_people_switching(Person.all_people, t)
         MovementEngine.move_people(Person.all_people)
         day_t_instances.append(get_instance(Person.all_people))
 
@@ -250,7 +250,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
 
         # ================================================ overriding daily routes if necessary. (tested positives, etc)
         # for p in people:
-        #     if ContainmentEngine.update_route_according_to_containment(p, root, args.containment, t):
+        #     if ContainmentEngine.update_route_according_to_containment(p, root, args.containment_strategy, t):
         #         break
 
         # ============================================================================================== integrity check
@@ -271,7 +271,7 @@ def executeSim(people, root, gather_events, vaccinate_events, args):
         # ====================================================================================== record in daily report
         Logger.update_resource_usage_log()
         if record_fine_covid:
-            Logger.update_covid_log(people)
+            Logger.update_covid_log(people, new_infected)
         if record_fine_person:
             Logger.update_person_log(people)
 

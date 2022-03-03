@@ -1,22 +1,49 @@
 import matplotlib.pyplot as plt
 
-
 from .file_api import *
 from .demographic_api import *
 from .constants import *
 from .infection_api import *
 
+print("CWD", os.getcwd())
+sys.path.append('../../')
+
+from backend.python.sim_args import get_args_web_ui
 app = Flask(__name__, static_url_path='', static_folder='frontend/build')
 CORS(app)  # comment this on deployment
 api = Api(app)
 
+
 class RunSim(Resource):
     def post(self):
+        _parser = get_args_web_ui('')
+        _args = _parser.parse_args([])
+
         parser = reqparse.RequestParser()
-        parser.add_argument('dir', type=str)
+        for arg in vars(_args).keys():
+            parser.add_argument(arg, type=str)
+
         args = parser.parse_args()
-        request_dir = args['dir']
-        os.system("python runner.py")
+        args_str = ''
+        for arg in args.keys():
+            if arg == "locationTreeData":
+                s = "\"" + args[arg].replace("'", "\\\"") + "\""
+                s = args[arg].replace("'", "\"")
+                with open("temp.tree", 'w') as f:
+                    f.write(s)
+                args[arg] = "temp.tree"
+            if arg == "personPercentData" or arg=="addedContainmentEvents" or arg == "addedGatheringEvents" or arg == "addedVaccinationEvents":
+                args[arg] = "\"" + args[arg].replace("'", "\\\"") + "\""
+            # if arg == "personPercentData":
+            #     js = json.loads(args[arg].replace("'","\""))
+            #     js_str = ''
+            #     for i in js.keys():
+            #         js_str += js[i]['p_class']+"#"+str(js[i]['percentage'])+"|"
+            #     js_str = js_str[:-1]
+            #     args[arg] = js_str
+            args_str += ' --' + arg + ' ' + str(args[arg])
+        os.system("python runner.py " + args_str)
+
 
 class NDaysHandler(Resource):
     def post(self):
@@ -141,12 +168,16 @@ api.add_resource(SaveCSVJSONHandler, '/flask/savecsvfile')
 
 api.add_resource(NDaysHandler, '/flask/n_days')
 api.add_resource(InfectionTreeHandler, '/flask/infectiontree')
+api.add_resource(InfectionStateTimelineHandler, '/flask/infectionstatetimeline')
+
 api.add_resource(LocationTreeHandler, '/flask/locationtree')
 api.add_resource(SetPeopleClassesHandler, '/flask/setpeopleclasses')
 
 api.add_resource(GetColors, '/flask/get_colors')
 
 api.add_resource(MatrixListHandler, '/flask/matrix_names')
+
+api.add_resource(LogArgsHandler, '/flask/load_args')
 
 api.add_resource(PossibleGroupsHandler, '/flask/possible_groups')
 api.add_resource(ContactHandler, '/flask/contacts')

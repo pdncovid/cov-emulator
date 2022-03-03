@@ -36,9 +36,11 @@ class Logger:
     df_detailed_resource_usage = pd.DataFrame(columns=[])
     df_resource_usage = pd.DataFrame(columns=[])
     cpu_time_stamp = -1
+    test_name = ''
 
-    def __init__(self, logpath, filename, print=True, write=False):
+    def __init__(self, logpath, test_name, print=True, write=False):
         if Logger._logger is None:
+            Logger.test_name = test_name
             logging.getLogger('matplotlib.font_manager').disabled = True
 
             Logger.cpu_time_stamp = time.time()
@@ -61,7 +63,7 @@ class Logger:
                 Logger._logger.addHandler(ch)
 
             if write:
-                fh = MyFileHandler(logpath + filename)
+                fh = MyFileHandler(logpath + test_name + '.log')
                 fh.setLevel(Logger.write_level_)
                 Logger._logger.addHandler(fh)
 
@@ -96,8 +98,8 @@ class Logger:
         f(root)
 
     @staticmethod
-    def save_class_info(test_name):
-        _base = f"../../app/src/data/{test_name}/"
+    def save_class_info():
+        _base = f"../../app/src/data/{Logger.test_name}/"
         from backend.python.point.Person import Person
         from backend.python.transport.Movement import Movement
         from backend.python.location.Location import Location
@@ -106,8 +108,8 @@ class Logger:
         pd.DataFrame.to_csv(Location.class_df, _base + f"location_classes.csv", index=False)
 
     @staticmethod
-    def save_log_files(test_name, t, people, locations):
-        _base = f"../../app/src/data/{test_name}/"
+    def save_log_files(t, people, locations):
+        _base = f"../../app/src/data/{Logger.test_name}/"
         pd.DataFrame.to_csv(pd.DataFrame([p.get_description_dict() for p in people]),
                             _base + f"{int(t // Time.DAY) - 1:05d}_person_info.csv", index=False)
         pd.DataFrame.to_csv(pd.DataFrame([l.get_description_dict() for l in locations]),
@@ -136,6 +138,20 @@ class Logger:
         Logger.cpu_time_stamp = time.time()
 
     @staticmethod
+    def save_tree(string):
+        _base = f"../../app/src/data/{Logger.test_name}/"
+        with open(_base + "tree.data", 'w') as f:
+            f.write(string)
+
+    @staticmethod
+    def save_args(args):
+        _base = f"../../app/src/data/{Logger.test_name}/"
+        args = vars(args)
+        with open(_base + "args.data", 'w') as f:
+            for arg in args.keys():
+                f.write("--" + str(arg) + " " + str(args[arg]).replace(" ", "") + " ")
+
+    @staticmethod
     def update_resource_usage_log():
         mins = Time.i_to_minutes(Time.get_time())
         Logger.df_detailed_resource_usage = Logger.df_detailed_resource_usage.append(pd.DataFrame([{
@@ -145,25 +161,26 @@ class Logger:
         }]))
 
     @staticmethod
-    def update_covid_log(people):
+    def update_covid_log(people, new_infected):
         from backend.python.CovEngine import CovEngine
         mins = Time.i_to_minutes(Time.get_time())
         covid_stats = {State(i.value).name: 0 for i in State}
         covid_stats['time'] = mins
-        covid_stats['CUM_TESTED_POSITIVE'] = 0
+        covid_stats['IDENTIFIED INFECTED'] = 0
         covid_stats['IN_QUARANTINE_CENTER'] = 0
         covid_stats['IN_QUARANTINE'] = 0
         covid_stats['VACCINATED_1'] = 0
         covid_stats['VACCINATED_2'] = 0
+        covid_stats['NEW INFECTED'] = len(new_infected)
         for p in people:
             covid_stats[State(p.features[p.ID, PersonFeatures.state.value]).name] += 1
-            covid_stats['CUM_TESTED_POSITIVE'] += 1 if p.is_tested_positive() else 0
+            covid_stats['IDENTIFIED INFECTED'] += 1 if p.is_tested_positive() else 0
             covid_stats['IN_QUARANTINE_CENTER'] += 1 if p.get_current_location().class_name=='COVIDQuarantineZone' else 0
             covid_stats['IN_QUARANTINE'] += p.get_current_location().quarantined
             covid_stats['VACCINATED_1'] += 1 if p.features[p.ID, PersonFeatures.immunity_boost.value] > 0 else 0
             covid_stats['VACCINATED_2'] += 1 if p.features[
                                                     p.ID, PersonFeatures.immunity_boost.value] > CovEngine.immunity_boost_inc else 0
-        covid_stats["CUM_CASES"] = covid_stats[State.INFECTED.name] + covid_stats[State.DEAD.name] + \
+        covid_stats["TOTAL INFECTED CASES"] = covid_stats[State.INFECTED.name] + covid_stats[State.DEAD.name] + \
                                    covid_stats[State.RECOVERED.name]
         Logger.df_detailed_covid = Logger.df_detailed_covid.append(pd.DataFrame([covid_stats]))
 

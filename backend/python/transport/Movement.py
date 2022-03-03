@@ -59,18 +59,19 @@ class Movement():
         target_location = point.get_point_destination()
         if isinstance(target_location, Cemetery):
             raise Exception("Cannot put to cemetery like this!!!")
-        if point.current_trans != self:
-            if point.current_trans is not None:
+        if point.current_trans is not None:
+            if point.current_trans.class_name != self.class_name:
                 point.current_trans.remove_point_from_transport(point)
-            point.current_trans = self
-            point.all_current_loc_vcap[point.ID] = self.vcap
-            point.all_movement_ids[point.ID] = self.ID
-            point.all_movement_enter_times[point.ID] = Time.get_time()
-            point.all_sources[point.ID] = point.get_current_location().ID
+
+        point.current_trans = self
+        point.all_current_loc_vcap[point.ID] = self.vcap
+        point.all_movement_ids[point.ID] = self.ID
+        point.all_movement_enter_times[point.ID] = Time.get_time()
+        point.all_sources[point.ID] = point.get_current_location().ID
 
     def remove_point_from_transport(self, point):
         assert point.all_movement_ids[point.ID] == self.ID
-        if point.latched_to and point.current_trans != self:
+        if point.latched_to and point.current_trans.class_name != self.class_name:
             raise Exception("Can't remove latched people from this movement method to another movement method"
                             "Un-latch first, or the behaviour is unexpected!")
         from backend.python.point.Transporter import Transporter

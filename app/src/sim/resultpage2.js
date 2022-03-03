@@ -610,7 +610,6 @@ function ResultsPage2() {
 
     const handleDayChange = function (_day) {
         setSelectedDay(_day);
-        plotLocationTree(_day);
 
         plotActualLocationHist(_day);
         processRouteHist(_day);
@@ -764,6 +763,7 @@ function ResultsPage2() {
             <Grid container spacing={10} alignItems="center" padding='30px'>
                 <Grid item xs={12}>
                     <Typography>Location Tree</Typography>
+                    <Button onClick={()=>plotLocationTree(selectedDay)}>Draw tree</Button>
                 </Grid>
                 <Grid container rowSpacing={10} columnSpacing={{ xs: 10, sm: 20, md: 30 }}>
                     <Grid item xs={4}>

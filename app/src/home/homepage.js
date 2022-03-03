@@ -50,7 +50,7 @@ function HomePage() {
   const [loadLogDir, setLoadLogDir] = useState('NONE')
 
   const [loadLogDays, setLoadLogDays] = useState([])
-  const [loadLogDay, setLoadLogDay] = useState(0)
+  const [loadLogDay, setLoadLogDay] = useState('0')
 
   const containmentStrategies = ['NONE', 'LOCKDOWN', 'QUARANTINE', 'QUARANTINECENTER', 'ROSTER']
   const testingStrategies = ['NONE', 'HOSPITAL']
@@ -69,6 +69,9 @@ function HomePage() {
 
   const [personPercentData, setPersonPercentData] = useState([])
   const [skippersonPageReset, setSkippersonPageReset] = useState(false)
+
+  const [addedContainmentEvents, setAddedContainmentEvents] = useState([])
+  const [selectedContainmentEvents, setSelectedContainmentEvents] = useState([])
 
   const [addedGatheringEvents, setAddedGatheringEvents] = useState([])
   const [selectedGatheringEvents, setSelectedGatheringEvents] = useState([])
@@ -95,25 +98,27 @@ function HomePage() {
       let _days = response.data.message.split('|')
       setLoadLogDays(_days)
     })
+
+    loadSim()
   }, [loadLogDir])
 
   useEffect(() => {
-    console.log('ASDASD', persondata)
     if (persondata.length > 0)
-      setPersonPercentData(persondata.map((e) => { return { 'p_class': e['p_class'], 'percentage': 0 } }))
+      setPersonPercentData([...persondata.map((e) => { return { 'p_class': e['p_class'], 'percentage': e['default_percentage'], 'ipercentage':5 } })])
   }, [persondata])
 
-  useEffect(()=>{
+  useEffect(() => {
     var tmp = []
-    function dfs(r){
-      tmp.push({name:r.name,class:r.class})
-      if (r.children==undefined)
+    function dfs(r) {
+      tmp.push({ name: r.name, class: r.class })
+      if (r.children == undefined)
         return
       r.children.forEach(element => {
         dfs(element)
       });
     }
     dfs(locationTreeData)
+    console.log(locationTreeData, JSON.stringify(locationTreeData))
     setLocationTreeDataArr(tmp)
   }, [locationTreeData])
 
@@ -236,12 +241,87 @@ function HomePage() {
     </g>
   );
 
+  // load parameters from log
+  const loadSim = () => {
+    axios.post(api + "/flask/load_args", { dir: loadLogDir }).then(response => {
+      var args = response.data
+      console.log(args)
+      document.getElementById("name").value = args.name
+      // document.getElementById("inf_initial").value = args.inf_initial
+      document.getElementById("sim_days").value = args.sim_days
+      document.getElementById("inf_radius").value = args.inf_radius
+      document.getElementById("common_fever_p").value = args.common_fever_p
+      // setContainmentStrategy(args.containment_strategy)
+      // document.getElementById("roster_groups").value = args.roster_groups
+      setTestingStrategy(args.testing_strategy)
+      document.getElementById("n_test_centers").value = args.n_test_centers
+      document.getElementById("r_test_centers").value = args.r_test_centers
+
+      setPersonPercentData(Object.values(JSON.parse(args.personPercentData)))
+      setAddedContainmentEvents(Object.values(JSON.parse(args.addedContainmentEvents)))
+      setAddedGatheringEvents(Object.values(JSON.parse(args.addedGatheringEvents)))
+      setAddedVaccinationEvents(Object.values(JSON.parse(args.addedVaccinationEvents)))
+
+
+      document.getElementById("social_distance").value = args.social_distance
+      document.getElementById("hygiene_p").value = args.hygiene_p
+
+      document.getElementById("base_transmission_p").value = args.base_trans_p
+      document.getElementById("incubation_days").value = args.incubation_days
+    })
+
+    axios.post(api + '/flask/textfile', { dir: loadLogDir, filename: 'tree.data' }).then(response => {
+      setLocationTreeData(JSON.parse(response.data.data))
+    })
+  }
+
   // run simulation
-  const runSim = ()=>{
-    axios.post(api + "/flask/run", { dir: '' })
+  const runSim = () => {
+    axios.post(api + "/flask/run", {
+      name: document.getElementById("name").value,
+      // inf_initial: document.getElementById("inf_initial").value,
+      sim_days: document.getElementById("sim_days").value,
+      inf_radius: document.getElementById("inf_radius").value,
+      common_fever_p: document.getElementById("common_fever_p").value,
+      // containment_strategy: containmentStrategy,
+      // roster_groups: document.getElementById("roster_groups").value,
+      testing_strategy: testingStrategy,
+      n_test_centers: document.getElementById("n_test_centers").value,
+      r_test_centers: document.getElementById("r_test_centers").value,
+      load_log_day: loadLogDay,
+      load_log_name: document.getElementById("load_log_name").textContent,
+      locationTreeData: locationTreeData,
+      personPercentData: personPercentData.reduce((dict, el, index) => (dict[index] = el, dict), {}),
+      addedContainmentEvents: addedContainmentEvents.reduce((dict, el, index)=>(dict[index] = el, dict), {}),
+      addedGatheringEvents: addedGatheringEvents.reduce((dict, el, index) => (dict[index] = el, dict), {}),
+      addedVaccinationEvents: addedVaccinationEvents.reduce((dict, el, index) => (dict[index] = el, dict), {}),
+      social_distance: document.getElementById("social_distance").value,
+      hygiene_p: document.getElementById("hygiene_p").value,
+      incubation_days: document.getElementById("incubation_days").value,
+      base_transmission_p: document.getElementById("base_transmission_p").value,
+    })
   }
   return (
     <div className="home-page">
+
+      <Box component="form"
+        sx={{
+          '& .MuiTextField-root': { m: 1, width: '25ch' },
+          border: '1px dashed grey'
+        }}>
+
+        <div>
+          <Typography variant="h4">Load from previous</Typography>
+          <TextField select label="Load from log" id="load_log_name" value={loadLogDir} onChange={(e) => setLoadLogDir(e.target.value)} variant="standard">
+            {loadLogDirs.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
+          </TextField>
+          <TextField select label="Loading log day" id="load_log_day" disabled={loadLogDir == "NONE"} value={loadLogDay} onChange={(e) => setLoadLogDay(e.target.value)} variant="standard">
+            {loadLogDays.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
+          </TextField>
+        </div>
+
+      </Box>
+
       <Box component="form"
         sx={{
           '& .MuiTextField-root': { m: 1, width: '25ch' },
@@ -250,47 +330,61 @@ function HomePage() {
         noValidate
         autoComplete="off"
         style={{ margin: 10, padding: 10 }}>
-        <Typography variant="h4">Simulation parameters</Typography>
         <div>
-          <TextField label="Name" id="name" sx={{ m: 1, width: '25ch' }} />
+          <Typography>Simulation parameters</Typography>
+          <TextField label="Name" id="name" sx={{ m: 1, width: '25ch' }} defaultValue={"Test"} />
         </div>
 
         <div>
-          <TextField label="Initial infected %" id="inf-initial" type="number" sx={{ m: 1, width: '25ch' }} />
-          <TextField label="Simulation days" id="sim-days" type="number" sx={{ m: 1, width: '25ch' }} />
+          {/* <TextField label="Initial infected %" id="inf_initial" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"0.01"} /> */}
+          <TextField label="Simulation days" id="sim_days" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"60"} />
         </div>
 
         <div>
-          <TextField label="Infection radius" id="inf-radius" type="number" sx={{ m: 1, width: '25ch' }} />
-          <TextField label="Common fever probability" id="common-fever-p" type="number" sx={{ m: 1, width: '25ch' }} />
+          <Typography>Disease variant parameters</Typography>
+          <TextField label="Infection radius" id="inf_radius" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"1"} />
+          <TextField label="Incubation days" id="incubation_days" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"3"} />
+          <TextField label="Base transmission probability" id="base_transmission_p" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"0.1"} />
         </div>
 
         <div>
-          <TextField select label="Containment strategy" id="containment-strategy" value={containmentStrategy} onChange={(e) => setContainmentStrategy(e.target.value)} variant="standard">
+          <TextField label="Common fever probability" id="common_fever_p" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"0.01"} />
+        </div>
+
+        {/* <div>
+          <Typography>Containment parameters</Typography>
+          <TextField select label="Containment strategy" id="containment_strategy" value={containmentStrategy} onChange={(e) => setContainmentStrategy(e.target.value)} variant="standard">
             {containmentStrategies.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
           </TextField>
-          <TextField label="Number of roster groups" id="roster-groups" disabled={containmentStrategy != "ROSTER"} type="number" sx={{ m: 1, width: '25ch' }} />
-        </div>
+          <TextField label="Number of roster groups" id="roster_groups" disabled={containmentStrategy != "ROSTER"} type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"1"} />
+        </div> */}
 
         <div>
-          <TextField select label="Testing strategy" id="testing-strategy" value={testingStrategy} onChange={(e) => setTestingStrategy(e.target.value)} variant="standard">
+          <Typography>Testing parameters</Typography>
+          <TextField select label="Testing strategy" id="testing_strategy" value={testingStrategy} onChange={(e) => setTestingStrategy(e.target.value)} variant="standard">
             {testingStrategies.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
           </TextField>
-          <TextField label="Number of test centers" id="n-test-centers" disabled={testingStrategy == "NONE"} type="number" sx={{ m: 1, width: '25ch' }} />
-          <TextField label="Coverage radius of test centers" id="r-test-centers" disabled={testingStrategy == "NONE"} type="number" sx={{ m: 1, width: '25ch' }} />
+          <TextField label="Number of test centers (not used)" id="n_test_centers" disabled={testingStrategy == "NONE"} type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"3"} />
+          <TextField label="Coverage radius of test centers" id="r_test_centers" disabled={testingStrategy == "NONE"} type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"20"} />
         </div>
 
         <div>
-          <TextField select label="Load from log" id="load-log-name" value={loadLogDir} onChange={(e) => setLoadLogDir(e.target.value)} variant="standard">
-            {loadLogDirs.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
-          </TextField>
-          <TextField select label="Loading log day" id="load-log-day" disabled={loadLogDir == "NONE"} value={loadLogDay} onChange={(e) => setLoadLogDay(e.target.value)} variant="standard">
-            {loadLogDays.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
-          </TextField>
+          <Typography>Social distancing parameters</Typography>
+          {/* <Checkbox></Checkbox> */}
+          <TextField label="Social Distance (Override)" id="social_distance" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"-1"} />
+          {/* <Checkbox></Checkbox> */}
+          <TextField label="Unhygenic probability (Override)" id="hygiene_p" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"-1"} />
         </div>
+
+
+
       </Box>
 
-      {(loadLogDir == "NONE") && <Box sx={{ border: '1px dashed grey' }} style={{ margin: 10, padding: 10 }}>
+
+
+
+
+      <Box sx={{ border: '1px dashed grey' }} style={{ margin: 10, padding: 10 }}>
         <div>
           <Typography variant="h5">Environment builder</Typography>
           <div id="treeWrapper" style={{
@@ -346,10 +440,7 @@ function HomePage() {
               orientation="vertical"
               nodeSize={{ x: nodeX, y: nodeY }}
             />
-
-
           </div>
-
         </div>
 
         <div>
@@ -357,7 +448,7 @@ function HomePage() {
 
           <Grid item xs={12}>
             <Table
-              columns={[{ Header: 'Class', accessor: 'p_class' }, { Header: 'Percentage', accessor: 'percentage' }]}
+              columns={[{ Header: 'Class', accessor: 'p_class' }, { Header: 'Percentage', accessor: 'percentage' },, { Header: 'Infected Percentage', accessor: 'ipercentage' }]}
               data={personPercentData}
               updateMyData={(rowIndex, columnId, value) => {
                 // We also turn on the flag to not reset the page
@@ -365,10 +456,7 @@ function HomePage() {
                 setPersonPercentData(old =>
                   old.map((row, index) => {
                     if (index === rowIndex) {
-                      return {
-                        ...old[rowIndex],
-                        [columnId]: value,
-                      }
+                      return { ...old[rowIndex], [columnId]: value, }
                     }
                     return row
                   })
@@ -378,13 +466,79 @@ function HomePage() {
             />
           </Grid>
         </div>
-      </Box>}
+      </Box>
+
+
+
 
 
 
 
       <Box sx={{ border: '1px dashed grey' }} style={{ margin: 10, padding: 10 }}>
         <Typography variant="h4" gutterBottom>Add Events</Typography>
+
+        <div>
+          <Typography variant="h6">Add Containement event</Typography>
+          <Grid container xs={12}>
+            <Grid item xs={4}>
+              <FormControl >
+                <InputLabel shrink>Added events</InputLabel>
+                <Select
+                  multiple
+                  native
+                  style={{ width: 400 }}
+                  onChange={(e) => {
+                    const { options } = e.target;
+                    const value = [];
+                    for (let i = 0, l = options.length; i < l; i += 1) {
+                      if (options[i].selected) {
+                        value.push(options[i].id);
+                      }
+                    }
+                    console.log(value)
+                    setSelectedContainmentEvents(value)
+                  }}
+                >
+                  {addedContainmentEvents.map((e) => (<option key={e.id} id={e.id}>{e.startday + ' ' + e.containment_strategy + ' ' + e.roster_groups}</option>))}
+                </Select>
+                <Button onClick={() => {
+                  var vals = []
+                  for (let e in addedContainmentEvents) {
+                    var isRemove = false
+                    for (let s in selectedContainmentEvents) {
+                      if (addedContainmentEvents[e].id == selectedContainmentEvents[s]) {
+                        isRemove = true
+                        break
+                      }
+                    }
+                    if (!isRemove)
+                      vals.push(addedContainmentEvents[e])
+                  }
+                  setSelectedContainmentEvents([])
+                  setAddedContainmentEvents(vals)
+                }}>Remove</Button>
+              </FormControl>
+            </Grid>
+
+            <Grid container xs={8}>
+              <Grid item xs={2}><TextField type="number" label="start day" id="containment-start-day" /></Grid>
+              <Grid item xs={3}><TextField select label="Containment strategy" id="containment_strategy" value={containmentStrategy} onChange={(e) => setContainmentStrategy(e.target.value)} variant="standard">
+                {containmentStrategies.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
+              </TextField></Grid>
+              <Grid item xs={2}><TextField label="Number of roster groups" id="roster_groups" disabled={containmentStrategy != "ROSTER"} type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"1"} /></Grid>
+              <Grid item xs={2}><Button onClick={() => {
+                setAddedContainmentEvents([...addedContainmentEvents, {
+                  id: addedContainmentEvents.length,
+                  startday: document.getElementById("containment-start-day").value,
+                  containment_strategy: document.getElementById("containment_strategy").textContent,
+                  roster_groups: document.getElementById("roster_groups").value,
+                }])
+              }}>Add</Button></Grid>
+            </Grid>
+          </Grid>
+
+        </div>
+
         <div>
           <Typography variant="h6">Add Gathering event</Typography>
           <Grid container xs={12}>
@@ -394,28 +548,62 @@ function HomePage() {
                 <Select
                   multiple
                   native
-                  value={selectedGatheringEvents}
                   style={{ width: 400 }}
-                  onChange={(e) => { setSelectedGatheringEvents(e.target.options.filter((e) => e.selected).map((e) => e.value)) }}
+                  onChange={(e) => {
+                    const { options } = e.target;
+                    const value = [];
+                    for (let i = 0, l = options.length; i < l; i += 1) {
+                      if (options[i].selected) {
+                        value.push(options[i].id);
+                      }
+                    }
+                    console.log(value)
+                    setSelectedGatheringEvents(value)
+                  }}
                 >
-                  {addedGatheringEvents.map((e) => (<option key={e} value={e}>{e}</option>))}
+                  {addedGatheringEvents.map((e) => (<option key={e.id} id={e.id}>{e.day + ' ' + e.time + ' ' + e.name}</option>))}
                 </Select>
-                <Button onClick={() => { }}>Remove</Button>
+                <Button onClick={() => {
+                  var vals = []
+                  for (let e in addedGatheringEvents) {
+                    var isRemove = false
+                    for (let s in selectedGatheringEvents) {
+                      if (addedGatheringEvents[e].id == selectedGatheringEvents[s]) {
+                        isRemove = true
+                        break
+                      }
+                    }
+                    if (!isRemove)
+                      vals.push(addedGatheringEvents[e])
+                  }
+                  setSelectedGatheringEvents([])
+                  setAddedGatheringEvents(vals)
+                }}>Remove</Button>
               </FormControl>
             </Grid>
 
             <Grid container xs={8}>
               <Grid item xs={3}>
                 <TextField select label="place" id="gathering-place-name">
-                  {locationTreeDataArr.filter((e)=>e.class=="GatheringPlace").map((e)=>(<option key={e.name} value={e.name}>{e.name}</option>))}
+                  {locationTreeDataArr.filter((e) => e.class == "GatheringPlace").map((e) => (<option key={e.name} value={e.name}>{e.name}</option>))}
                 </TextField>
               </Grid>
-              <Grid item xs={1}><TextField type="number" label="day" id="gathering-place-day"/></Grid>
-              <Grid item xs={2}><TextField type="time" label="time" id="gathering-place-time"/></Grid>
-              <Grid item xs={2}><TextField type="number" label="duration" id="gathering-place-duration"/></Grid>
-              <Grid item xs={1}><TextField type="number" label="capacity" id="gathering-place-capacity"/></Grid>
-              <Grid item xs={1}><TextField label="criteria" id="gathering-place-criteria"/></Grid>
-              <Grid item xs={2}><Button>Add</Button></Grid>
+              <Grid item xs={1}><TextField type="number" label="day" id="gathering-place-day" /></Grid>
+              <Grid item xs={2}><TextField type="time" label="time" id="gathering-place-time" /></Grid>
+              <Grid item xs={2}><TextField type="number" label="duration (hrs)" id="gathering-place-duration" /></Grid>
+              <Grid item xs={1}><TextField type="number" label="capacity" id="gathering-place-capacity" /></Grid>
+              <Grid item xs={1}><TextField label="criteria" id="gathering-place-criteria" /></Grid>
+              <Grid item xs={2}><Button onClick={() => {
+                setAddedGatheringEvents([...addedGatheringEvents, {
+                  id: addedGatheringEvents.length,
+                  name: document.getElementById("gathering-place-name").textContent,
+                  day: document.getElementById("gathering-place-day").value,
+                  time: document.getElementById("gathering-place-time").value,
+                  duration: document.getElementById("gathering-place-duration").value,
+                  capacity: document.getElementById("gathering-place-capacity").value,
+                  criteria: document.getElementById("gathering-place-criteria").value,
+                }])
+              }}>Add</Button></Grid>
             </Grid>
           </Grid>
 
@@ -430,21 +618,54 @@ function HomePage() {
                 <Select
                   multiple
                   native
-                  value={selectedVaccinationEvents}
                   style={{ width: 400 }}
-                  onChange={(e) => { setSelectedVaccinationEvents(e.target.options.filter((e) => e.selected).map((e) => e.value)) }}
+                  onChange={
+                    (e) => {
+                      const { options } = e.target;
+                      const value = [];
+                      for (let i = 0, l = options.length; i < l; i += 1) {
+                        if (options[i].selected) {
+                          value.push(options[i].id);
+                        }
+                      }
+                      console.log(value)
+                      setSelectedVaccinationEvents(value)
+                    }}
                 >
-                  {addedVaccinationEvents.map((e) => (<option key={e} value={e}>{e}</option>))}
+                  {addedVaccinationEvents.map((e) => (<option key={e.id} id={e.id}>{e.day + ' ' + e.min_age + ' ' + e.max_age}</option>))}
                 </Select>
-                <Button onClick={() => { }}>Remove</Button>
+                <Button onClick={() => {
+                  var vals = []
+                  for (let e in addedVaccinationEvents) {
+                    var isRemove = false
+                    for (let s in selectedVaccinationEvents) {
+                      if (addedVaccinationEvents[e].id == selectedVaccinationEvents[s]) {
+                        isRemove = true
+                        break
+                      }
+                    }
+                    if (!isRemove)
+                      vals.push(addedVaccinationEvents[e])
+                  }
+                  console.log(addedVaccinationEvents, selectedVaccinationEvents, vals)
+                  setSelectedVaccinationEvents([])
+                  setAddedVaccinationEvents(vals)
+                }}>Remove</Button>
               </FormControl>
             </Grid>
 
             <Grid container xs={8}>
-              <Grid item xs={1}><TextField type="number" label="day" id="vaccination-start-day"/></Grid>
-              <Grid item xs={2}><TextField type="number" label="min age" id="vaccination-min-age"/></Grid>
-              <Grid item xs={1}><TextField type="number" label="max age" id="vaccination-max-age"/></Grid>
-              <Grid item xs={2}><Button>Add</Button></Grid>
+              <Grid item xs={1}><TextField type="number" label="day" id="vaccination-start-day" /></Grid>
+              <Grid item xs={2}><TextField type="number" label="min age" id="vaccination-min-age" /></Grid>
+              <Grid item xs={1}><TextField type="number" label="max age" id="vaccination-max-age" /></Grid>
+              <Grid item xs={2}><Button onClick={() => {
+                setAddedVaccinationEvents([...addedVaccinationEvents, {
+                  id: addedVaccinationEvents.length,
+                  day: document.getElementById("vaccination-start-day").value,
+                  min_age: document.getElementById("vaccination-min-age").value,
+                  max_age: document.getElementById("vaccination-max-age").value,
+                }])
+              }}>Add</Button></Grid>
             </Grid>
           </Grid>
         </div>

@@ -14,15 +14,14 @@ class TukTukStation(Location):
     def get_suggested_sub_route(self, point, route_so_far):
         t = route_so_far[-1].leaving_time if len(route_so_far) > 0 else np.random.rand() * Time.get_duration(
             1) + Time.get_time()
-
+        from backend.python.point.Transporter import Transporter
+        if not isinstance(point, Transporter):
+            return route_so_far
         # goto tuktuk station for a little while
         dur = RoutePlanningEngine.get_dur_for_p_in_loc_at_t(route_so_far, point, self, t)
         route_so_far = RoutePlanningEngine.join_routes(route_so_far, [Target(self, t + dur, None)])
 
         # if the route is defined for the tuktuk, repeat the same route. otherwise define it first
-
-        # from backend.python.point.TuktukDriver import TuktukDriver
-        # from backend.python.transport.Tuktuk import Tuktuk
         from backend.python.transport.Movement import Movement
         tuktuk = Movement.all_instances['Tuktuk']
 

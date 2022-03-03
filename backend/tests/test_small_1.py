@@ -8,11 +8,12 @@ from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.GatherEvent import GatherEvent
 from backend.python.Logger import Logger
 from backend.python.Time import Time
-from backend.python.enums import Shape, PersonFeatures, Containment
+from backend.python.enums import PersonFeatures, Containment
 from backend.python.functions import get_random_element, separate_into_classes
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Location import Location
-from backend.python.main import executeSim, set_parameters, get_args
+from backend.python.main import executeSim, set_parameters
+from backend.python.sim_args import get_args
 from backend.python.point.Person import Person
 from backend.python.point.Transporter import Transporter
 from backend.python.transport.Movement import Movement
@@ -24,13 +25,13 @@ def initialize(args):
     from backend.python.Loader import load_from_csv
     p_df = Person.class_df
 
-    if args.load_log_root is not None:
+    if args.load_log_name is not None:
         if args.load_log_day == -1:
             log_day = find_number_of_days(args.load_log_root)
         else:
             log_day = args.load_log_day
 
-        people, root = load_from_csv(args.load_log_root, log_day, args)
+        people, root, _ = load_from_csv(args.load_log_root, log_day, args)
     else:
         # initialize movement methods
         main_trans = []
@@ -39,13 +40,13 @@ def initialize(args):
                 trans = MovementByTransporter(row)
             else:
                 trans = Movement(row)
-            if row['m_class'] in ['Walk',
-                                  'Tuktuk']:  # DO NOT Add walk as a main transport!!! At minimum a person uses the bus
+            # DO NOT Add walk as a main transport!!! At minimum a person uses the bus
+            if row['m_class'] in ['Walk', 'Tuktuk']:
                 continue
             main_trans.append(trans)
 
         # initialize location tree
-        root_classs = 'DenseDistrict'  # 'SparseDistrict'
+        root_classs = 'DenseDistrict'
         class_info = Location.class_df.loc[Location.class_df['l_class'] == root_classs].iloc[0]
         root = Location(class_info, spawn_sub=True, x=0, y=0, name="D1")
         root.add_sub_location(Cemetery(0, -80, "Cemetery", r=3))
@@ -56,14 +57,13 @@ def initialize(args):
         # initialize people
         args.n = n_houses * 4
         people = []
-        _people = [('CommercialWorker', 0.3), ('GarmentWorker', 0.25), ('GarmentAdmin', 0.03), ('Student', 0.15),
-                   ('Teacher', 0.03), ('Retired', 0.1), ('BusDriver', 0.15), ('TuktukDriver', 0.05)]
+        _people = Person.class_df[["p_class", "default_percentage"]].values
         for init_people in _people:
             _class = p_df.loc[p_df['p_class'] == init_people[0]].iloc[0]
             if pd.isna(_class['max_passengers']):
-                people += [Person(_class) for _ in range(int(init_people[1] * args.n))]
+                people += [Person(_class) for _ in range(int(init_people[1]/100 * args.n))]
             else:
-                people += [Transporter(_class) for _ in range(int(init_people[1] * args.n))]
+                people += [Transporter(_class) for _ in range(int(init_people[1]/100 * args.n))]
 
         # set movement
         for person in people:
@@ -81,24 +81,24 @@ def initialize(args):
                 person.set_work_loc(person.find_closest(w_loc, person.home_loc, find_from_level=-1))  # todo
 
         # infect people
-        for _ in range(max(1, int(args.i * args.n))):
+        for _ in range(max(1, int(args.inf_initial * args.n))):
             idx = np.random.randint(0, len(people))
-            people[idx].set_infected(0, people[idx], root, args.common_p)
+            people[idx].set_infected(0, people[idx], root, args.common_fever_p)
 
-        if args.containment == Containment.ROSTER.value:
-            ContainmentEngine.assign_roster_days(people, root, args)
+        # if args.containment_strategy == Containment.ROSTER.name:
+        #     ContainmentEngine.assign_roster_days(people, root, args)
     return people, root
 
 
 def main():
-    args = get_args(os.path.basename(__file__))
+    args = get_args(os.path.basename(__file__)).parse_args()
 
     sys.setrecursionlimit(1000000)
     set_parameters(args)
 
     people, root = initialize(args)
 
-    print(f"Test Simulation: With 10 gathering events. No Vaccination. Days={args.days}")
+    print(f"Test Simulation: With 10 gathering events. No Vaccination. Days={args.sim_days}")
     n_events = 10
     total_vaccination_days = 0
     vaccination_start_day = 1
@@ -113,7 +113,7 @@ def main():
         gathering_place = get_random_element(gather_places)
         if gathering_place is None:
             continue
-        day = args.days // n_events * ge
+        day = args.sim_days // n_events * ge
         start_time = Time.get_random_time_between(0, 16, 0, 18, 0)
         duration = Time.get_duration(2)
         gather_events.append(GatherEvent(day, start_time, duration, gathering_place,
@@ -132,7 +132,7 @@ def main():
         else:
             vaccinate_events.append((vday + vaccination_start_day, 12, 20))
 
-    executeSim(people, root, gather_events, vaccinate_events, args)
+    executeSim(people, root, {'0':{'containment_strategy':'QUARANTINE','startday':0}}, gather_events, vaccinate_events, args)
 
 
 if __name__ == "__main__":

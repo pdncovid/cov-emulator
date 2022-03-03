@@ -1,6 +1,9 @@
 import numpy as np
 
+from backend.python.Logger import Logger
+from backend.python.Time import Time
 from backend.python.enums import PersonFeatures
+from backend.python.transport.Movement import Movement
 
 
 class MovementEngine:
@@ -46,6 +49,8 @@ class MovementEngine:
         from backend.python.point.Transporter import Transporter
         from backend.python.transport.MovementByTransporter import MovementByTransporter
         for idx, p in enumerate(all_people):
+            if p.is_dead():
+                continue
             if isinstance(p.current_trans, MovementByTransporter) and not isinstance(p, Transporter):
                 continue
             if isinstance(p.current_trans, MovementByTransporter):
@@ -66,7 +71,7 @@ class MovementEngine:
         #     p.current_trans.move(p, t)
 
     @staticmethod
-    def process_people_switching(loc, t):
+    def process_people_switching2(loc, t):
         loc.check_for_leaving(t)
 
         if len(loc.locations) == 0:
@@ -75,6 +80,41 @@ class MovementEngine:
         else:
             for location in loc.locations:
                 MovementEngine.process_people_switching(location, t)
+
+    @staticmethod
+    def process_people_switching(people, t):
+        n_overtime = 0
+        from backend.python.point.Transporter import Transporter
+        wait_lvl0 = Time.get_duration(0.25)
+        wait_lvl1 = Time.get_duration(0.5)
+        for p in people:
+            # check if the time spent in the current location is above
+            # the point's staying threshold for that location
+            if p.is_dead():
+                continue
+            if t >= p.current_loc_leave and p.latched_to is None:
+                if not isinstance(p, Transporter):
+                    if p.is_day_finished and p.get_current_location() == p.route[-1].loc:
+                        continue
+                    # # waiting too long in this place!!!
+                    dt_leave = t - p.current_loc_leave
+                    dt_enter = t - p.current_loc_enter
+                    if dt_leave > wait_lvl1 and dt_enter > wait_lvl1 and not p.current_trans.class_name == 'Taxi':
+                        # Logger.log(
+                        #     f"OT {p.class_name}-{p} @ {p.get_current_location().class_name} since {Time.i_to_datetime(p.current_loc_leave)} "
+                        #     f"for {Time.i_to_minutes(t - p.current_loc_leave)} "
+                        #     f"-> {MovementEngine.find_next_location(p).class_name} [{p.get_next_target().loc.class_name}] "
+                        #     f"({p.current_target_idx}/{len(p.route) - 1}) "
+                        #     f"Movement {p.current_trans} -> Taxi"
+                        #     , 'e'
+                        # )
+                        Movement.all_instances['Taxi'].add_point_to_transport(p)
+                        p.get_current_location().leave_this_location(p, force=True)
+                        n_overtime += 1
+                        continue
+                p.get_current_location().leave_this_location(p)
+
+        return n_overtime
 
     @staticmethod
     def find_lcp_location(point):
@@ -193,26 +233,6 @@ class MovementEngine:
             if p.home_loc == moving_loc or p.home_weekend_loc == moving_loc:
                 trans = moving_loc.override_transport
         return trans
-
-    # @staticmethod
-    # def random_move(location, p, v_cap):
-    #     new_x, new_y = p.all_positions[p.ID] + p.all_velocities[p.ID]
-    #
-    #     if location.is_inside(new_x, new_y):
-    #         p.set_position(new_x, new_y)
-    #     else:
-    #         p.all_velocities[p.ID] = -(p.all_velocities[p.ID] + 1) / 2
-    #         MovementEngine.move_towards(p, location.exit, v_cap)
-    #
-    #     p.all_velocities[p.ID] += np.random.rand(2) * 2 - 1
-    #     p.all_velocities[p.ID] = np.clip(p.all_velocities[p.ID], -v_cap, v_cap)
-
-    # @staticmethod
-    # def move_towards(p, xy, v_cap):
-    #     x_new, y_new = np.where(abs(xy - p.all_positions[p.ID]) < v_cap, xy,
-    #                             p.all_positions[p.ID] + np.sign(xy - p.all_positions[p.ID]) * v_cap)
-    #
-    #     p.set_position(x_new, y_new)
 
     @staticmethod
     def is_close(p, xy, eps):

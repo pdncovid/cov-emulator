@@ -1,10 +1,32 @@
-from backend.python.enums import Containment
+from backend.python.Logger import Logger
+from backend.python.enums import Containment, PersonFeatures
 from backend.python.Time import Time
 
 
 class ContainmentEngine:
-
     quarantineduration = Time.get_duration(24 * 14)
+    current_strategy = Containment.NONE.name
+    current_rosters = 1
+
+    result_queue = []
+
+    @staticmethod
+    def on_infected_identified(p):
+        ContainmentEngine.result_queue.append(p)
+        t = Time.get_time()
+        i = 0
+        while i < len(ContainmentEngine.result_queue):
+            person = ContainmentEngine.result_queue[i]
+            if p.features[person.ID, PersonFeatures.tested_positive_time.value] < t:
+                if ContainmentEngine.current_strategy == Containment.QUARANTINE.name:
+                    person.home_loc.set_quarantined(True, t)
+                    Logger.log(f"{person.home_loc} quarantined")
+                elif ContainmentEngine.current_strategy == Containment.QUARANTINECENTER.name:
+                    person.home_loc.set_quarantined(True, t)  # TODO quarantine home ?
+
+                ContainmentEngine.result_queue.pop(i)
+                i -= 1
+            i += 1
 
     @staticmethod
     def can_go_there(p, current_l, next_l):
@@ -21,19 +43,19 @@ class ContainmentEngine:
     @staticmethod
     def update_route_according_to_containment(p, root, containment, t):
         if p.is_tested_positive() and p.is_infected():
-            if containment == Containment.NONE.value:
+            if containment == Containment.NONE.name:
                 return False
-            elif containment == Containment.LOCKDOWN.value:
+            elif containment == Containment.LOCKDOWN.name:
                 root.set_quarantined(True, t, recursive=True)
                 return True
-            elif containment == Containment.QUARANTINE.value:
+            elif containment == Containment.QUARANTINE.name:
                 p.route[0].loc.set_quarantined(True, t)
                 # todo when moved to quarantined home, doesnt goto cov center
                 # p.update_route(root, 0, ContainmentEngine.get_containment_route_for_tested_positives(p), replace=True)
                 return False
-            elif containment == Containment.QUARANTINECENTER.value:
+            elif containment == Containment.QUARANTINECENTER.name:
                 for tar in p.route:
-                    if tar.loc.class_name=='COVIDQuarantineZone':
+                    if tar.loc.class_name == 'COVIDQuarantineZone':
                         return False
                 p.update_route(root, t, ContainmentEngine.get_containment_route_for_tested_positives(p), replace=True)
                 return False
@@ -53,8 +75,10 @@ class ContainmentEngine:
         return ['COVIDQuarantineZone']
 
     @staticmethod
-    def assign_roster_days(people, root, args):
-        roster_groups = args.roster_groups
+    def assign_roster_days(people, roster_groups):
+        if ContainmentEngine.current_strategy == Containment.ROSTER.name and ContainmentEngine.current_rosters == roster_groups:
+            return
+        ContainmentEngine.current_rosters = roster_groups
         work_groups = {}
         for p in people:
             wl = p.work_loc
@@ -66,11 +90,10 @@ class ContainmentEngine:
             n = len(work_groups[wl])
             # group_size = math.ceil(n / roster_groups)
             for i in range(n):
-                group_start = i%roster_groups
+                group_start = i % roster_groups
                 while group_start < 7:
                     work_groups[wl][i].roster_days.append(group_start)
                     if n <= roster_groups:
                         group_start += n
                     else:
                         group_start += roster_groups
-

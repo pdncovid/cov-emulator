@@ -5,7 +5,6 @@ from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 
 from backend.python.enums import Shape, ClassNameMaps
-from backend.python.functions import get_random_element
 from backend.python.Time import Time
 import numpy as np
 import pandas as pd
@@ -43,7 +42,7 @@ class Location:
         self.px = kwargs.get('x')
         self.py = kwargs.get('y')
         self.shape = kwargs.get('shape', Shape.CIRCLE.value)
-        self.radius = kwargs.get('r', np.random.randint(class_info['r_min'],class_info['r_max']))
+        self.radius = kwargs.get('r', np.random.randint(class_info['r_min'], class_info['r_max']))
         exit_dist = kwargs.get('exitdist', 0.9)
         exit_theta = kwargs.get('exittheta', 0.0)
 
@@ -74,10 +73,10 @@ class Location:
 
         self.depth = 0
         self.capacity = kwargs.get('capacity')
-        self.recovery_p = kwargs.get('recovery_p', 0.1)  # todo find this, add to repr
+        self.recovery_p = kwargs.get('recovery_p', class_info['recovery_p'])  # todo find this, add to repr
 
-        self.infectious = kwargs.get('infectiousness', 0.8)
-        self.social_distance = kwargs.get('social_distance', 0.0)
+        self.infectious = kwargs.get('infectiousness', class_info['infectiousness'])
+        self.social_distance = kwargs.get('social_distance', class_info['social_distance'])
         self.hygiene_boost = kwargs.get('hygiene_boost', 0)
         self.happiness_boost = kwargs.get('happiness_boost', class_info['happiness_boost'])
         self.quarantined = kwargs.get('quarantined', False)
@@ -90,14 +89,14 @@ class Location:
         self.locations = []
         override_transport = class_info['override_transport']
         self.override_transport = None if pd.isna(override_transport) else Movement.all_instances[override_transport]
-        self.name = kwargs.get('name', self.class_name[:3]+str(self.ID))
+        self.name = kwargs.get('name', self.class_name[:3] + str(self.ID))
         Location.all_locations.append(self)
 
         if spawn_sub and not pd.isna(class_info['default_spawns']):
             for spawn_class in class_info['default_spawns'].split('|'):
                 spawn_class_name, n_loc = spawn_class.split('#')
                 n_loc = int(n_loc)
-                spawn_class_info = Location.class_df.loc[Location.class_df['l_class']==spawn_class_name].iloc[0]
+                spawn_class_info = Location.class_df.loc[Location.class_df['l_class'] == spawn_class_name].iloc[0]
                 self.spawn_sub_locations(spawn_class_info, n_loc, **kwargs)
 
     def __repr__(self):
@@ -139,27 +138,35 @@ class Location:
 
         return d
 
-    def spawn_sub_locations(self, class_info, n_sub_loc, **kwargs):
+    def spawn_sub_locations(self, class_info, n_sub_loc, spawn_sub=True, **kwargs):
         if n_sub_loc <= 0:
             return
         r_sub_loc = int(class_info['r_max'])
         assert r_sub_loc > 0
         xs, ys = self.get_suggested_positions(n_sub_loc, r_sub_loc)
         cls = class_info['l_class']
-        print(f"Automatically creating {len(xs)}/{n_sub_loc} {cls} for {self.class_name} {self.name}")
+        # print(f"Automatically creating {len(xs)}/{n_sub_loc} {cls} for {self.class_name} {self.name}")
 
         i = 0
+        spawns = []
         for x, y in zip(xs, ys):
+            # name = self.name + '-' + cls[:3] + str(i)
+            if 'depth' not in kwargs.keys():
+                kwargs['x'] = x
+                kwargs['y'] = y
+                # kwargs['name'] = name
             if cls == 'BusStation':
                 from backend.python.location.Stations.BusStation import BusStation
-                building = BusStation(class_info, True, x=x,y=y,name=self.name + '-' + cls[:3] + str(i))
+                building = BusStation(class_info, spawn_sub, **kwargs)
             elif cls == 'TukTukStation':
                 from backend.python.location.Stations.TukTukStation import TukTukStation
-                building = TukTukStation(class_info, True, x=x, y=y, name=self.name + '-' + cls[:3] + str(i))
+                building = TukTukStation(class_info, spawn_sub, **kwargs)
             else:
-                building = Location(class_info, True, x=x, y=y, name=self.name + '-' + cls[:3] + str(i))
+                building = Location(class_info, spawn_sub, **kwargs)
             self.add_sub_location(building)
+            spawns.append(building)
             i += 1
+        return spawns
 
     def get_suggested_positions(self, n, radius):
 
@@ -190,11 +197,18 @@ class Location:
             # pick the n (x, y) points
 
             if len(possible_positions) < n:
-                print(f"Cannot make {n} locations with {radius}. Making only {len(possible_positions)} locations")
                 while len(possible_positions) != n and len(failed_positions) > 0:
                     possible_positions.append(failed_positions.pop())
             else:
                 possible_positions = possible_positions[:n]
+            if len(possible_positions) < n:
+                print(f"Cannot make {n} locations with r={radius} inside {self.name} with r={self.radius}. "
+                      f"Making only {len(possible_positions)} locations. Other points are random")
+                while len(possible_positions) != n:
+                    _theta = np.random.randint(0, 360) * (2 * np.pi) / 360
+                    possible_positions.append((self.px + (r1 - r2) * np.cos(_theta),
+                                               self.py + (r1 - r2) * np.sin(_theta)))
+
             idx = np.arange(len(possible_positions))
             np.random.shuffle(idx)
             x = [possible_positions[c][0] for c in idx]
@@ -269,57 +283,7 @@ class Location:
 
         f(location)
 
-    def check_for_leaving(self, t):
-        wait_lvl0 = Time.get_duration(0.5)
-        wait_lvl1 = Time.get_duration(1)
-        for i, p in enumerate(self.points):
-            # check if the time spent in the current location is above
-            # the point's staying threshold for that location
-
-            # come to route[0] if not there, even if day is finished
-            if t >= p.current_loc_leave:
-                if p.latched_to is not None:
-                    continue
-                if p.is_day_finished and p.get_current_location() == p.route[0].loc:
-                    continue
-                # waiting too long in this place!!!
-                if t - p.current_loc_leave > wait_lvl1 and t - p.current_loc_enter > wait_lvl1:
-                    if not p.current_trans.class_name == 'Walk':
-                        Logger.log(
-                            f"OT {p} @ {p.get_current_location().name} since {Time.i_to_datetime(p.current_loc_enter)} "
-                            f"for {Time.i_to_minutes(t - p.current_loc_leave)} "
-                            f"-> {MovementEngine.find_next_location(p)} [{p.get_next_target().loc.name}] "
-                            f"({p.current_target_idx}/{len(p.route)-1}) "
-                            f"Movement {p.current_trans} -> Walk"
-                            , 'e'
-                        )
-                        # walk = get_random_element(Walk.all_instances)
-                        # walk.add_point_to_transport(p)
-
-                        # next_location = MovementEngine.find_next_location(p)
-                        # p.set_point_destination(next_location)
-                    continue
-                if t - p.current_loc_leave > wait_lvl0 and t - p.current_loc_enter > wait_lvl0:
-                    # todo change current transportation system to tuk tuk or taxi
-                    if not p.current_trans.class_name == 'Tuktuk':
-                        Logger.log(
-                            f"OT {p} @ {p.get_current_location().name} since {Time.i_to_datetime(p.current_loc_enter)} "
-                            f"for {Time.i_to_minutes(t - p.current_loc_leave)} "
-                            f"-> {MovementEngine.find_next_location(p)} [{p.get_next_target().loc.name}] "
-                            f"({p.current_target_idx}/{len(p.route) - 1}) "
-                            f"Movement {p.current_trans} -> Tuktuk"
-                            , 'e'
-                        )
-                        # tuktuk = get_random_element(Tuktuk.all_instances)
-                        # tuktuk.add_point_to_transport(p)
-
-                        # next_location = MovementEngine.find_next_location(p)
-                        # p.set_point_destination(next_location)
-                    continue
-
-                self.leave_this_location(p)
-
-    def leave_this_location(self, p):
+    def leave_this_location(self, p, force=False):
         # overstay. move point to the transport medium
         next_location = MovementEngine.find_next_location(p)
 
@@ -339,13 +303,10 @@ class Location:
         # leaving current location
         can_go_out_movement = transporting_location.can_enter(p)
         can_go_out_containment = ContainmentEngine.can_go_there(p, self, next_location)
-        if can_go_out_containment and can_go_out_movement:
+        if (can_go_out_containment and can_go_out_movement) or force:
             p.set_point_destination(next_location)
-            Logger.log(
-                f"{p.ID} move; {p.get_current_location()} -> {next_location} ({transporting_location}) [{p.get_next_target()}]",
-                'd')
+            # Logger.log(f"{p.ID} move; {p.get_current_location()} -> {next_location} ({transporting_location}) [{p.get_next_target()}]",'d')
             transporting_location.enter_person(p)
-            # p.in_inter_trans = True
         else:
             if not can_go_out_movement:
                 MovementEngine.set_movement_method(transporting_location, p)
@@ -362,6 +323,12 @@ class Location:
             return True
         if p.latched_to is not None:
             return True
+
+        # trans = MovementEngine.get_movement_method(self, p)
+        # if p.current_trans != trans and p.current_trans != p.main_trans:
+        #     # if we set a trans which is not the main trans and trans in loc, that means
+        #     # we changed the trans manually to something like Taxi
+        #     return True
         if self.override_transport is None and isinstance(p.main_trans,
                                                           MovementByTransporter):  # todo check this logic. add overriding levels
             return False
@@ -379,7 +346,7 @@ class Location:
         t = Time.get_time()
         p.current_loc_enter = t
         self.points.append(p)
-        self.is_visiting.append(p.get_next_target().loc != self)
+        self.is_visiting.append(p.get_next_target().loc.ID != self.ID)
         p.set_current_location(self, t)
 
         if p.latched_to is None:
@@ -432,7 +399,7 @@ class Location:
                                f"All:{len(self.is_visiting)} "
                                f"Visiting:{sum(self.is_visiting)} "
                                f"Staying:{len(self.is_visiting) - sum(self.is_visiting)} "
-                               f"Capacity:{self.capacity}")
+                               f"Capacity:{self.capacity}", 'e')
                     if self.parent_location is not None:
                         next_location = MovementEngine.find_next_location(p)
                         Logger.log(f"Person {p.ID} will be removed from current location {self} "

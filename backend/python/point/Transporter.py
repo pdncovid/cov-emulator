@@ -1,3 +1,4 @@
+from backend.python.MovementEngine import MovementEngine
 from backend.python.Logger import Logger
 from backend.python.enums import PersonFeatures
 
@@ -46,7 +47,7 @@ class Transporter(Person):
                 i -= 1
             i += 1
         if do_check:
-            self.get_current_location().check_for_leaving(t)  # added this to re
+            MovementEngine.process_people_switching(self.get_current_location().points, t)
 
     # override
     def set_position(self, new_x, new_y, force=False):
@@ -58,7 +59,7 @@ class Transporter(Person):
     # override
     def set_infected(self, t, p, loc, common_p):
         super(Transporter, self).set_infected(t, p, loc, common_p)
-        self.is_latchable = False # todo this should be false after tested positive
+        self.is_latchable = True  # todo this should be false after tested positive
 
     # override
     def set_dead(self):

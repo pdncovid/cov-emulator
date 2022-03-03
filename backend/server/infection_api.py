@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse
-
+import matplotlib.pyplot as plt
 from .constants import log_base_dir, selected_people_classes
 from .file_api import Loader, getMap
 from anytree import Node
@@ -89,6 +89,37 @@ class InfectionTreeHandler(Resource):
             'data': df.to_csv(),
             'json': json_tree
         }
+
+class InfectionStateTimelineHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        args = parser.parse_args()
+        request_dir = args['dir']
+        files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(request_dir))]
+        person_infos = []
+        for f in files:
+            if 'person_info' in f:
+                person_infos.append(f)
+        person_infos.sort()
+
+        df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", person_infos[0]).group()), '_person_info')
+        df_out = pd.DataFrame(index=df['person'], columns=range(len(person_infos)))
+        for pi in person_infos:
+            day = int(re.search("[0-9]{5}", pi).group())
+            df = Loader.getFile(request_dir, day, '_person_info')
+            # df = df.loc[df['state']>1]
+            df.loc[df['state']>2,'state'] += 5
+            df.loc[df['state'] == 2,'state'] += df.loc[df['state'] == 2,'disease_state']
+            df_out.loc[df['person'], day] = df['state']
+
+        # plt.figure(figsize=(10,5))
+        # plt.imshow(df_out.fillna(0).values, interpolation='nearest', aspect='auto')
+        # plt.colorbar()
+        # plt.show()
+        print(df_out)
+        return {"status":"success", "data":df_out.to_csv(index=False)}
+
 
 
 # CONTACTS HANDLERS

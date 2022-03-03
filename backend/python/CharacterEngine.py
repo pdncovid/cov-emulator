@@ -1,3 +1,4 @@
+from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Time import Time
 from backend.python.enums import PersonFeatures, Containment
 from backend.python.location.Location import Location
@@ -9,17 +10,17 @@ class CharacterEngine:
 
     @staticmethod
     def update_happiness(people, delta_eco_status, loc_ids, args):
-        containment = args.containment
+        containment = ContainmentEngine.current_strategy
         for i, p in enumerate(people):
             cur_h = Person.features[p.ID, PersonFeatures.happiness.value]
             cur_base_h = Person.features[p.ID, PersonFeatures.base_happiness.value]
-            if containment == Containment.NONE.value:
+            if containment == Containment.NONE.name:
                 cur_h = cur_h - (cur_h - cur_base_h) * 0.1
-            elif containment == Containment.LOCKDOWN.value:
+            elif containment == Containment.LOCKDOWN.name:
                 cur_h = cur_h * 0.9
-            elif containment == Containment.QUARANTINE.value:
+            elif containment == Containment.QUARANTINE.name:
                 cur_h = cur_h * 0.95
-            elif containment == Containment.QUARANTINECENTER.value:
+            elif containment == Containment.QUARANTINECENTER.name:
                 cur_h = cur_h * 0.92
 
             social_class_effect = (Person.features[p.ID, PersonFeatures.social_class.value] - 5) / 10
@@ -40,20 +41,20 @@ class CharacterEngine:
 
     @staticmethod
     def update_economy(people, args):
-        containment = args.containment
+        containment = ContainmentEngine.current_strategy
         delta_eco_status = []
         for p in people:
             eco_status = Person.features[p.ID, PersonFeatures.economic_status.value]
             income = Person.features[p.ID, PersonFeatures.daily_income.value]
             s_class = Person.features[p.ID, PersonFeatures.social_class.value]
             expense = income / s_class  # high social class tend to save because they have more money, low social class has to spend their daily wage
-            if containment == Containment.NONE.value:
+            if containment == Containment.NONE.name:
                 pass
-            elif containment == Containment.LOCKDOWN.value:
+            elif containment == Containment.LOCKDOWN.name:
                 expense *= 2
-            elif containment == Containment.QUARANTINE.value:
+            elif containment == Containment.QUARANTINE.name:
                 expense *= 1.5
-            elif containment == Containment.QUARANTINECENTER.value:
+            elif containment == Containment.QUARANTINECENTER.name:
                 expense *= 1.1
             new_eco_status = eco_status + income - expense
 

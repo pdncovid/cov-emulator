@@ -77,7 +77,9 @@ class BusStation(Location):
             point.route_rep.append(self.get_root())  # move all to root
             # BusStation.bus_routes[point.ID].append(loc)     # pass through the parent. But teleport once reached
 
-            point.route_rep_all_stops = RoutePlanningEngine.add_all_stops_in_route(point.route_rep)
+            # drop last item to skip the root from the route? NO. many failed to reach end of route without root
+            point.route_rep_all_stops = RoutePlanningEngine.add_all_stops_in_route(point.route_rep)#[:-1]
+
 
         bus_route = point.route_rep
 

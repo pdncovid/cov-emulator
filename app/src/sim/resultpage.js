@@ -36,6 +36,7 @@ import DirSelect from "../components/DirSelect";
 import DataFrame from 'dataframe-js';
 import axios from 'axios'
 import { api } from '../utils/constants';
+import { Box } from "@material-ui/core";
 
 function ResultsPage() {
 
@@ -114,8 +115,6 @@ function ResultsPage() {
         drawCovidStateTimeline(selectedLogDir);
 
         plotInfectionTree()
-
-
     }, [selectedLogDir])
 
 
@@ -130,7 +129,8 @@ function ResultsPage() {
     const handleSelectDir = function (_selectedLogDir) {
 
         getColors(_selectedLogDir)
-        selectedLogDirs.push(_selectedLogDir)
+        setSelectedLogDirs([_selectedLogDir])
+
 
     }
 
@@ -262,12 +262,13 @@ function ResultsPage() {
                 let day = _days[d]
                 axios.post(api + "/flask/csvfile", { dir: dir, d: day.toString(), type: '_cov_info' })
                     .then(function (response) {
+                        var _max = 0;
                         const data = response.data.data;
                         csv2JSONarr(data, (pr) => { }).then((json_data) => {
                             var _df = new DataFrame(json_data)
                             _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
                             console.log("Covid data", day, _df)
-                            let _x = _df.select("time").toArray().map((e) => e[0] / 1440)
+                            let _x = [_df.select("time").toArray().map((e) => e[0] / 1440)[0]]
                             let _df_arr = _df.toArray()
                             let _df_col = _df.listColumns()
                             if (timelineOptions.length == 0) {
@@ -277,6 +278,7 @@ function ResultsPage() {
                                 var datum = { t: parseFloat(_x[i]) }
                                 for (var j = 0; j < _df_col.length; j++) {
                                     datum[_df_col[j]] = _df_arr[i][j]
+                                   
                                 }
                                 _data.push(datum)
                             }
@@ -315,34 +317,122 @@ function ResultsPage() {
                                         line: { dash: _line_types[_line_type_i], color: _line_colors[_df_col.indexOf(col)] },
                                         visible: true,
                                     };
+                                    
+                                    _max = Math.max(_max, ...trace1.y)
                                     traces.push(trace1)
                                 })
                                 traces.push({
-                                    x: [0,0], y: [0,0], visible: 'true', mode: 'lines', marker: {},
+                                    x: [0, 0], y: [0, 0], visible: 'true', mode: 'lines', marker: {},
                                     dir_name: dir, name: dir,
                                     line: { dash: _line_types[_line_type_i], color: 'black' }
                                 })
-                                Plotly.newPlot("stateTimeline", traces, {
-                                    title: '',
-                                    xaxis: {
-                                        title: 'Time (days)',
-                                        showticklabels: true,
-                                        tickangle: 'auto',
-                                        exponentformat: 'e',
-                                        showexponent: 'all'
-                                    },
-                                    yaxis: {
-                                        title: 'Number of people',
-                                        showticklabels: true,
-                                        exponentformat: 'e',
-                                        showexponent: 'all'
-                                    }
+
+                                axios.post(api + "/flask/load_args", { dir: dir }).then(response => {
+                                    var args = response.data
+                                    var addedContainmentEvents = Object.values(JSON.parse(args.addedContainmentEvents))
+                                    var addedGatheringEvents = Object.values(JSON.parse(args.addedGatheringEvents))
+                                    var addedVaccinationEvents = Object.values(JSON.parse(args.addedVaccinationEvents))
+                                    var shapes = []
+                                    var annotations = []
+                                    addedContainmentEvents.forEach(e => {
+                                        var x = parseFloat(e.startday)
+                                        shapes.push({
+                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max+100,
+                                            line: {
+                                                color: 'rgb(55, 128, 191)',
+                                                width: 3,
+                                                dash: 'dashdot'
+                                            }
+                                        })
+                                        annotations.push({
+                                                x: x,
+                                                y: _max/2,
+                                                xref: 'x',
+                                                yref: 'y',
+                                                text: e.containment_strategy,
+                                                textangle: -90,
+                                                showarrow: false,
+                                          
+                                        })
+                                    })
+
+                                    addedGatheringEvents.forEach(e=>{
+                                        var x = parseFloat(e.day) - 1
+                                        shapes.push({
+                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max+100,
+                                            line: {
+                                                color: 'rgb(55, 128, 191)',
+                                                width: 3,
+                                                dash: 'dotted'
+                                            }
+                                        })
+                                        annotations.push({
+                                                x: x,
+                                                y: _max/2,
+                                                xref: 'x',
+                                                yref: 'y',
+                                                text: "Gathering",
+                                                textangle: -90,
+                                                showarrow: false,
+                                          
+                                        })
+                                    })
+                                    addedVaccinationEvents.forEach(e=>{
+                                        var x = parseFloat(e.day)
+                                        shapes.push({
+                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max+100,
+                                            line: {
+                                                color: 'rgb(55, 128, 191)',
+                                                width: 3,
+                                                dash: 'dotted'
+                                            }
+                                        })
+                                        annotations.push({
+                                                x: x,
+                                                y: _max/2,
+                                                xref: 'x',
+                                                yref: 'y',
+                                                text: "Vaccine for age "+e.min_age+" to "+ e.max_age,
+                                                textangle: -90,
+                                                showarrow: false,
+                                          
+                                        })
+                                    })
+                                    console.log(shapes)
+                                    Plotly.newPlot("stateTimeline", traces, {
+                                        title: '',
+                                        height: 600,
+                                        // width: 1000,
+                                        shapes:shapes,
+                                        annotations:annotations,
+                                        legend: {
+                                            x: 0.85,
+                                            y: 0.99,
+                                            traceorder: "normal",
+                                        },
+                                        xaxis: {
+                                            title: 'Time (days)',
+                                            showticklabels: true,
+                                            tickangle: 'auto',
+                                            exponentformat: 'e',
+                                            showexponent: 'all'
+                                        },
+                                        yaxis: {
+                                            title: 'Number of people',
+                                            showticklabels: true,
+                                            exponentformat: 'e',
+                                            showexponent: 'all'
+                                        }
+                                    })
                                 })
+                                
                             }
                         });
                     });
 
             };
+
+            
             // console.log("STATE TIMELINE", _stateTimelineData)
             // setStateTimelineData(_stateTimelineData);
 
@@ -508,6 +598,115 @@ function ResultsPage() {
 
     }
 
+    // plot infection state timeline
+    async function plotInfectionStateTimeline() {
+        axios.post(api + "/flask/infectionstatetimeline", { dir: selectedLogDir }).then(response => {
+            const data = response.data.data
+            csv2JSONarr(data, () => { }).then(json => {
+                var df = new DataFrame(json)
+                console.log(df)
+                const [people, n_days] = df.dim()
+                const days = df.listColumns()
+
+                Plotly.newPlot("infection-state-timeline", [{
+                    x: Array(people).keys(),
+                    y: days,
+                    z: df.toArray(),
+                    type: 'heatmap'
+                }], {
+                    title: '',
+                    width: 800,
+                    height: 800,
+                    yaxis: {
+                        tickangle: -45,
+                        automargin: true,
+                    },
+                    autosize: false,
+                })
+
+                var m = df.toArray()
+
+                var time_dict = {}
+                for (let pid = 0; pid < people; pid++) {
+                    var unique = m[pid].filter((v, i, a) => a.indexOf(v) === i)
+                    unique.forEach((e) => {
+                        if (!time_dict.hasOwnProperty(e))
+                            time_dict[e] = []
+
+                        time_dict[e].push(days[m[pid].indexOf(e)] - days[m[pid].indexOf('3')])
+                    })
+                }
+                var violin_data = []
+                var key2name = { '1': 'Susceptible', '3': 'Infected', '4': 'Infected-Mild', '5': 'Infected-Severe', '6': 'Infected-Critical', '8': 'Recovered', '9': 'Dead' }
+                for (let key in time_dict) {
+                    if (key == '1')
+                        continue
+                    violin_data.push({
+                        // y0: key,
+                        x: time_dict[key],
+                        hoveron: "points+kde",
+                        meanline: {
+                            visible: true
+                        },
+                        // legendgroup: "M",
+                        // scalegroup: "M",
+                        points: "all",
+                        pointpos: -0.9,
+                        box: {
+                            visible: true
+                        },
+                        jitter: 0,
+                        scalemode: "count",
+                        marker: {
+                            line: {
+                                width: 2,
+                                // color: "#8dd3c7"
+                            },
+                            symbol: "line-ns"
+                        },
+                        showlegend: true,
+                        // side: "negative",
+                        type: "violin",
+                        name: key2name[key],
+                        span: [
+                            0
+                        ],
+                        // line: {
+                        //     color: "#8dd3c7"
+                        // },
+                        orientation: "h"
+                    })
+                }
+
+                Plotly.newPlot("infection-state-violin", violin_data,
+                    {
+                        title: "",
+                        width: 1000,
+                        height: 600,
+                        xaxis: {
+                            title: "Number of days"
+                        },
+                        yaxis: {
+                            zeroline: false,
+                            showgrid: true
+                        },
+                        violingap: 0,
+                        violingroupgap: 0,
+                        violinmode: "overlay",
+                        legend: {
+                            x: 0.85,
+                            y: 0.1,
+                            traceorder: "normal",
+
+                        }
+                    }
+                )
+
+
+            })
+        })
+    }
+
     // plot new infections grouped
     function plotNewInfections() {
         axios.post(api + "/flask/newinfections", { dir: selectedLogDir, group_by: selectedGroup })
@@ -626,7 +825,7 @@ function ResultsPage() {
                                     y: vals,
                                     name: group_names[Y],
                                     type: "line",
-                                    marker: { color:selectedGroup=='person_class'?peopleClassColors[group_names[Y]].replace(/[^,]+(?=\))/, '1.0') :''},
+                                    marker: { color: selectedGroup == 'person_class' ? peopleClassColors[group_names[Y]].replace(/[^,]+(?=\))/, '1.0') : '' },
                                     xaxis: 'x',
                                     yaxis: yaxis,
                                     legendgroup: axis
@@ -636,7 +835,7 @@ function ResultsPage() {
                                     xaxis: 'x',
                                     yaxis: yaxis,
                                     name: group_names[Y],
-                                    marker: { color:selectedGroup=='person_class'?peopleClassColors[group_names[Y]].replace(/[^,]+(?=\))/, '1.0') :''},
+                                    marker: { color: selectedGroup == 'person_class' ? peopleClassColors[group_names[Y]].replace(/[^,]+(?=\))/, '1.0') : '' },
                                     type: "histogram",
                                     legendgroup: axis
                                 })
@@ -653,8 +852,8 @@ function ResultsPage() {
                             })
                             axis++
                         }
-                        
-                        
+
+
 
                         Plotly.newPlot("infectionsTime2D", line_traces, {
                             title: 'Number of new infections for each group throughout time',
@@ -712,14 +911,14 @@ function ResultsPage() {
                                 }
                             }
                             // normalize by # of people in each class
-                            for (var i=0;i<temp.length;  i++){
+                            for (var i = 0; i < temp.length; i++) {
                                 temp[i] /= p_count[X]
                             }
                             ratio_traces.push({
                                 y: temp,
                                 name: group_names[X],
-                                marker: { color:selectedGroup=='person_class'?peopleClassColors[group_names[X]].replace(/[^,]+(?=\))/, '1.0') :''},
-                                    type: "bar"
+                                marker: { color: selectedGroup == 'person_class' ? peopleClassColors[group_names[X]].replace(/[^,]+(?=\))/, '1.0') : '' },
+                                type: "bar"
                             })
                         }
                         console.log(ratio_traces)
@@ -1347,15 +1546,15 @@ function ResultsPage() {
                     <Grid container spacing={0} padding='30px'>
 
                         <Grid container xs={12}>
-                            <Grid  xs={6}>
-                                <div style={{ height: "100%", paddingTop: 5 }} id="stateTimeline"></div>
+                            <Grid xs={8}>
+                                <div style={{ paddingTop: 5 }} id="stateTimeline"></div>
                             </Grid>
 
-                            <Grid  xs={6}>
+                            <Grid xs={4}>
                                 <Grid container xs={12}>
                                     <Typography >Select lines</Typography>
                                 </Grid>
-                                <Grid  xs={12}>
+                                <Grid xs={12}>
                                     <FormGroup row>
                                         {timelineOptions.map((p) => {
                                             return (
@@ -1463,10 +1662,10 @@ function ResultsPage() {
 
                         </Grid>
 
-                        
-                            <div id="statesDay"></div>
 
-                        
+                        <div id="statesDay"></div>
+
+
 
                         <Grid xs={6}>
                             <Grid container xs={4}>
@@ -1579,6 +1778,15 @@ function ResultsPage() {
                     <br />
                     <hr class="rounded" />
                     <div style={{ height: '50px' }}></div>
+
+
+                    <Box>
+                        <Typography>Infection state timeline</Typography>
+                        <Button onClick={() => plotInfectionStateTimeline()}>Plot infection state timeline</Button>
+                        <div id="infection-state-timeline"></div>
+                        <div id="infection-state-violin"></div>
+                    </Box>
+
 
                     <div class='container'>
                         <Select

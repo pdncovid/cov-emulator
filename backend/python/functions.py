@@ -1,4 +1,3 @@
-
 import numpy as np
 
 INT_MAX = 10000000000
@@ -19,16 +18,15 @@ def bs(arr, v):
 
 
 def get_idx_most_likely(arr, method=0, scale=0.1):
-
     if method == 0:
         arr, idx = zip(*sorted(zip(arr, np.arange(len(arr)))))
         arr = arr[::-1]
         idx = idx[::-1]
         arr = np.cumsum(arr)
         if arr[-1] < 1e-5:
-            return -1
-        p = min(np.random.exponential(scale),0.99) * arr[-1]
-        return idx[bs(arr, p)] # ERROR; IndexError: tuple index out of range
+            return 0
+        p = min(np.random.exponential(scale), 0.99) * arr[-1]
+        return idx[bs(arr, p)]  # ERROR; IndexError: tuple index out of range
 
     if method == 1:
         arr = np.cumsum(arr)
@@ -79,7 +77,7 @@ def find_in_subtree(c, tar, skip):
 
 
 def get_random_element(arr):
-    if len(arr)==0:
+    if len(arr) == 0:
         return
     return arr[np.random.randint(0, len(arr))]
 

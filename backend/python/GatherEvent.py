@@ -21,3 +21,6 @@ class GatherEvent:
             if len(selected) == self.capacity:
                 break
         return selected
+
+    def __repr__(self):
+        return f"Event: Day={self.day} Time={self.time} Dur={self.duration} Loc={self.loc} Cap={self.capacity}"

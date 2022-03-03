@@ -61,7 +61,7 @@ class Time:
         day = hrs // 24
         hrs = hrs%24
         mins = i % (60 / Time._scale) * Time._scale
-        return int(hrs)*60+int(mins)+int(day)*1440
+        return int(hrs*60+mins+day*1440)
 
         # mins = Time._shift_hrs * 60 + i*Time._scale
         # return int(mins)

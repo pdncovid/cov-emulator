@@ -1,4 +1,6 @@
+import argparse
 import json
+import sys
 
 from flask import Flask, send_from_directory
 from flask_restful import Api, Resource, reqparse, abort
@@ -11,6 +13,10 @@ import pandas as pd
 import numpy as np
 import re
 
+print("CWD", os.getcwd())
+sys.path.append('../../')
+
+from backend.python.sim_args import get_args_web_ui
 
 class Loader:
 
@@ -77,6 +83,23 @@ class PostTextFileHandler(Resource):
         final_ret = {"status": status, "data": message}
 
         return final_ret
+
+class LogArgsHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        args = parser.parse_args()
+        request_dir = args['dir']
+
+        with open(log_base_dir.joinpath(request_dir).joinpath("args.data")) as fh:
+            arg_parser = get_args_web_ui("")
+            # import shlex
+            # ret_args = arg_parser.parse_args(shlex.split(fh.read()))
+            read = fh.read()
+            ret_args = arg_parser.parse_args(read.split())
+            print("Loaded Args" , ret_args)
+            return  vars(ret_args)
+
 
 
 class LogListHandler(Resource):

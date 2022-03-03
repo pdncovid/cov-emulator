@@ -7,7 +7,6 @@ from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.enums import State, ClassNameMaps, PersonFeatures as Pf
 from backend.python.functions import find_in_subtree, get_random_element
-from backend.python.transport.Movement import Movement
 
 
 class Person:
@@ -43,10 +42,10 @@ class Person:
         _f_arr[Pf.occ.value] = int(class_info['index'])
         _f_arr[Pf.gender.value] = kwargs.get('gender', 0 if np.random.rand() < 0.5 else 1)
         _f_arr[Pf.age.value] = kwargs.get('age', self.initialize_age(class_info['age_min'], class_info['age_max']))
-        _f_arr[Pf.base_immunity.value] = kwargs.get('base_immunity', 1 / _f_arr[
-            Pf.age.value] if np.random.rand() < 0.9 else np.random.rand())  # todo find
+        _f_arr[Pf.base_immunity.value] = kwargs.get('base_immunity', 1 / (_f_arr[
+            Pf.age.value]+1) if np.random.rand() < 0.9 else np.random.rand())  # todo find
         _f_arr[Pf.immunity_boost.value] = kwargs.get('immunity_boost', 0)
-        _f_arr[Pf.behaviour.value] = kwargs.get('behaviour', 0.5)
+        # _f_arr[Pf.behaviour.value] = kwargs.get('behaviour', 0.5)
         _f_arr[Pf.base_happiness.value] = kwargs.get('base_happiness', 50)
         _f_arr[Pf.happiness.value] = kwargs.get('happiness', _f_arr[Pf.base_happiness.value])
         _f_arr[Pf.social_class.value] = kwargs.get('social_class', 5)
@@ -58,7 +57,7 @@ class Person:
         _f_arr[Pf.is_asymptotic.value] = kwargs.get('is_asymptotic', -1)
         _f_arr[Pf.asymptotic_chance.value] = kwargs.get('asymptotic_chance', _f_arr[Pf.base_immunity.value] ** 2)
         _f_arr[Pf.social_d.value] = kwargs.get('social_d', 0.0)
-        _f_arr[Pf.hygiene_p.value] = kwargs.get('hygiene_p', 1.0)  # todo not used
+        _f_arr[Pf.hygiene_p.value] = kwargs.get('hygiene_p', 0.5)
 
         _f_arr[Pf.fm_id.value] = kwargs.get('fm_id', -1)
 
@@ -129,12 +128,13 @@ class Person:
         self.roster_days = []  # [i for i in range(7) if np.random.rand() < Person.roster_ratio]
         self.is_roster_day = True
 
+        self.is_monthly_weekend = False  # add to description
+
         self.update_temp(0.0)
         Person.all_people.append(self)
 
     def __repr__(self):
-        d = self.get_description_dict()
-        return ','.join(map(str, d.values()))
+        return self.class_name + "-" + str(self.ID)
 
     def __str__(self):
         return str(self.ID)
@@ -154,7 +154,7 @@ class Person:
              'age': self.features[self.ID, Pf.age.value],
              'base_immunity': self.features[self.ID, Pf.base_immunity.value],
              'immunity_boost': self.features[self.ID, Pf.immunity_boost.value],
-             'behaviour': self.features[self.ID, Pf.behaviour.value],
+             # 'behaviour': self.features[self.ID, Pf.behaviour.value],
              'happiness': self.features[self.ID, Pf.happiness.value],
              'base_happiness': self.features[self.ID, Pf.base_happiness.value],
              'social_class': self.features[self.ID, Pf.social_class.value],
@@ -233,15 +233,11 @@ class Person:
         if self.get_current_location() != self.home_loc and self.get_current_location() != self.home_weekend_loc and \
                 not self.get_current_location().quarantined and not isinstance(self,
                                                                                Transporter) and not self.is_dead():
-            Logger.log(
-                f"{self.ID} {self.class_name} not at home when day resets. (Now at {self.get_current_location().name} "
-                f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])} next target {self.get_next_target().loc.name}) "
-                f"CTarget {self.current_target_idx}/{len(self.route) - 1} "
-                f"Route {list(map(str, self.route))}. "
-                f"{self.__repr__()}"
-
-                , 'c')
-            # self.print()
+            # Logger.log(
+            #     f"{self.ID} {self.class_name} not at home when day resets. (Now at {self.get_current_location().name} "
+            #     f"from {Time.i_to_time(self.all_movement_enter_times[self.ID])} next target {self.get_next_target().loc.name}) "
+            #     f"CTarget {self.current_target_idx}/{len(self.route) - 1} "
+            #     , 'c')
             ret = False
 
         # removing all latched people from transporters because we can't have them
@@ -426,10 +422,10 @@ class Person:
 
         route = RoutePlanningEngine.optimize_route(route)
         if not self.is_tested_positive():
-            if route[0].loc != self.home_loc and route[0].loc != self.home_weekend_loc:
-                raise Exception("Initial location invalid!")
-            if route[-1].loc != self.home_loc and route[-1].loc != self.home_weekend_loc:
-                raise Exception("Last location invalid!")
+            if route[0].loc != self.home_loc and route[0].loc != self.home_weekend_loc and route[0].loc != self.work_loc:
+                raise Exception(f"Initial location invalid! First location class is {route[0].loc.class_name} for {self.class_name}")
+            if route[-1].loc != self.home_loc and route[-1].loc != self.home_weekend_loc and route[-1].loc != self.work_loc:
+                raise Exception(f"Last location invalid! Last location class is {route[-1].loc.class_name} for {self.class_name}")
         self.route = route
         if move2first:
             self.current_target_idx = 0

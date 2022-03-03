@@ -33,7 +33,11 @@ class Cemetery(Location):
             raise Exception(f"Put only dead people! :P {p.__repr__()}")
 
     def remove_point(self, point):
-        raise Exception("Cant remove from cemetery!!!")
+        if point.is_dead():
+            raise Exception("Cant remove from cemetery!!!")
+        else:
+            print("CHECK THIS!!!!")  # TODO
+            super(Cemetery, self).remove_point(point)
 
     def check_for_leaving(self, t):
         pass

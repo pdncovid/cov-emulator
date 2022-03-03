@@ -1,5 +1,6 @@
 import numpy as np
 
+from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Time import Time
 from backend.python.Visualizer import Visualizer
 from backend.python.enums import State, TestSpawn, PersonFeatures
@@ -38,6 +39,7 @@ class TestCenter:
             result = False  # True if rnd > args.test_acc else False
         if result:
             p.features[p.ID, PersonFeatures.tested_positive_time.value] = t + TestCenter.testresultdelay
+            ContainmentEngine.on_infected_identified(p)
         p.features[p.ID, PersonFeatures.last_tested_time.value] = t
 
     @staticmethod

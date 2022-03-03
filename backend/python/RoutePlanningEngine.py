@@ -1,11 +1,11 @@
 import os
-from random import choices
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+
+from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.MovementEngine import MovementEngine
-from backend.python.Target import Target
 from backend.python.Time import Time
 from backend.python.enums import Containment, PersonFeatures
 from backend.python.functions import get_idx_most_likely, get_random_element, bs
@@ -33,32 +33,11 @@ class RoutePlanningEngine:
 
     _values = np.arange(1440)
 
-    # @staticmethod
-    # def get_alternate_route(point):
-    #     from backend.python.location.Medical.MedicalZone import MedicalZone
-    #     if point.temp > point.infect_temperature[0]:
-    #         return [MedicalZone]
-    #     return []
-    #
-    # @staticmethod
-    # def update_routes(root, t):
-    #
-    #     from backend.python.point.Person import Person
-    #     for p in Person.all_people:
-    #         if (p.is_infected() and p.is_tested_positive()) or p.is_dead():
-    #             # these people cant change route randomly!!!
-    #             continue
-    #         change_change = 0.001
-    #         if t % Time.DAY > Time.get_time_from_datetime(18, 0):
-    #             change_change *= 0.0001
-    #         if np.random.rand() < change_change:
-    #             p.update_route(root, t % Time.DAY, RoutePlanningEngine.get_alternate_route(p))
-
     @staticmethod
-    def process_loc_p(day_of_week=0, containment=Containment.NONE.value):
+    def process_loc_p(day_of_week=0):
         day_of_week = (day_of_week + RoutePlanningEngine.weekday_shift) % 7
-        if RoutePlanningEngine.loaded_day_of_week == day_of_week and RoutePlanningEngine.loaded_containment == containment:
-            return
+        # if RoutePlanningEngine.loaded_day_of_week == day_of_week and RoutePlanningEngine.loaded_containment == containment:
+        #     return
 
         p = os.getcwd()
         while os.path.basename(p) != 'backend':
@@ -86,10 +65,10 @@ class RoutePlanningEngine:
         return p1, p2
 
     @staticmethod
-    def process_loc_o(day_of_week=1, containment=Containment.NONE.value):
+    def process_loc_o(day_of_week=1):
         day_of_week = (day_of_week + RoutePlanningEngine.weekday_shift) % 7
-        if RoutePlanningEngine.loaded_day_of_week == day_of_week and RoutePlanningEngine.loaded_containment == containment:
-            return
+        # if RoutePlanningEngine.loaded_day_of_week == day_of_week and RoutePlanningEngine.loaded_containment == containment:
+        #     return
         p = os.getcwd()
         while os.path.basename(p) != 'backend':
             p = os.path.dirname(p)
@@ -113,9 +92,9 @@ class RoutePlanningEngine:
         return loc_name
 
     @staticmethod
-    def set_parameters(day_of_week, containment):
-        p1, p2 = RoutePlanningEngine.process_loc_p(day_of_week, containment)
-        o1, o2 = RoutePlanningEngine.process_loc_o(day_of_week, containment)
+    def set_parameters(day_of_week):
+        p1, p2 = RoutePlanningEngine.process_loc_p(day_of_week)
+        o1, o2 = RoutePlanningEngine.process_loc_o(day_of_week)
         from backend.python.point.Person import Person
         def load_df(path):
             df = pd.read_csv(path).set_index('location')
@@ -135,7 +114,7 @@ class RoutePlanningEngine:
         RoutePlanningEngine.df_loc_o_1 = load_df(o2)
 
         RoutePlanningEngine.loaded_day_of_week = day_of_week
-        RoutePlanningEngine.loaded_containment = containment
+        RoutePlanningEngine.loaded_containment = ContainmentEngine.current_strategy
 
         # to_plot = []
         # titles = []
@@ -277,17 +256,17 @@ class RoutePlanningEngine:
             RoutePlanningEngine.df_o = RoutePlanningEngine.df_loc_o.get_group(occ).drop(
                 columns=['person']).astype(float)
 
-            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_o_1.cumsum()
-            RoutePlanningEngine.df_o = RoutePlanningEngine.df_o.cumsum()
+            RoutePlanningEngine.df_o_1 = RoutePlanningEngine.df_o_1.cumsum(axis=1)
+            RoutePlanningEngine.df_o = RoutePlanningEngine.df_o.cumsum(axis=1)
 
     @staticmethod
     def get_loc_for_p_at_t(route_so_far, p, t):
-        if RoutePlanningEngine.loaded_containment == Containment.LOCKDOWN.value:
+        if RoutePlanningEngine.loaded_containment == Containment.LOCKDOWN.name:
             return [p.home_loc]
-        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINECENTER.value:
+        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINECENTER.name:
             if p.is_tested_positive():
                 return ['COVIDQuarantineZone']
-        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.value:
+        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.name: # TODO set home to quarantined state!
             if p.is_tested_positive():
                 return [p.home_loc]
         RoutePlanningEngine.check_loaded_df(p)
@@ -299,9 +278,8 @@ class RoutePlanningEngine:
         if day == tnow // Time.DAY:
             idx = get_idx_most_likely(RoutePlanningEngine.df_p[t].values, method=0, scale=0.2)
         else:
-            idx = get_idx_most_likely(RoutePlanningEngine.df_p_1[t].values, method=0,
-                                      scale=0.2)  # we dont come here because we stop the day around 11 pm
-
+            # we dont come here because we stop the day around 11 pm
+            idx = get_idx_most_likely(RoutePlanningEngine.df_p_1[t].values, method=0, scale=0.2)
         # if len(route_so_far) > 0:
         #     loc_name = RoutePlanningEngine.get_loc_name(route_so_far[-1].loc, p)
         #
@@ -328,17 +306,20 @@ class RoutePlanningEngine:
         if location == '_w_home':
             if p.home_weekend_loc is None:
                 return [p.home_loc]
+            if p.is_monthly_weekend:
+                if (day//7)%4!=0:
+                    return [p.home_loc]
             return [p.home_weekend_loc]
         return [location]
 
     @staticmethod
     def get_dur_for_p_in_loc_at_t(route_so_far, p, loc, t):
-        if RoutePlanningEngine.loaded_containment == Containment.LOCKDOWN.value:
+        if RoutePlanningEngine.loaded_containment == Containment.LOCKDOWN.name:
             return Time.get_duration(20)
-        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINECENTER.value:
+        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINECENTER.name:
             if p.is_tested_positive():
                 return Time.get_duration(20)
-        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.value:
+        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.name:
             if p.is_tested_positive():
                 return Time.get_duration(20)
         if p.is_transporter == 1:
@@ -348,8 +329,12 @@ class RoutePlanningEngine:
         loc_name = RoutePlanningEngine.get_loc_name(loc, p)
 
         weights = RoutePlanningEngine.df_o.loc[loc_name].values.astype('float')
-        # dt = Time.get_duration(choices(RoutePlanningEngine._values, weights)[0]/120)
-        dt = bs(weights, np.random.rand() * weights.max())
+
+        if weights.max() <1e-6:
+            dt = Time.get_duration(0.25)
+        else:
+            # dt = get_idx_most_likely(weights, method=0, scale=0.2)
+            dt = bs(weights, np.random.rand() * weights.max())
         dt = min(dt, Time.get_duration(1))
         # dt = Time.get_duration(1/6)
         return dt
@@ -358,6 +343,8 @@ class RoutePlanningEngine:
     def convert_route_to_occupancy_array(route, loc_map, dt):
         arr = []
         t = 0
+        if len(route)==0:
+            return [-1]*1440
         for tar in route:
             while t < Time.i_to_minutes(tar.leaving_time) % 1440:
                 arr.append(loc_map[tar.loc.class_name])

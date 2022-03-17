@@ -266,7 +266,7 @@ function HomePage() {
       document.getElementById("social_distance").value = args.social_distance
       document.getElementById("hygiene_p").value = args.hygiene_p
 
-      document.getElementById("base_transmission_p").value = args.base_trans_p
+      document.getElementById("base_transmission_p").value = args.base_transmission_p
       document.getElementById("incubation_days").value = args.incubation_days
     })
 
@@ -311,11 +311,11 @@ function HomePage() {
         }}>
 
         <div>
-          <Typography variant="h4">Load from previous</Typography>
-          <TextField select label="Load from log" id="load_log_name" value={loadLogDir} onChange={(e) => setLoadLogDir(e.target.value)} variant="standard">
+          <Typography variant="h5">Load from previous simulation</Typography>
+          <TextField select label="Load from" id="load_log_name" value={loadLogDir} onChange={(e) => setLoadLogDir(e.target.value)} variant="standard">
             {loadLogDirs.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
           </TextField>
-          <TextField select label="Loading log day" id="load_log_day" disabled={loadLogDir == "NONE"} value={loadLogDay} onChange={(e) => setLoadLogDay(e.target.value)} variant="standard">
+          <TextField select label="Loading day" id="load_log_day" disabled={loadLogDir == "NONE"} value={loadLogDay} onChange={(e) => setLoadLogDay(e.target.value)} variant="standard">
             {loadLogDays.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
           </TextField>
         </div>
@@ -333,17 +333,13 @@ function HomePage() {
         <div>
           <Typography>Simulation parameters</Typography>
           <TextField label="Name" id="name" sx={{ m: 1, width: '25ch' }} defaultValue={"Test"} />
-        </div>
-
-        <div>
-          {/* <TextField label="Initial infected %" id="inf_initial" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"0.01"} /> */}
           <TextField label="Simulation days" id="sim_days" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"60"} />
         </div>
 
         <div>
           <Typography>Disease variant parameters</Typography>
           <TextField label="Infection radius" id="inf_radius" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"1"} />
-          <TextField label="Incubation days" id="incubation_days" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"3"} />
+          <TextField label="Incubation days" id="incubation_days" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"4.5"} />
           <TextField label="Base transmission probability" id="base_transmission_p" type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"0.1"} />
         </div>
 
@@ -588,11 +584,26 @@ function HomePage() {
                   {locationTreeDataArr.filter((e) => e.class == "GatheringPlace").map((e) => (<option key={e.name} value={e.name}>{e.name}</option>))}
                 </TextField>
               </Grid>
-              <Grid item xs={1}><TextField type="number" label="day" id="gathering-place-day" /></Grid>
+              <Grid item xs={2}><TextField type="number" label="day" id="gathering-place-day" /></Grid>
               <Grid item xs={2}><TextField type="time" label="time" id="gathering-place-time" /></Grid>
               <Grid item xs={2}><TextField type="number" label="duration (hrs)" id="gathering-place-duration" /></Grid>
               <Grid item xs={1}><TextField type="number" label="capacity" id="gathering-place-capacity" /></Grid>
-              <Grid item xs={1}><TextField label="criteria" id="gathering-place-criteria" /></Grid>
+              <Grid item xs={2}><TextField label="criteria" id="gathering-place-criteria" /></Grid>
+              <Grid item xs={2}><Button onClick={() => {
+                var tmp = [...addedGatheringEvents]
+                locationTreeDataArr.filter((e) => e.class == "GatheringPlace").forEach(e=>{
+                  tmp.push({
+                    id: addedGatheringEvents.length,
+                  name: e.name,
+                  day: document.getElementById("gathering-place-day").value,
+                  time: document.getElementById("gathering-place-time").value,
+                  duration: document.getElementById("gathering-place-duration").value,
+                  capacity: document.getElementById("gathering-place-capacity").value,
+                  criteria: document.getElementById("gathering-place-criteria").value,
+                  })
+                })
+                setAddedGatheringEvents(tmp)
+              }}>Add All</Button></Grid>
               <Grid item xs={2}><Button onClick={() => {
                 setAddedGatheringEvents([...addedGatheringEvents, {
                   id: addedGatheringEvents.length,
@@ -604,6 +615,8 @@ function HomePage() {
                   criteria: document.getElementById("gathering-place-criteria").value,
                 }])
               }}>Add</Button></Grid>
+              
+              
             </Grid>
           </Grid>
 

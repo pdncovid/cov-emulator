@@ -141,20 +141,20 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
                 person.infected_location = Location.all_locations[infected_loc_id]
     else:
         _init_people = json.loads(args.personPercentData)
-        args.n = n_houses * 4
+        n_people = n_houses * 4
         people = []
         for key in _init_people.keys():
             _class = p_df.loc[p_df['p_class'] == _init_people[key]['p_class']].iloc[0]
             if pd.isna(_class['max_passengers']):
-                to_add = [Person(_class) for _ in range(int(int(_init_people[key]['percentage']) / 100 * args.n))]
+                to_add = [Person(_class) for _ in range(int(int(_init_people[key]['percentage']) / 100 * n_people))]
             else:
-                to_add = [Transporter(_class) for _ in range(int(int(_init_people[key]['percentage']) / 100 * args.n))]
+                to_add = [Transporter(_class) for _ in range(int(int(_init_people[key]['percentage']) / 100 * n_people))]
 
             # infect people
             infect_percentage = float(_init_people[key]['ipercentage'])/100
             if infect_percentage > 0:
                 n_infect = max(1,int(len(to_add)*infect_percentage))
-                Logger.log(f"Infecting {n_infect} people from {key}", 'c')
+                Logger.log(f"Infecting {n_infect} people from {_init_people[key]['p_class']}", 'c')
                 for _ in range(n_infect):
                     idx = np.random.randint(0, len(to_add))
                     to_add[idx].set_infected(0, to_add[idx], root, args.common_fever_p)
@@ -175,7 +175,7 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
                 person.set_work_loc(person.find_closest(w_loc, person.home_loc, find_from_level=-1))  # todo
 
         # infect people
-        # for _ in range(max(1, int(args.inf_initial * args.n))):
+        # for _ in range(max(1, int(args.inf_initial * n_people))):
         #     idx = np.random.randint(0, len(people))
         #     people[idx].set_infected(0, people[idx], root, args.common_fever_p)
 

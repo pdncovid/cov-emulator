@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
-from backend.python.CovEngine import CovEngine
 from backend.python.Logger import Logger
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 from backend.python.Time import Time
-from backend.python.enums import State, ClassNameMaps, PersonFeatures as Pf
+from backend.python.enums import State, ClassNameMaps, PersonFeatures as Pf, DiseaseState
 from backend.python.functions import find_in_subtree, get_random_element
 
 
@@ -52,7 +51,7 @@ class Person:
         _f_arr[Pf.daily_income.value] = kwargs.get('daily_income', 1500)
         _f_arr[Pf.economic_status.value] = kwargs.get('economic_status', 1000)
         _f_arr[Pf.state.value] = kwargs.get('state', State.SUSCEPTIBLE.value)
-        _f_arr[Pf.disease_state.value] = kwargs.get('disease_state', 0)
+        _f_arr[Pf.disease_state.value] = kwargs.get('disease_state', DiseaseState.INCUBATION.value)
         _f_arr[Pf.temp.value] = kwargs.get('temp', 35)
         _f_arr[Pf.is_asymptotic.value] = kwargs.get('is_asymptotic', -1)
         _f_arr[Pf.asymptotic_chance.value] = kwargs.get('asymptotic_chance', _f_arr[Pf.base_immunity.value] ** 2)
@@ -104,6 +103,7 @@ class Person:
         Person.all_current_loc_radii = np.append(Person.all_current_loc_radii, 0)
         Person.all_current_loc_vcap = np.append(Person.all_current_loc_vcap, 0)
 
+        self.disease_state_set_time = -1
         self.is_day_finished = False
         self.route = []  # route that point is going to take. (list of location refs)
         self.current_target_idx = -1  # current location in the route (index of the route list)
@@ -250,6 +250,7 @@ class Person:
         self.is_roster_day = t // Time.DAY // 7 in self.roster_days
 
         from backend.python.RoutePlanningEngine import RoutePlanningEngine
+        from backend.python.CovEngine import CovEngine
 
         RoutePlanningEngine.set_route(self, t)
         # self.adjust_leaving_time(t)
@@ -492,26 +493,33 @@ class Person:
         self.features[self.ID, Pf.infected_time.value] = t
         self.features[self.ID, Pf.infected_source_id.value] = p.ID
         self.features[self.ID, Pf.infected_loc_id.value] = loc.ID
-        self.features[self.ID, Pf.disease_state.value] = 1
         self.features[self.ID, Pf.is_asymptotic.value] = np.random.rand() < self.features[
             self.ID, Pf.asymptotic_chance.value]
 
+        self.set_disease_state(DiseaseState.INCUBATION.name, t)
         self.source = p
         self.infected_location = loc
         self.update_temp(common_p)
 
     def set_recovered(self):
         self.features[self.ID, Pf.state.value] = State.RECOVERED.value
-        self.features[self.ID, Pf.disease_state.value] = 0
+        self.features[self.ID, Pf.disease_state.value] = DiseaseState.INCUBATION.value
+        # self.set_disease_state(DiseaseState.INCUBATION.name, t)
 
     def set_susceptible(self):
         self.features[self.ID, Pf.state.value] = State.SUSCEPTIBLE.value
+        # self.set_disease_state(DiseaseState.INCUBATION.name, t)
 
     def set_dead(self):
         self.features[self.ID, Pf.state.value] = State.DEAD.value
         self.features[self.ID, Pf.temp.value] = 25
         self.features[self.ID, Pf.vx.value] = 0
         self.features[self.ID, Pf.vy.value] = 0
+        # self.set_disease_state(DiseaseState.INCUBATION.name, t)
+
+    def set_disease_state(self, state, t):
+        self.features[self.ID, Pf.disease_state.value] = DiseaseState[state].value
+        self.disease_state_set_time = t
 
     def is_infected(self):
         return self.features[self.ID, Pf.state.value] == State.INFECTED.value

@@ -86,6 +86,7 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
     days = args.sim_days
     iterations = int(days * 1440 / Time._scale)
     n_overtime = 0
+    elapsed_time = 0
     Logger.save_class_info()
     Logger.save_args(args)
 
@@ -128,6 +129,7 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
     # ============================================================================================== main iteration loop
     day_t_instances = []
     new_infected = []
+    elapsed_time = time.time()
     for iteration in range(iterations):
         t = Time.get_time()
         day = int(t // Time.DAY)
@@ -165,8 +167,7 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
                 CharacterEngine.update_happiness(people, delta_eco_status, day_t_instances[:, 2, :].astype(int), args)
 
             # ===========================================================================disease progression within host
-            CovEngine.process_recovery(people, t)
-            CovEngine.process_death(people, t, cemetery)
+            CovEngine.process_disease_state(people, t, cemetery)
 
             # ============================================================================================== vaccination
 
@@ -218,7 +219,11 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
                             selected_person.route, Target(event.loc, t + event.time + event.duration, None),
                             t + event.time, t + event.time + event.duration)
                         selected_person.set_route(new_route, t, move2first=True)
-
+            now_time = time.time()
+            if day > 0:
+                Logger.log(f"Elapsed time {(now_time-elapsed_time)/60:.2f}mins.", 'c')
+                Logger.log(f"Per day {(now_time-elapsed_time)/60/day:.2f}mins.", 'c')
+                Logger.log(f"Remaining time {(days-day)*(now_time-elapsed_time)/60/day:.2f} mins", 'c')
             # clear data
             day_t_instances = []
 

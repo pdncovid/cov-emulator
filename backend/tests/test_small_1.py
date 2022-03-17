@@ -55,15 +55,15 @@ def initialize(args):
         Logger.log(f"Recommended 'number of people' is {n_houses * 4}", 'c')
 
         # initialize people
-        args.n = n_houses * 4
+        n_people = n_houses * 4
         people = []
         _people = Person.class_df[["p_class", "default_percentage"]].values
         for init_people in _people:
             _class = p_df.loc[p_df['p_class'] == init_people[0]].iloc[0]
             if pd.isna(_class['max_passengers']):
-                people += [Person(_class) for _ in range(int(init_people[1]/100 * args.n))]
+                people += [Person(_class) for _ in range(int(init_people[1]/100 * n_people))]
             else:
-                people += [Transporter(_class) for _ in range(int(init_people[1]/100 * args.n))]
+                people += [Transporter(_class) for _ in range(int(init_people[1]/100 * n_people))]
 
         # set movement
         for person in people:
@@ -81,7 +81,7 @@ def initialize(args):
                 person.set_work_loc(person.find_closest(w_loc, person.home_loc, find_from_level=-1))  # todo
 
         # infect people
-        for _ in range(max(1, int(args.inf_initial * args.n))):
+        for _ in range(max(1, int(args.inf_initial * n_people))):
             idx = np.random.randint(0, len(people))
             people[idx].set_infected(0, people[idx], root, args.common_fever_p)
 
@@ -117,7 +117,7 @@ def main():
         start_time = Time.get_random_time_between(0, 16, 0, 18, 0)
         duration = Time.get_duration(2)
         gather_events.append(GatherEvent(day, start_time, duration, gathering_place,
-                                         np.random.randint(int(args.n * 0.10)),
+                                         np.random.randint(int(len(people) * 0.10)),
                                          get_random_element(gather_criteria)))
     # initialize vaccination events
     vaccinate_events = []

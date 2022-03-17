@@ -1,3 +1,5 @@
+import numpy as np
+
 from backend.python.MovementEngine import MovementEngine
 from backend.python.Logger import Logger
 from backend.python.enums import PersonFeatures
@@ -50,11 +52,11 @@ class Transporter(Person):
             MovementEngine.process_people_switching(self.get_current_location().points, t)
 
     # override
-    def set_position(self, new_x, new_y, force=False):
+    def set_position(self, new_x, new_y, force=False, eps=2):
         self.features[self.ID, PersonFeatures.px.value] = new_x
         self.features[self.ID, PersonFeatures.py.value] = new_y
         for latched_p in self.latched_people:
-            latched_p.set_position(new_x, new_y, True)
+            latched_p.set_position(new_x+np.random.rand()*eps, new_y+np.random.rand()*eps, True)
 
     # override
     def set_infected(self, t, p, loc, common_p):
@@ -113,7 +115,7 @@ class Transporter(Person):
     def force_delatch_and_teleport_all(self):
         if len(self.latched_people) == 0:
             return
-        Logger.log(f"Forcefully delatching {len(self.latched_people)} from {self.ID}",'c')
+        Logger.log(f"Forcefully delatching {len(self.latched_people)} from {self.ID}",'d')
         while len(self.latched_people) != 0:
             self.delatch(0, self.latched_people[0].route[-1].loc)
         if len(self.latched_people)>0:

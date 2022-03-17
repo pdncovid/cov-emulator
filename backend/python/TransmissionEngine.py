@@ -2,23 +2,23 @@ import numpy as np
 from tqdm import tqdm
 
 from backend.python.Logger import Logger
-from backend.python.enums import State, PersonFeatures
+from backend.python.enums import State, PersonFeatures, DiseaseState
 from backend.python.functions import bs
-from backend.python.point.Person import Person
-from backend.python.location.Location import Location
 from backend.python.Time import Time
 
+from backend.python.point.Person import Person
+from backend.python.location.Location import Location
 
 class TransmissionEngine:
     base_transmission_p = 0.1
     common_fever_p = 0.1
-    incubation_days = 3
     override_social_dist = -1
     override_hygiene_p = -1
 
+    incubation_days = 4.5
+
     @staticmethod
     def disease_transmission(points, t, r):
-        from backend.python.location.Location import Location
         df = Logger.df_detailed_person[['person', 'x', 'y', 'current_location_id', 'time']]
         dfg = df.groupby('time')
         state = Person.features[:, PersonFeatures.state.value]
@@ -102,7 +102,7 @@ class TransmissionEngine:
             n_contacts[close_points_idx] += 1
             n_contacts[i] += len(close_points_idx)
 
-            if state[i] == State.INFECTED.value:
+            if state[i] == State.INFECTED.value and Person.features[i, PersonFeatures.disease_state.value] != DiseaseState.INCUBATION.value:
                 select_from_sus = state[close_points_idx] == State.SUSCEPTIBLE.value
                 close_points_idx = close_points_idx[select_from_sus]
                 d = d[select_from_sus]
@@ -159,7 +159,7 @@ class TransmissionEngine:
             mu = 15
             sig = 10
             p = np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
-            p[x<TransmissionEngine.incubation_days] = 0
+            # p[x<TransmissionEngine.incubation_days] = 0
             return p
 
         def count_f(c):

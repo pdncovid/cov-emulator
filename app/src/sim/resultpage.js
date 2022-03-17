@@ -255,7 +255,7 @@ function ResultsPage() {
         axios.post(api + '/flask/n_days', { dir: dir }).then(response => {
             let _days = response.data.message.split('|')
             let _data = []
-            let _line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+            let _line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', 'rgb(255, 50,0)']
             let _line_types = ["solid", "dot", "dash", "longdash", "dashdot", "longdashdot"]
             var _line_type_i = 0
             for (var d = 0; d < _days.length; d++) {
@@ -271,9 +271,7 @@ function ResultsPage() {
                             let _x = [_df.select("time").toArray().map((e) => e[0] / 1440)[0]]
                             let _df_arr = _df.toArray()
                             let _df_col = _df.listColumns()
-                            if (timelineOptions.length == 0) {
-                                setTimelineOptions(_df_col)
-                            }
+                            
                             for (var i = 0; i < _x.length; i++) {
                                 var datum = { t: parseFloat(_x[i]) }
                                 for (var j = 0; j < _df_col.length; j++) {
@@ -283,12 +281,14 @@ function ResultsPage() {
                                 _data.push(datum)
                             }
 
-
+                            _df_col.splice(_df_col.indexOf('time'), 1)
+                            if (timelineOptions.length == 0) {
+                                setTimelineOptions(_df_col)
+                            }
                             if (day == _days[_days.length - 1]) {
                                 _data.sort(function (a, b) {
                                     return ((a.t < b.t) ? -1 : ((a.t == b.t) ? 0 : 1));
                                 });
-                                _df_col.splice(_df_col.indexOf('time'), 1)
                                 console.log(_data, _df_col)
                                 let traces = []
                                 if (append) {
@@ -337,7 +337,7 @@ function ResultsPage() {
                                     addedContainmentEvents.forEach(e => {
                                         var x = parseFloat(e.startday)
                                         shapes.push({
-                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max+100,
+                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max,
                                             line: {
                                                 color: 'rgb(55, 128, 191)',
                                                 width: 3,
@@ -359,7 +359,7 @@ function ResultsPage() {
                                     addedGatheringEvents.forEach(e=>{
                                         var x = parseFloat(e.day) - 1
                                         shapes.push({
-                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max+100,
+                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max,
                                             line: {
                                                 color: 'rgb(55, 128, 191)',
                                                 width: 3,
@@ -380,7 +380,7 @@ function ResultsPage() {
                                     addedVaccinationEvents.forEach(e=>{
                                         var x = parseFloat(e.day)
                                         shapes.push({
-                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max+100,
+                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max,
                                             line: {
                                                 color: 'rgb(55, 128, 191)',
                                                 width: 3,
@@ -637,7 +637,7 @@ function ResultsPage() {
                     })
                 }
                 var violin_data = []
-                var key2name = { '1': 'Susceptible', '3': 'Infected', '4': 'Infected-Mild', '5': 'Infected-Severe', '6': 'Infected-Critical', '8': 'Recovered', '9': 'Dead' }
+                var key2name = { '1': 'Susceptible', '3': 'Infected-Incubation', '4': 'Infected-Infectious',  '5': 'Infected-Mild', '6': 'Infected-Severe', '7': 'Infected-Critical', '9': 'Recovered', '10': 'Dead' }
                 for (let key in time_dict) {
                     if (key == '1')
                         continue
@@ -1760,7 +1760,7 @@ function ResultsPage() {
 
 
                         <div id="treeWrapper" style={{
-                            width: '90em', height: '40em', margin: '0 auto', padding: '15px', border: 'black 5px solid'
+                            width: '70em', height: '40em', margin: '0 auto', padding: '15px', border: 'black 5px solid'
                         }} >
                             <Tree
                                 data={infectionTreeData}

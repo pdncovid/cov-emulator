@@ -109,7 +109,7 @@ class InfectionStateTimelineHandler(Resource):
             day = int(re.search("[0-9]{5}", pi).group())
             df = Loader.getFile(request_dir, day, '_person_info')
             # df = df.loc[df['state']>1]
-            df.loc[df['state']>2,'state'] += 5
+            df.loc[df['state']>2,'state'] += 6
             df.loc[df['state'] == 2,'state'] += df.loc[df['state'] == 2,'disease_state']
             df_out.loc[df['person'], day] = df['state']
 

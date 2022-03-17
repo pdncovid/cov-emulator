@@ -42,21 +42,31 @@ class MovementByTransporter(Movement):
             distance = 0
 
             flag = -1
+            start_j , end_j = -1, -1
             for j in range(len(tr.route_rep_all_stops)):
                 if tr.get_current_location() == tr.route_rep_all_stops[j] or tar == tr.route_rep_all_stops[j]:
-                    flag += 1
-                if flag >= 0:  # found start or end
+                    flag += 1  # found start or end
+                if flag == 0:
+                    start_j = j
                     hops += 1
                     if j == 0:
                         pass
                     else:
                         distance += tr.route_rep_all_stops[j].get_distance_to(tr.route_rep_all_stops[j - 1])
-                if flag > 0:
+                if flag == 1:
+                    end_j = j
                     dist_by_disp[i] = distance / (displacement + 1e-10)
                     hops2reach[i] = hops
                     break
             else:
                 hops2reach[i] = 1e10
+                dist_by_disp[i] = 1e10
+
+            if len(tr.route) - tr.current_target_idx - 2 < end_j - start_j:  # tr ends route before going to destination
+                # Logger.log("# tr ends route before going to destination",'c')
+                hops2reach[i] = 1e10
+                dist_by_disp[i] = 1e10
+
         Logger.log(f"Path to target {list(map(str, path2next_tar))} {hops2reach}", 'i')
         des = None
         best = 1e10

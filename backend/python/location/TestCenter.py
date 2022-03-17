@@ -40,6 +40,7 @@ class TestCenter:
         if result:
             p.features[p.ID, PersonFeatures.tested_positive_time.value] = t + TestCenter.testresultdelay
             ContainmentEngine.on_infected_identified(p)
+        ContainmentEngine.check_tested_positive_actions()  # might be slow
         p.features[p.ID, PersonFeatures.last_tested_time.value] = t
 
     @staticmethod

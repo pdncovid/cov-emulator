@@ -206,8 +206,8 @@ class Location:
                       f"Making only {len(possible_positions)} locations. Other points are random")
                 while len(possible_positions) != n:
                     _theta = np.random.randint(0, 360) * (2 * np.pi) / 360
-                    possible_positions.append((self.px + (r1 - r2) * np.cos(_theta),
-                                               self.py + (r1 - r2) * np.sin(_theta)))
+                    possible_positions.append((self.px + (r1 - r2) * np.random.rand() * np.cos(_theta),
+                                               self.py + (r1 - r2) * np.random.rand() * np.sin(_theta)))
 
             idx = np.arange(len(possible_positions))
             np.random.shuffle(idx)
@@ -255,18 +255,20 @@ class Location:
         return ((self.px - loc.px) ** 2 + (self.py - loc.py) ** 2) ** 0.5
 
     def set_quarantined(self, quarantined, t, recursive=False):
-        self.quarantined = quarantined
-        if recursive:
-            def f(r: Location):
-                r.quarantined = quarantined
-                if quarantined:
-                    r.quarantined_time = t
-                else:
-                    r.quarantined_time = -1
+
+        def f(r: Location):
+            r.quarantined = quarantined
+            Logger.log(f"{r.class_name} {r.name} ID={r.ID} quarantined={quarantined} at {t}", 'c')
+
+            if quarantined:
+                r.quarantined_time = t
+            else:
+                r.quarantined_time = -1
+            if recursive:
                 for ch in r.locations:
                     f(ch)
 
-            f(self)
+        f(self)
 
     def add_sub_location(self, location):
         # Location.features[location.ID, LocationFeatures.parent_id.value] = self.ID
@@ -310,9 +312,8 @@ class Location:
         else:
             if not can_go_out_movement:
                 MovementEngine.set_movement_method(transporting_location, p)
-                # p.set_point_destination(next_location)
-                Logger.log(f"# {p} cannot leave {self} and goto {p.get_next_target()} (No transport) "
-                           f"Route:{p.current_target_idx}/{len(p.route)} (destination:{p.all_destinations[p.ID]})", 'd')
+                # Logger.log(f"# {p} cannot leave {self} and goto {p.get_next_target()} (No transport) "
+                #            f"Route:{p.current_target_idx}/{len(p.route)} (destination:{p.all_destinations[p.ID]})", 'c')
             if not can_go_out_containment:
                 Logger.log(f"# {p} cannot leave {self} and goto {p.get_next_target()} (Contained) "
                            f"Route:{p.current_target_idx}/{len(p.route)}", 'd')

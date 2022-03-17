@@ -70,7 +70,7 @@ class Movement():
         point.all_sources[point.ID] = point.get_current_location().ID
 
     def remove_point_from_transport(self, point):
-        assert point.all_movement_ids[point.ID] == self.ID
+        # assert point.all_movement_ids[point.ID] == self.ID
         if point.latched_to and point.current_trans.class_name != self.class_name:
             raise Exception("Can't remove latched people from this movement method to another movement method"
                             "Un-latch first, or the behaviour is unexpected!")

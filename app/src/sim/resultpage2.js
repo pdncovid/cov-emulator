@@ -73,8 +73,9 @@ function ResultsPage2() {
     const [personPathData2, setPersonPathData2] = useState([]);
     const [personPathLayout2, setPersonPathLayout2] = useState([]);
     const [personPathFrames, setPersonPathFrames] = useState([]);
+    const [showShapes, setShowShapes] = useState(true);
 
-    const getLocsArr = (arr) => { setLocs(arr)}
+    const getLocsArr = (arr) => { setLocs(arr) }
     const getPeopleArr = (arr) => { setPeople(arr) }
     const getMovementArr = (arr) => { setMovement(arr) }
     const getGroupOptionsArr = (arr) => { setGroupOptions(arr) }
@@ -126,7 +127,7 @@ function ResultsPage2() {
                 setSelectedLogDir(_selectedLogDir)
             })
     }
-    
+
     //draw person path
     useEffect(() => {
         drawPersonPath()
@@ -321,7 +322,7 @@ function ResultsPage2() {
                                 type: 'circle',
                                 xref: 'x',
                                 yref: 'y',
-                                fillcolor: locationClassColor[parseInt(row.get('class'))].replace(/[^,]+(?=\))/, '0.3'),//'rgba(50, 171, 96, 0.1)',
+                                fillcolor: locationClassColor[parseInt(row.get('class'))].replace(/[^,]+(?=\))/, '0.1'),//'rgba(50, 171, 96, 0.1)',
                                 x0: row.get('x') - row.get('radius'),
                                 y0: row.get('y') - row.get('radius'),
                                 x1: parseFloat(row.get('x')) + parseFloat(row.get('radius')),
@@ -336,7 +337,8 @@ function ResultsPage2() {
                         }
 
                     })
-
+                    if (!showShapes)
+                        shapes = []
                     setPersonPathLayout({
                         barmode: 'stack',
                         title: 'Path took by the selected person',
@@ -463,7 +465,7 @@ function ResultsPage2() {
                     setRouteHistLayout({
                         barmode: 'stack',
                         bargap: 0.0,
-                        height: 600,
+                        height: 800,
                         width: 1000,
                         title: 'Histogram of planned visits during the day',
                         xaxis: {
@@ -475,6 +477,10 @@ function ResultsPage2() {
                         },
                         yaxis: {
                             title: 'Number of people',
+                        },
+                        legend: {
+
+                            orientation: "h",
                         }
                     })
 
@@ -520,7 +526,7 @@ function ResultsPage2() {
                     setLocHistLayout({
                         barmode: 'stack',
                         bargap: 0,
-                        height: 600,
+                        height: 800,
                         width: 1000,
                         title: 'Histogram of visited places during the day',
                         xaxis: {
@@ -532,6 +538,10 @@ function ResultsPage2() {
                         },
                         yaxis: {
                             title: 'Number of people',
+                        },
+                        legend: {
+
+                            orientation: "h",
                         }
                     })
 
@@ -731,7 +741,111 @@ function ResultsPage2() {
                 getMovementArr={getMovementArr}
                 getGroupOptionsArr={getGroupOptionsArr}
             />
+            {/* =================================================================================== Daily mobility data analysis */}
+            <div>
+                <h4>Daily mobility data analysis</h4>
+                <Plot
+                    data={locHistData}
+                    layout={locHistLayout}
+                />
+                <Plot
+                    data={routeHistData}
+                    layout={routeHistLayout}
 
+                />
+                <br />
+                <Plot
+                    data={moveHistData}
+                    layout={moveHistLayout}
+                />
+            </div>
+            
+            {/* =================================================================================== Paths */}
+            <div>
+                <h4>Daily personal mobility data analysis</h4>
+
+                <Grid container
+                    direction="row"
+                    justifyContent="center"
+                    alignItems="center"
+                >
+                    <FormControl>
+
+                        <InputLabel shrink htmlFor="select-multiple-people">
+                            Select people that need to show
+                        </InputLabel>
+
+                        <Select
+                            multiple
+                            native
+                            value={selectedUnstagedPeople}
+                            onChange={handleUnstagedClick}
+
+                            inputProps={{
+                                id: 'select-multiple-native',
+                            }}
+                        >
+                            {unstagedPeople.map((element) => (
+                                <option key={element} value={element}>
+                                    {element}
+                                </option>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+
+                    <Grid>
+                        <Grid
+                            container
+                            direction="column"
+                            justifyContent="center"
+                            alignItems="center"
+                        >
+
+                            <Button variant="contained" color="primary" onClick={handleAddtoStageClick}>{">>"}</Button>
+                            <Button variant="contained" color="primary" onClick={handleAddtoUnstageClick}>{"<<"}</Button>
+                        </Grid>
+                    </Grid>
+                    <FormControl >
+                        <InputLabel shrink htmlFor="select-multiple-people">
+                            Selected people
+                        </InputLabel>
+                        <Select
+                            multiple
+                            native
+                            value={selectedStagedPeople}
+                            onChange={handleStagedClick}
+
+                            inputProps={{
+                                id: 'select-multiple-native',
+                            }}
+                        >
+                            {stagedPeople.map((element) => (
+                                <option key={element} value={element}>
+                                    {element}
+                                </option>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControlLabel control={<Checkbox value={showShapes} onChange={() => { setShowShapes(!showShapes) }} defaultChecked />} label="Show Shapes" />
+
+                </Grid>
+
+
+                <Plot
+                    data={personPathData}
+                    layout={personPathLayout}
+                />
+
+                <Plot
+                    data={personPathData2}
+                    layout={personPathLayout2}
+                    frames={personPathFrames}
+
+                />
+
+
+            </div>
 
             {/* =================================================================================================== map */}
             <Grid container rowSpacing={10} columnSpacing={{ xs: 10, sm: 20, md: 30 }}>
@@ -763,7 +877,7 @@ function ResultsPage2() {
             <Grid container spacing={10} alignItems="center" padding='30px'>
                 <Grid item xs={12}>
                     <Typography>Location Tree</Typography>
-                    <Button onClick={()=>plotLocationTree(selectedDay)}>Draw tree</Button>
+                    <Button onClick={() => plotLocationTree(selectedDay)}>Draw tree</Button>
                 </Grid>
                 <Grid container rowSpacing={10} columnSpacing={{ xs: 10, sm: 20, md: 30 }}>
                     <Grid item xs={4}>
@@ -835,101 +949,7 @@ function ResultsPage2() {
             </Grid>
 
 
-            <div>
-                <h4>Daily personal mobility data analysis</h4>
 
-                <Grid container
-                    direction="row"
-                    justifyContent="center"
-                    alignItems="center"
-                >
-                    <FormControl                             >
-                        <InputLabel shrink htmlFor="select-multiple-people">
-                            Select people that need to show
-                        </InputLabel>
-                        <Select
-                            multiple
-                            native
-                            value={selectedUnstagedPeople}
-                            onChange={handleUnstagedClick}
-
-                            inputProps={{
-                                id: 'select-multiple-native',
-                            }}
-                        >
-                            {unstagedPeople.map((element) => (
-                                <option key={element} value={element}>
-                                    {element}
-                                </option>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <Grid>
-                        <Grid
-                            container
-                            direction="column"
-                            justifyContent="center"
-                            alignItems="center"
-                        >
-
-                            <Button variant="contained" color="primary" onClick={handleAddtoStageClick}>{">>"}</Button>
-                            <Button variant="contained" color="primary" onClick={handleAddtoUnstageClick}>{"<<"}</Button>
-                        </Grid>
-                    </Grid>
-                    <FormControl >
-                        <InputLabel shrink htmlFor="select-multiple-people">
-                            Selected people
-                        </InputLabel>
-                        <Select
-                            multiple
-                            native
-                            value={selectedStagedPeople}
-                            onChange={handleStagedClick}
-
-                            inputProps={{
-                                id: 'select-multiple-native',
-                            }}
-                        >
-                            {stagedPeople.map((element) => (
-                                <option key={element} value={element}>
-                                    {element}
-                                </option>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-
-                <Plot
-                    data={personPathData}
-                    layout={personPathLayout}
-                />
-
-                <Plot
-                    data={personPathData2}
-                    layout={personPathLayout2}
-                    frames={personPathFrames}
-
-                />
-
-                {/* =================================================================================== Daily mobility data analysis */}
-                <div>
-                    <h4>Daily mobility data analysis</h4>
-                    <Plot
-                        data={locHistData}
-                        layout={locHistLayout}
-                    />
-                    <Plot
-                        data={routeHistData}
-                        layout={routeHistLayout}
-
-                    />
-                    <br />
-                    <Plot
-                        data={moveHistData}
-                        layout={moveHistLayout}
-                    />
-                </div>
-            </div>
 
         </div>
     )

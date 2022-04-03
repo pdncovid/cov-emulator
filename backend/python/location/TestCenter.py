@@ -3,7 +3,7 @@ import numpy as np
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.Time import Time
 from backend.python.Visualizer import Visualizer
-from backend.python.enums import State, TestSpawn, PersonFeatures
+from backend.python.enums import *
 
 
 class TestCenter:
@@ -27,28 +27,28 @@ class TestCenter:
     def test(self, p, t, test_type='PCR'):
         mu = 7
         sig = 2
-        if p.features[p.ID, PersonFeatures.state.value] == State.INFECTED.value:
+        if p.features[p.ID, PF_state] == State_INFECTED:
             if p.is_tested_positive():
                 return
-            if t - p.features[p.ID, PersonFeatures.last_tested_time.value] < TestCenter.test_freq_days * Time.DAY:
+            if t - p.features[p.ID, PF_last_tested_time] < TestCenter.test_freq_days * Time.DAY:
                 return
             rnd = np.random.rand()
-            test_acc = np.exp(-np.power((t - p.features[p.ID, PersonFeatures.infected_time.value]) / Time.DAY - mu, 2.) / (2 * np.power(sig, 2.)))
+            test_acc = np.exp(-np.power((t - p.features[p.ID, PF_infected_time]) / Time.DAY - mu, 2.) / (2 * np.power(sig, 2.)))
             result = True if rnd < test_acc else False
         else:
             result = False  # True if rnd > args.test_acc else False
         if result:
-            p.features[p.ID, PersonFeatures.tested_positive_time.value] = t + TestCenter.testresultdelay
+            p.features[p.ID, PF_tested_positive_time] = t + TestCenter.testresultdelay
             ContainmentEngine.on_infected_identified(p)
         ContainmentEngine.check_tested_positive_actions()  # might be slow
-        p.features[p.ID, PersonFeatures.last_tested_time.value] = t
+        p.features[p.ID, PF_last_tested_time] = t
 
     @staticmethod
     def spawn_test_center(method, points, test_centers, h, w, r, threshold):
-        if method == TestSpawn.RANDOM.value:
+        if method == TestSpawn_RANDOM:
             if np.random.rand() < 0.001:
                 return TestCenter(np.random.randint(-w, w), np.random.randint(-h, h), np.random.normal(r, 2))
-        if method == TestSpawn.HEATMAP.value:
+        if method == TestSpawn_HEATMAP:
             xx, yy, zz = Visualizer.get_heatmap(points, h, w)
             xx = xx.ravel()
             yy = yy.ravel()

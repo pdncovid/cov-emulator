@@ -70,6 +70,12 @@ function HomePage() {
   const [personPercentData, setPersonPercentData] = useState([])
   const [skippersonPageReset, setSkippersonPageReset] = useState(false)
 
+  const [addedVariantEvents, setAddedVariantEvents] = useState([
+    { id: 0, name: "Base", day: "0", transmittable: "0.5", severity: "0.5" },
+    { id: 1, name: "Delta", day: "1", transmittable: "0.4", severity: "0.9" },
+  ])
+  const [selectedVariantEvents, setSelectedVariantEvents] = useState([])
+
   const [addedContainmentEvents, setAddedContainmentEvents] = useState([])
   const [selectedContainmentEvents, setSelectedContainmentEvents] = useState([])
 
@@ -104,7 +110,7 @@ function HomePage() {
 
   useEffect(() => {
     if (persondata.length > 0)
-      setPersonPercentData([...persondata.map((e) => { return { 'p_class': e['p_class'], 'percentage': e['default_percentage'], 'ipercentage':5 } })])
+      setPersonPercentData([...persondata.map((e) => { return { 'p_class': e['p_class'], 'percentage': e['default_percentage'], 'ipercentage': 5 } })])
   }, [persondata])
 
   useEffect(() => {
@@ -258,6 +264,8 @@ function HomePage() {
       document.getElementById("r_test_centers").value = args.r_test_centers
 
       setPersonPercentData(Object.values(JSON.parse(args.personPercentData)))
+
+      setAddedVariantEvents(Object.values(JSON.parse(args.addedVariantEvents)))
       setAddedContainmentEvents(Object.values(JSON.parse(args.addedContainmentEvents)))
       setAddedGatheringEvents(Object.values(JSON.parse(args.addedGatheringEvents)))
       setAddedVaccinationEvents(Object.values(JSON.parse(args.addedVaccinationEvents)))
@@ -292,9 +300,10 @@ function HomePage() {
       load_log_name: document.getElementById("load_log_name").textContent,
       locationTreeData: locationTreeData,
       personPercentData: personPercentData.reduce((dict, el, index) => (dict[index] = el, dict), {}),
-      addedContainmentEvents: addedContainmentEvents.reduce((dict, el, index)=>(dict[index] = el, dict), {}),
+      addedContainmentEvents: addedContainmentEvents.reduce((dict, el, index) => (dict[index] = el, dict), {}),
       addedGatheringEvents: addedGatheringEvents.reduce((dict, el, index) => (dict[index] = el, dict), {}),
       addedVaccinationEvents: addedVaccinationEvents.reduce((dict, el, index) => (dict[index] = el, dict), {}),
+      addedVariantEvents: addedVariantEvents.reduce((dict, el, index) => (dict[index] = el, dict), {}),
       social_distance: document.getElementById("social_distance").value,
       hygiene_p: document.getElementById("hygiene_p").value,
       incubation_days: document.getElementById("incubation_days").value,
@@ -444,7 +453,7 @@ function HomePage() {
 
           <Grid item xs={12}>
             <Table
-              columns={[{ Header: 'Class', accessor: 'p_class' }, { Header: 'Percentage', accessor: 'percentage' },, { Header: 'Infected Percentage', accessor: 'ipercentage' }]}
+              columns={[{ Header: 'Class', accessor: 'p_class' }, { Header: 'Percentage', accessor: 'percentage' }, , { Header: 'Infected Percentage', accessor: 'ipercentage' }]}
               data={personPercentData}
               updateMyData={(rowIndex, columnId, value) => {
                 // We also turn on the flag to not reset the page
@@ -472,6 +481,70 @@ function HomePage() {
 
       <Box sx={{ border: '1px dashed grey' }} style={{ margin: 10, padding: 10 }}>
         <Typography variant="h4" gutterBottom>Add Events</Typography>
+
+        <div>
+          <Typography variant="h6">Add Variant Start Event</Typography>
+          <Grid container xs={12}>
+            <Grid item xs={4}>
+              <FormControl >
+                <InputLabel shrink>Added events</InputLabel>
+                <Select
+                  multiple
+                  native
+                  style={{ width: 400 }}
+                  onChange={
+                    (e) => {
+                      const { options } = e.target;
+                      const value = [];
+                      for (let i = 0, l = options.length; i < l; i += 1) {
+                        if (options[i].selected) {
+                          value.push(options[i].id);
+                        }
+                      }
+                      console.log(value)
+                      setSelectedVariantEvents(value)
+                    }}
+                >
+                  {addedVariantEvents.map((e) => (<option key={e.id} id={e.id}>{e.name + " " + e.day + " " + e.transmittable + " " + e.severity}</option>))}
+                </Select>
+                <Button onClick={() => {
+                  var vals = []
+                  for (let e in addedVariantEvents) {
+                    var isRemove = false
+                    for (let s in selectedVariantEvents) {
+                      if (addedVariantEvents[e].id == selectedVariantEvents[s]) {
+                        isRemove = true
+                        break
+                      }
+                    }
+                    if (!isRemove)
+                      vals.push(addedVariantEvents[e])
+                  }
+                  console.log(addedVariantEvents, selectedVariantEvents, vals)
+                  setSelectedVariantEvents([])
+                  setAddedVariantEvents(vals)
+                }}>Remove</Button>
+              </FormControl>
+            </Grid>
+
+            <Grid container xs={8}>
+              <Grid item xs={1}><TextField label="name" id="variant-name" /></Grid>
+              <Grid item xs={1}><TextField type="number" label="day" id="variant-start-day" /></Grid>
+              <Grid item xs={2}><TextField type="number" label="transmittable" id="variant-transmittable" /></Grid>
+              <Grid item xs={1}><TextField type="number" label="severity" id="variant-severity" /></Grid>
+              <Grid item xs={2}><Button onClick={() => {
+                setAddedVariantEvents([...addedVariantEvents, {
+                  id: addedVariantEvents.length,
+                  name: document.getElementById("variant-name").value,
+                  day: document.getElementById("variant-start-day").value,
+                  transmittable: document.getElementById("variant-transmittable").value,
+                  severity: document.getElementById("variant-severity").value,
+                }])
+              }}>Add</Button></Grid>
+            </Grid>
+          </Grid>
+        </div>
+
 
         <div>
           <Typography variant="h6">Add Containement event</Typography>
@@ -591,15 +664,15 @@ function HomePage() {
               <Grid item xs={2}><TextField label="criteria" id="gathering-place-criteria" /></Grid>
               <Grid item xs={2}><Button onClick={() => {
                 var tmp = [...addedGatheringEvents]
-                locationTreeDataArr.filter((e) => e.class == "GatheringPlace").forEach(e=>{
+                locationTreeDataArr.filter((e) => e.class == "GatheringPlace").forEach(e => {
                   tmp.push({
-                    id: addedGatheringEvents.length,
-                  name: e.name,
-                  day: document.getElementById("gathering-place-day").value,
-                  time: document.getElementById("gathering-place-time").value,
-                  duration: document.getElementById("gathering-place-duration").value,
-                  capacity: document.getElementById("gathering-place-capacity").value,
-                  criteria: document.getElementById("gathering-place-criteria").value,
+                    id: tmp.length,
+                    name: e.name,
+                    day: document.getElementById("gathering-place-day").value,
+                    time: document.getElementById("gathering-place-time").value,
+                    duration: document.getElementById("gathering-place-duration").value,
+                    capacity: document.getElementById("gathering-place-capacity").value,
+                    criteria: document.getElementById("gathering-place-criteria").value,
                   })
                 })
                 setAddedGatheringEvents(tmp)
@@ -615,8 +688,8 @@ function HomePage() {
                   criteria: document.getElementById("gathering-place-criteria").value,
                 }])
               }}>Add</Button></Grid>
-              
-              
+
+
             </Grid>
           </Grid>
 

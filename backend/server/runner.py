@@ -8,11 +8,11 @@ sys.path.append('../../')
 import numpy as np
 import pandas as pd
 
-from backend.python.ContainmentEngine import ContainmentEngine
+from backend.python.CovEngine import CovEngine
 from backend.python.GatherEvent import GatherEvent
 from backend.python.Logger import Logger
 from backend.python.Time import Time
-from backend.python.enums import PersonFeatures, Containment
+from backend.python.enums import *
 from backend.python.functions import get_random_element, separate_into_classes
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Location import Location
@@ -51,7 +51,7 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
             log_day = find_number_of_days(args.load_log_name)
         else:
             log_day = int(args.load_log_day)
-
+        CovEngine.on_reset_day(log_day)
         location_info, people_info, person_fine_info = load_from_csv(
             '../../app/src/data/' + args.load_log_name, log_day, args)
 
@@ -68,9 +68,9 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
     root = Location(get_class_info(tree['class']), False, **kwargs)
     gather_criteria = [lambda x: x.class_name == 'Student',
                        lambda x: x.class_name == 'CommercialWorker',
-                       lambda x: 14 < Person.features[x.ID, PersonFeatures.age.value] < 45,
-                       lambda x: 35 < Person.features[x.ID, PersonFeatures.age.value] < 65,
-                       lambda x: 45 < Person.features[x.ID, PersonFeatures.age.value] < 85,
+                       lambda x: 14 < Person.features[x.ID, PF_age] < 45,
+                       lambda x: 35 < Person.features[x.ID, PF_age] < 65,
+                       lambda x: 45 < Person.features[x.ID, PF_age] < 85,
                        ]
 
     def dfs(tr, node):
@@ -134,11 +134,16 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
             people.append(person)
         for person in people:
             # add infected source
-            infected_source_id = int(person.features[person.ID, PersonFeatures.infected_source_id.value])
-            infected_loc_id = int(person.features[person.ID, PersonFeatures.infected_loc_id.value])
+            infected_t = person.features[person.ID, PF_infected_time]
+            infected_source_id = int(person.features[person.ID, PF_infected_source_id])
+            infected_loc_id = int(person.features[person.ID, PF_infected_loc_id])
             if infected_source_id != -1:
-                person.source = people[infected_source_id]
-                person.infected_location = Location.all_locations[infected_loc_id]
+                person.set_infected(
+                    infected_t, people[infected_source_id], Location.all_locations[infected_loc_id],
+                    args.common_fever_p,
+                    variant_name=person.infection_variant)
+                disease_state = person.features[person.ID, PF_disease_state]
+                person.set_disease_state(disease_state, person.disease_state_set_time)
     else:
         _init_people = json.loads(args.personPercentData)
         n_people = n_houses * 4
@@ -148,12 +153,13 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
             if pd.isna(_class['max_passengers']):
                 to_add = [Person(_class) for _ in range(int(int(_init_people[key]['percentage']) / 100 * n_people))]
             else:
-                to_add = [Transporter(_class) for _ in range(int(int(_init_people[key]['percentage']) / 100 * n_people))]
+                to_add = [Transporter(_class) for _ in
+                          range(int(int(_init_people[key]['percentage']) / 100 * n_people))]
 
             # infect people
-            infect_percentage = float(_init_people[key]['ipercentage'])/100
+            infect_percentage = float(_init_people[key]['ipercentage']) / 100
             if infect_percentage > 0:
-                n_infect = max(1,int(len(to_add)*infect_percentage))
+                n_infect = max(1, int(len(to_add) * infect_percentage))
                 Logger.log(f"Infecting {n_infect} people from {_init_people[key]['p_class']}", 'c')
                 for _ in range(n_infect):
                     idx = np.random.randint(0, len(to_add))
@@ -168,7 +174,7 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
         for person in people:
             person.set_home_loc(get_random_element(loc_classes['Home']))  # todo
             person.set_home_w_loc(person.find_closest('Home', person.home_loc.parent_location, find_from_level=2))
-            w_loc = p_df.loc[Person.features[person.ID, PersonFeatures.occ.value], 'w_loc']
+            w_loc = p_df.loc[Person.features[person.ID, PF_occ], 'w_loc']
             if pd.isna(w_loc):
                 person.set_work_loc(person.home_loc)
             else:

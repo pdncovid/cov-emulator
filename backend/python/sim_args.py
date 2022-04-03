@@ -1,6 +1,5 @@
 import argparse
 
-from backend.python.enums import Containment
 
 
 # def get_args(name):
@@ -55,6 +54,7 @@ def get_args_web_ui(name):
     parser.add_argument('--addedContainmentEvents', help='Containment events', type=str, default="""{"0":{"id":0,"startday":"0","containment_strategy":"NONE","roster_groups":"1"}}""")
     parser.add_argument('--addedGatheringEvents', help='Gathering events', type=str, default="{}")
     parser.add_argument('--addedVaccinationEvents', help='Vaccination events', type=str, default="{}")
+    parser.add_argument('--addedVariantEvents', help='Variant events', type=str, default="""{"0":{"id":0,"name":"Base","day":"0","transmittable":"0.5","severity":"0.5"},"1":{"id":1,"name":"Delta","day":"1","transmittable":"0.4","severity":"0.7"}}""")
 
     parser.add_argument('--social_distance', help='Override social distancing of all locations', type=str, default="-1")
     parser.add_argument('--hygiene_p', help='Override unhygienic probability of all people', type=str, default="-1")

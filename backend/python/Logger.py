@@ -6,7 +6,7 @@ import pandas as pd
 import psutil
 
 from backend.python.Time import Time
-from backend.python.enums import State, PersonFeatures
+from backend.python.enums import *
 
 
 class MyFileHandler(logging.FileHandler):
@@ -164,7 +164,7 @@ class Logger:
     def update_covid_log(people, new_infected):
         from backend.python.CovEngine import CovEngine
         mins = Time.i_to_minutes(Time.get_time())
-        covid_stats = {State(i.value).name: 0 for i in State}
+        covid_stats = {s:0 for s in States}
         covid_stats['time'] = mins
         covid_stats['IDENTIFIED INFECTED'] = 0
         covid_stats['IN_QUARANTINE_CENTER'] = 0
@@ -173,15 +173,15 @@ class Logger:
         covid_stats['VACCINATED_2'] = 0
         covid_stats['NEW INFECTED'] = len(new_infected)
         for p in people:
-            covid_stats[State(p.features[p.ID, PersonFeatures.state.value]).name] += 1
+            covid_stats[States[int(p.features[p.ID, PF_state])-1]] += 1
             covid_stats['IDENTIFIED INFECTED'] += 1 if p.is_tested_positive() else 0
             covid_stats['IN_QUARANTINE_CENTER'] += 1 if p.get_current_location().class_name=='COVIDQuarantineZone' else 0
             covid_stats['IN_QUARANTINE'] += p.get_current_location().quarantined
-            covid_stats['VACCINATED_1'] += 1 if p.features[p.ID, PersonFeatures.immunity_boost.value] > 0 else 0
+            covid_stats['VACCINATED_1'] += 1 if p.features[p.ID, PF_immunity_boost] > 0 else 0
             covid_stats['VACCINATED_2'] += 1 if p.features[
-                                                    p.ID, PersonFeatures.immunity_boost.value] > CovEngine.immunity_boost_inc else 0
-        covid_stats["TOTAL INFECTED CASES"] = covid_stats[State.INFECTED.name] + covid_stats[State.DEAD.name] + \
-                                   covid_stats[State.RECOVERED.name]
+                                                    p.ID, PF_immunity_boost] > CovEngine.immunity_boost_inc else 0
+        covid_stats["TOTAL INFECTED CASES"] = covid_stats["INFECTED"] + covid_stats["DEAD"] + \
+                                   covid_stats["RECOVERED"]
         Logger.df_detailed_covid = Logger.df_detailed_covid.append(pd.DataFrame([covid_stats]))
 
     @staticmethod

@@ -7,7 +7,7 @@ import numpy as np
 from backend.python.ContainmentEngine import ContainmentEngine
 from backend.python.MovementEngine import MovementEngine
 from backend.python.Time import Time
-from backend.python.enums import Containment, PersonFeatures
+from backend.python.enums import *
 from backend.python.functions import get_idx_most_likely, get_random_element, bs
 
 
@@ -242,7 +242,7 @@ class RoutePlanningEngine:
 
     @staticmethod
     def check_loaded_df(p):
-        occ = p.features[p.ID, PersonFeatures.occ.value]
+        occ = p.features[p.ID, PF_occ]
         if RoutePlanningEngine.loaded_person != occ:
             RoutePlanningEngine.loaded_person = occ
 
@@ -261,12 +261,12 @@ class RoutePlanningEngine:
 
     @staticmethod
     def get_loc_for_p_at_t(route_so_far, p, t):
-        if RoutePlanningEngine.loaded_containment == Containment.LOCKDOWN.name:
+        if RoutePlanningEngine.loaded_containment == "LOCKDOWN":
             return [p.home_loc]
-        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINECENTER.name:
+        if RoutePlanningEngine.loaded_containment == "QUARANTINECENTER":
             if p.is_tested_positive():
                 return ['COVIDQuarantineZone']
-        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.name: # TODO set home to quarantined state!
+        if RoutePlanningEngine.loaded_containment == "QUARANTINE": # TODO set home to quarantined state!
             if p.is_tested_positive():
                 return [p.home_loc]
         RoutePlanningEngine.check_loaded_df(p)
@@ -299,7 +299,7 @@ class RoutePlanningEngine:
         if location == '_work':
             if p.work_loc is None:
                 return []
-            if RoutePlanningEngine.loaded_containment == Containment.ROSTER.value:
+            if RoutePlanningEngine.loaded_containment == Containment_ROSTER:
                 if not p.is_roster_day:
                     return [p.home_loc]
             return [p.work_loc]
@@ -314,12 +314,12 @@ class RoutePlanningEngine:
 
     @staticmethod
     def get_dur_for_p_in_loc_at_t(route_so_far, p, loc, t):
-        if RoutePlanningEngine.loaded_containment == Containment.LOCKDOWN.name:
+        if RoutePlanningEngine.loaded_containment == "LOCKDOWN":
             return Time.get_duration(20)
-        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINECENTER.name:
+        if RoutePlanningEngine.loaded_containment == "QUARANTINECENTER":
             if p.is_tested_positive():
                 return Time.get_duration(20)
-        if RoutePlanningEngine.loaded_containment == Containment.QUARANTINE.name:
+        if RoutePlanningEngine.loaded_containment == "QUARANTINE":
             if p.is_tested_positive():
                 return Time.get_duration(20)
         if p.is_transporter == 1:

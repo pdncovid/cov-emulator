@@ -9,6 +9,7 @@ print("CWD", os.getcwd())
 sys.path.append('../../')
 
 from backend.python.sim_args import get_args_web_ui
+
 app = Flask(__name__, static_url_path='', static_folder='frontend/build')
 CORS(app)  # comment this on deployment
 api = Api(app)
@@ -32,7 +33,8 @@ class RunSim(Resource):
                 with open("temp.tree", 'w') as f:
                     f.write(s)
                 args[arg] = "temp.tree"
-            if arg == "personPercentData" or arg=="addedContainmentEvents" or arg == "addedGatheringEvents" or arg == "addedVaccinationEvents":
+            if arg == "personPercentData" or arg == "addedContainmentEvents" or arg == "addedGatheringEvents" or \
+                    arg == "addedVaccinationEvents" or arg == "addedVariantEvents":
                 args[arg] = "\"" + args[arg].replace("'", "\\\"") + "\""
             # if arg == "personPercentData":
             #     js = json.loads(args[arg].replace("'","\""))
@@ -169,6 +171,7 @@ api.add_resource(SaveCSVJSONHandler, '/flask/savecsvfile')
 api.add_resource(NDaysHandler, '/flask/n_days')
 api.add_resource(InfectionTreeHandler, '/flask/infectiontree')
 api.add_resource(InfectionStateTimelineHandler, '/flask/infectionstatetimeline')
+api.add_resource(PeopleStateTimelineHandler, '/flask/peoplestatetimeline')
 
 api.add_resource(LocationTreeHandler, '/flask/locationtree')
 api.add_resource(SetPeopleClassesHandler, '/flask/setpeopleclasses')
@@ -185,6 +188,7 @@ api.add_resource(PersonContactHandler, '/flask/personcontacts')
 api.add_resource(LocationContactHandler, '/flask/locationcontacts')
 
 api.add_resource(InfectionHandler, '/flask/newinfections')
+api.add_resource(VariantHandler, '/flask/variants')
 
 api.add_resource(ActualLocationHistHandler, '/flask/ActualLocationHist')
 api.add_resource(RouteLocationHistHandler, '/flask/RouteLocationHist')

@@ -111,10 +111,11 @@ function ResultsPage() {
     }, [selectedDay])
 
     useEffect(() => {
-        plotInfectionGraph();
         drawCovidStateTimeline(selectedLogDir);
 
         plotInfectionTree()
+
+        plotVariantTimeline()
     }, [selectedLogDir])
 
 
@@ -143,7 +144,6 @@ function ResultsPage() {
 
         axios.post(api + "/flask/setpeopleclasses", { dir: selectedLogDir, classes: _selectedPeople.join(',') })
             .then(function (response) {
-                plotInfectionGraph();
                 drawCovidStateTimeline(selectedLogDir);
             })
             .catch(function (response) {
@@ -251,197 +251,202 @@ function ResultsPage() {
     // ===========================================================================================================================================
     // draw covid data timeline
     async function drawCovidStateTimeline(dir, append = false) {
-        // loading number of days
-        axios.post(api + '/flask/n_days', { dir: dir }).then(response => {
-            let _days = response.data.message.split('|')
-            let _data = []
-            let _line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', 'rgb(255, 50,0)']
-            let _line_types = ["solid", "dot", "dash", "longdash", "dashdot", "longdashdot"]
-            var _line_type_i = 0
-            for (var d = 0; d < _days.length; d++) {
-                let day = _days[d]
-                axios.post(api + "/flask/csvfile", { dir: dir, d: day.toString(), type: '_cov_info' })
-                    .then(function (response) {
-                        var _max = 0;
-                        const data = response.data.data;
-                        csv2JSONarr(data, (pr) => { }).then((json_data) => {
-                            var _df = new DataFrame(json_data)
-                            _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
-                            console.log("Covid data", day, _df)
-                            let _x = [_df.select("time").toArray().map((e) => e[0] / 1440)[0]]
-                            let _df_arr = _df.toArray()
-                            let _df_col = _df.listColumns()
-                            
-                            for (var i = 0; i < _x.length; i++) {
-                                var datum = { t: parseFloat(_x[i]) }
-                                for (var j = 0; j < _df_col.length; j++) {
-                                    datum[_df_col[j]] = _df_arr[i][j]
-                                   
-                                }
-                                _data.push(datum)
-                            }
+        let _line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', 'rgb(255, 50,0)']
+        let _line_types = ["solid", "dot", "dash", "longdash", "dashdot", "longdashdot"]
+        var _line_type_i = 0
 
-                            _df_col.splice(_df_col.indexOf('time'), 1)
-                            if (timelineOptions.length == 0) {
-                                setTimelineOptions(_df_col)
-                            }
-                            if (day == _days[_days.length - 1]) {
-                                _data.sort(function (a, b) {
-                                    return ((a.t < b.t) ? -1 : ((a.t == b.t) ? 0 : 1));
-                                });
-                                console.log(_data, _df_col)
-                                let traces = []
-                                if (append) {
-                                    var prev_data = document.getElementById("stateTimeline").data
-                                    var _prev_log = ''
-                                    prev_data.forEach(element => {
-                                        traces.push(element)
-                                        if (element.dir_name != _prev_log) {
-                                            _prev_log = element.dir_name
-                                            _line_type_i++
+        axios.post(api + "/flask/peoplestatetimeline", { dir: dir, end_only: true, window: 3 })
+            .then(function (response) {
+                var _max = 0;
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var _df = new DataFrame(json_data)
+                    _df = _df.castAll(Array(_df.listColumns().length).fill(Number))
+                    console.log("Covid data", _df)
+                    let _x = _df.select("time").toArray().map((e) => e[0])
+                    let _df_arr = _df.toArray()
+                    let _df_col = _df.listColumns()
+                    let _data = []
+                    for (var i = 0; i < _x.length; i++) {
+                        var datum = {}
+                        for (var j = 0; j < _df_col.length; j++) {
+                            datum[_df_col[j]] = _df_arr[i][j]
+                        }
+                        _data.push(datum)
+                    }
 
-                                        }
-                                    });
-                                }
-                                _df_col.forEach(col => {
-                                    if (col == "time")
-                                        return
-                                    var trace1 = {
-                                        x: _data.map((e) => e.t),
-                                        y: _data.map((e) => e[col]),
-                                        name: col,
-                                        dir_name: dir,
-                                        legendgroup: dir,
-                                        showlegend: _line_type_i == 0,
-                                        mode: 'lines',
-                                        line: { dash: _line_types[_line_type_i], color: _line_colors[_df_col.indexOf(col)] },
-                                        visible: true,
-                                    };
-                                    
-                                    _max = Math.max(_max, ...trace1.y)
-                                    traces.push(trace1)
-                                })
-                                traces.push({
-                                    x: [0, 0], y: [0, 0], visible: 'true', mode: 'lines', marker: {},
-                                    dir_name: dir, name: dir,
-                                    line: { dash: _line_types[_line_type_i], color: 'black' }
-                                })
-
-                                axios.post(api + "/flask/load_args", { dir: dir }).then(response => {
-                                    var args = response.data
-                                    var addedContainmentEvents = Object.values(JSON.parse(args.addedContainmentEvents))
-                                    var addedGatheringEvents = Object.values(JSON.parse(args.addedGatheringEvents))
-                                    var addedVaccinationEvents = Object.values(JSON.parse(args.addedVaccinationEvents))
-                                    var shapes = []
-                                    var annotations = []
-                                    addedContainmentEvents.forEach(e => {
-                                        var x = parseFloat(e.startday)
-                                        shapes.push({
-                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max,
-                                            line: {
-                                                color: 'rgb(55, 128, 191)',
-                                                width: 3,
-                                                dash: 'dashdot'
-                                            }
-                                        })
-                                        annotations.push({
-                                                x: x,
-                                                y: _max/2,
-                                                xref: 'x',
-                                                yref: 'y',
-                                                text: e.containment_strategy,
-                                                textangle: -90,
-                                                showarrow: false,
-                                          
-                                        })
-                                    })
-
-                                    addedGatheringEvents.forEach(e=>{
-                                        var x = parseFloat(e.day) - 1
-                                        shapes.push({
-                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max,
-                                            line: {
-                                                color: 'rgb(55, 128, 191)',
-                                                width: 3,
-                                                dash: 'dotted'
-                                            }
-                                        })
-                                        annotations.push({
-                                                x: x,
-                                                y: _max/2,
-                                                xref: 'x',
-                                                yref: 'y',
-                                                text: "Gathering",
-                                                textangle: -90,
-                                                showarrow: false,
-                                          
-                                        })
-                                    })
-                                    addedVaccinationEvents.forEach(e=>{
-                                        var x = parseFloat(e.day)
-                                        shapes.push({
-                                            type: 'line', x0: x, y0: 0, x1: x, y1: _max,
-                                            line: {
-                                                color: 'rgb(55, 128, 191)',
-                                                width: 3,
-                                                dash: 'dotted'
-                                            }
-                                        })
-                                        annotations.push({
-                                                x: x,
-                                                y: _max/2,
-                                                xref: 'x',
-                                                yref: 'y',
-                                                text: "Vaccine for age "+e.min_age+" to "+ e.max_age,
-                                                textangle: -90,
-                                                showarrow: false,
-                                          
-                                        })
-                                    })
-                                    console.log(shapes)
-                                    Plotly.newPlot("stateTimeline", traces, {
-                                        title: '',
-                                        height: 600,
-                                        // width: 1000,
-                                        shapes:shapes,
-                                        annotations:annotations,
-                                        legend: {
-                                            x: 0.85,
-                                            y: 0.99,
-                                            traceorder: "normal",
-                                        },
-                                        xaxis: {
-                                            title: 'Time (days)',
-                                            showticklabels: true,
-                                            tickangle: 'auto',
-                                            exponentformat: 'e',
-                                            showexponent: 'all'
-                                        },
-                                        yaxis: {
-                                            title: 'Number of people',
-                                            showticklabels: true,
-                                            exponentformat: 'e',
-                                            showexponent: 'all'
-                                        }
-                                    })
-                                })
-                                
+                    _df_col.splice(_df_col.indexOf('time'), 1)
+                    if (timelineOptions.length == 0) {
+                        setTimelineOptions(_df_col)
+                    }
+                    _data.sort(function (a, b) {
+                        return ((a.time < b.time) ? -1 : ((a.time == b.time) ? 0 : 1));
+                    });
+                    console.log(_data, _df_col)
+                    let traces = []
+                    if (append) {
+                        var prev_data = document.getElementById("stateTimeline").data
+                        var _prev_log = ''
+                        prev_data.forEach(element => {
+                            traces.push(element)
+                            if (element.dir_name != _prev_log) {
+                                _prev_log = element.dir_name
+                                _line_type_i++
                             }
                         });
-                    });
+                    }
+                    _df_col.forEach(col => {
+                        if (col == "time")
+                            return
+                        if (col.indexOf("Re") != -1) {
+                            var trace1 = {
+                                x: _data.map((e) => e.time),
+                                y: _data.map((e) => e[col]),
+                                name: col,
+                                dir_name: dir,
+                                legendgroup: dir,
+                                showlegend: _line_type_i == 0,
+                                mode: 'lines',
+                                line: { dash: _line_types[_line_type_i], color: _line_colors[_df_col.indexOf(col)] },
+                                visible: true,
+                                yaxis: 'y2',
+                            }
+                        } else {
+                            var trace1 = {
+                                x: _data.map((e) => e.time),
+                                y: _data.map((e) => e[col]),
+                                name: col,
+                                dir_name: dir,
+                                legendgroup: dir,
+                                showlegend: _line_type_i == 0,
+                                mode: 'lines',
+                                line: { dash: _line_types[_line_type_i], color: _line_colors[_df_col.indexOf(col)] },
+                                visible: true,
+                            }
+                        }
+                        
+                        var tmp_max = Math.max(_max, ...trace1.y)
+                        if (!isNaN(tmp_max))
+                            _max = tmp_max
+                        console.log(_max)
+                        traces.push(trace1)
+                    })
+                    traces.push({
+                        x: [0, 0], y: [0, 0], visible: 'true', mode: 'lines', marker: {},
+                        dir_name: dir, name: dir,
+                        line: { dash: _line_types[_line_type_i], color: 'black' }
+                    })
+                    console.log(traces)
+                    axios.post(api + "/flask/load_args", { dir: dir }).then(response => {
+                        var args = response.data
+                        var addedContainmentEvents = Object.values(JSON.parse(args.addedContainmentEvents))
+                        var addedGatheringEvents = Object.values(JSON.parse(args.addedGatheringEvents))
+                        var addedVaccinationEvents = Object.values(JSON.parse(args.addedVaccinationEvents))
+                        var shapes = []
+                        var annotations = []
+                        var dx = 1
+                        addedContainmentEvents.forEach(e => {
+                            var x = parseFloat(e.startday)
+                            shapes.push({
+                                type: 'line', x0: x, y0: 0, x1: x, y1: _max,
+                                line: {
+                                    color: 'rgb(55, 128, 191)',
+                                    width: 3,
+                                    dash: 'dashdot'
+                                }
+                            })
+                            annotations.push({
+                                x: x-dx,
+                                y: _max / 2,
+                                xref: 'x',
+                                yref: 'y',
+                                text: e.containment_strategy,
+                                textangle: -90,
+                                showarrow: false,
 
-            };
+                            })
+                        })
 
-            
-            // console.log("STATE TIMELINE", _stateTimelineData)
-            // setStateTimelineData(_stateTimelineData);
+                        addedGatheringEvents.forEach(e => {
+                            var x = parseFloat(e.day)-1
+                            shapes.push({
+                                type: 'line', x0: x, y0: 0, x1: x, y1: _max,
+                                line: {
+                                    color: 'rgb(55, 128, 191)',
+                                    width: 3,
+                                    dash: 'dotted'
+                                }
+                            })
+                            annotations.push({
+                                x: x-dx,
+                                y: _max / 2,
+                                xref: 'x',
+                                yref: 'y',
+                                text: "Gathering",
+                                textangle: -90,
+                                showarrow: false,
+
+                            })
+                        })
+                        addedVaccinationEvents.forEach(e => {
+                            var x = parseFloat(e.day)
+                            shapes.push({
+                                type: 'line', x0: x, y0: 0, x1: x, y1: _max,
+                                line: {
+                                    color: 'rgb(55, 128, 191)',
+                                    width: 3,
+                                    dash: 'dotted'
+                                }
+                            })
+                            annotations.push({
+                                x: x-dx,
+                                y: _max / 2,
+                                xref: 'x',
+                                yref: 'y',
+                                text: "Vaccine for age " + e.min_age + " to " + e.max_age,
+                                textangle: -90,
+                                showarrow: false,
+
+                            })
+                        })
+                        console.log(shapes)
+                        Plotly.newPlot("stateTimeline", traces, {
+                            title: '',
+                            height: 600,
+                            // width: 1000,
+                            shapes: shapes,
+                            annotations: annotations,
+                            legend: {
+                                x: 1.05,
+                                y: 1,
+                                traceorder: "normal",
+                            },
+                            xaxis: {
+                                title: 'Time (days)',
+                                showticklabels: true,
+                                tickangle: 'auto',
+                                exponentformat: 'e',
+                                showexponent: 'all'
+                            },
+                            yaxis: {
+                                title: 'Number of people',
+                                showticklabels: true,
+                                exponentformat: 'e',
+                                showexponent: 'all'
+                            },
+                            yaxis2: {
+                                title: 'Reproduction number',
+                                // titlefont: {color: 'rgb(148, 103, 189)'},
+                                // tickfont: {color: 'rgb(148, 103, 189)'},
+                                overlaying: 'y',
+                                side: 'right'
+                              }
+                        })
+                    })
 
 
-        }).catch(error => {
-            console.log(error)
-        })
-
-
+                });
+            });
 
 
 
@@ -482,39 +487,6 @@ function ResultsPage() {
                     })
                 });
             });
-    }
-
-
-    // draw infection tree (sunburst)
-    async function plotInfectionGraph() {
-        axios.post(api + "/flask/infectiontree", { dir: selectedLogDir })
-            .then(function (response) {
-                const data = response.data.data;
-                csv2JSONarr(data, (pr) => { }).then((json_data) => {
-                    var sub_df = new DataFrame(json_data)
-                    console.log("infection tree", sub_df)
-
-                    Plotly.newPlot("infectionGraph", [
-                        {
-                            type: "sunburst", //sunburst
-                            ids: sub_df.toArray('id'),
-                            labels: sub_df.toArray('id'),
-                            parents: sub_df.toArray('parent'),
-                            value: sub_df.toArray('time')
-                        }
-                    ], {
-                        title: 'Infection tree',
-                    })
-
-
-                });
-
-            })
-            .catch(function (response) {
-                console.log(response);
-            });
-
-
     }
 
     // draw infection tree
@@ -587,9 +559,72 @@ function ResultsPage() {
     async function plotInfectionTree() {
         axios.post(api + "/flask/infectiontree", { dir: selectedLogDir })
             .then(function (response) {
-                const data = response.data.json;
-                const json_data = JSON.parse(data)
+                const json = response.data.json;
+                const json_data = JSON.parse(json)
                 setInfectionTreeData(json_data);
+
+                const data = response.data.data;
+                csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                    var sub_df = new DataFrame(json_data)
+                    console.log("infection tree", sub_df)
+
+                    Plotly.newPlot("infectionGraph", [
+                        {
+                            type: "sunburst", //sunburst
+                            ids: sub_df.toArray('id'),
+                            labels: sub_df.toArray('id'),
+                            parents: sub_df.toArray('parent'),
+                            value: sub_df.toArray('time')
+                        }
+                    ], {
+                        title: 'Infection tree',
+                    })
+                    csv2JSONarr(response.data.inf_occ_count, (pr) => { }).then((json_data) => {
+                        console.log(json_data, people)
+                        Plotly.newPlot("infectionOccupationBar", [
+                            {
+                                x: json_data[""].map(e => people[e]),
+                                y: json_data["parents_class"],
+                                type: 'bar'
+                            }
+                        ], {
+                            title: "",
+                            width: 500,
+                            height: 500,
+                            xaxis: {
+                                title: "Occupation group"
+                            },
+                            yaxis: {
+                                title: "Infections per person in the group"
+                            },
+                        })
+                    })
+
+                    csv2JSONarr(response.data.inf_loc_count, (pr) => { }).then((json_data) => {
+                        console.log(json_data, locs)
+                        Plotly.newPlot("infectionLocationBar", [
+                            {
+                                x: json_data[""].map(e => locs[e]),
+                                y: json_data["infected_loc_class"],
+                                type: 'bar'
+                            }
+                        ], {
+                            title: "",
+                            width: 500,
+                            height: 500,
+                            xaxis: {
+                                title: "Location group"
+                            },
+                            yaxis: {
+                                title: "Infections"
+                            },
+                        })
+                    })
+
+
+
+
+                });
 
             })
             .catch(function (response) {
@@ -597,6 +632,7 @@ function ResultsPage() {
             });
 
     }
+
 
     // plot infection state timeline
     async function plotInfectionStateTimeline() {
@@ -637,7 +673,7 @@ function ResultsPage() {
                     })
                 }
                 var violin_data = []
-                var key2name = { '1': 'Susceptible', '3': 'Infected-Incubation', '4': 'Infected-Infectious',  '5': 'Infected-Mild', '6': 'Infected-Severe', '7': 'Infected-Critical', '9': 'Recovered', '10': 'Dead' }
+                var key2name = { '1': 'Susceptible', '3': 'Infected-Incubation', '4': 'Infected-Infectious', '5': 'Infected-Mild', '6': 'Infected-Severe', '7': 'Infected-Critical', '9': 'Recovered', '10': 'Dead' }
                 for (let key in time_dict) {
                     if (key == '1')
                         continue
@@ -703,6 +739,38 @@ function ResultsPage() {
                 )
 
 
+            })
+        })
+    }
+
+    // plot variant timeline
+    async function plotVariantTimeline() {
+        axios.post(api + "/flask/variants", { dir: selectedLogDir }).then(response => {
+            const data = response.data.df_norm
+            csv2JSONarr(data, (pr) => { }).then((json_data) => {
+                var _df = new DataFrame(json_data)
+                var traces = []
+                var cols = _df.listColumns()
+                for (var i = 0; i < cols.length; i++) {
+                    traces.push(
+                        {
+                            y: _df.select(cols[i]).toArray().map(e => e[0]),
+                            name: cols[i],
+                            type: "bar",
+                        }
+                    )
+                }
+                console.log(traces)
+                Plotly.newPlot("variantTimeline", traces, {
+                    width: 600,
+                    height: 500,
+                    barmode: 'stack',
+                    bargap: 0,
+                    xaxis: {
+                        title: 'Day',
+                    },
+                    showlegend: true,
+                })
             })
         })
     }
@@ -1546,11 +1614,11 @@ function ResultsPage() {
                     <Grid container spacing={0} padding='30px'>
 
                         <Grid container xs={12}>
-                            <Grid xs={8}>
+                            <Grid xs={12}>
                                 <div style={{ paddingTop: 5 }} id="stateTimeline"></div>
                             </Grid>
 
-                            <Grid xs={4}>
+                            <Grid xs={12}>
                                 <Grid container xs={12}>
                                     <Typography >Select lines</Typography>
                                 </Grid>
@@ -1665,6 +1733,8 @@ function ResultsPage() {
 
                         <div id="statesDay"></div>
 
+                        <div id="variantTimeline"></div>
+
 
 
                         <Grid xs={6}>
@@ -1696,6 +1766,8 @@ function ResultsPage() {
                     {/* ===================================================================================== COVID-19 Infection Analysis */}
 
                     <div id="infectionGraph"></div>
+                    <div id="infectionLocationBar"></div>
+                    <div id="infectionOccupationBar"></div>
 
                     <Grid container spacing={0} padding='30px'>
                         <Grid container rowSpacing={1} columnSpacing={{ xs: 1 }}>

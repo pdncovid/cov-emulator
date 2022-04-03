@@ -2,7 +2,7 @@ import numpy as np
 
 from backend.python.MovementEngine import MovementEngine
 from backend.python.Logger import Logger
-from backend.python.enums import PersonFeatures
+from backend.python.enums import *
 
 from backend.python.point.Person import Person
 from backend.python.transport.Movement import Movement
@@ -53,14 +53,14 @@ class Transporter(Person):
 
     # override
     def set_position(self, new_x, new_y, force=False, eps=2):
-        self.features[self.ID, PersonFeatures.px.value] = new_x
-        self.features[self.ID, PersonFeatures.py.value] = new_y
+        self.features[self.ID, PF_px] = new_x
+        self.features[self.ID, PF_py] = new_y
         for latched_p in self.latched_people:
             latched_p.set_position(new_x+np.random.rand()*eps, new_y+np.random.rand()*eps, True)
 
     # override
-    def set_infected(self, t, p, loc, common_p):
-        super(Transporter, self).set_infected(t, p, loc, common_p)
+    def set_infected(self, t, p, loc, common_p, variant_name=None):
+        super(Transporter, self).set_infected(t, p, loc, common_p, variant_name)
         self.is_latchable = True  # todo this should be false after tested positive
 
     # override

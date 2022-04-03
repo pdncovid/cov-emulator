@@ -4,7 +4,7 @@ from backend.python.MovementEngine import MovementEngine
 from backend.python.RoutePlanningEngine import RoutePlanningEngine
 from backend.python.Target import Target
 
-from backend.python.enums import Shape, ClassNameMaps
+from backend.python.enums import *
 from backend.python.Time import Time
 import numpy as np
 import pandas as pd
@@ -24,45 +24,45 @@ class Location:
         self.ID = Location._id
         Location._id += 1
         # tmp_feature_arr = np.zeros(len(LocationFeatures) + 1)
-        # tmp_feature_arr[LocationFeatures.id.value] = self.ID
-        # tmp_feature_arr[LocationFeatures.px.value] = x
-        # tmp_feature_arr[LocationFeatures.py.value] = y
-        # tmp_feature_arr[LocationFeatures.shape.value] = shape
-        # tmp_feature_arr[LocationFeatures.depth.value] = 0
-        # tmp_feature_arr[LocationFeatures.capacity.value] = kwargs.get('capacity')
-        # tmp_feature_arr[LocationFeatures.infectious.value] = default_infectiousness[self.__class__] if kwargs.get(
+        # tmp_feature_arr[LocationFeatures.id] = self.ID
+        # tmp_feature_arr[LocationFeatures.px] = x
+        # tmp_feature_arr[LocationFeatures.py] = y
+        # tmp_feature_arr[LocationFeatures.shape] = shape
+        # tmp_feature_arr[LocationFeatures.depth] = 0
+        # tmp_feature_arr[LocationFeatures.capacity] = kwargs.get('capacity')
+        # tmp_feature_arr[LocationFeatures.infectious] = default_infectiousness[self.__class__] if kwargs.get(
         #     'infectiousness') is None else kwargs.get('infectiousness')
-        # tmp_feature_arr[LocationFeatures.social_distance.value] = 0.0
-        # tmp_feature_arr[LocationFeatures.hygiene_boost.value] = 0  # TODO
-        # tmp_feature_arr[LocationFeatures.recovery_p.value] = 0.1  # TODO
-        # tmp_feature_arr[LocationFeatures.quarantined.value] = kwargs.get('quarantined', 0)
-        # tmp_feature_arr[LocationFeatures.quarantined_time.value] = -1
-        # tmp_feature_arr[LocationFeatures.parent_id.value] = -1
-        # tmp_feature_arr[LocationFeatures.om.value] = -1
+        # tmp_feature_arr[LocationFeatures.social_distance] = 0.0
+        # tmp_feature_arr[LocationFeatures.hygiene_boost] = 0  # TODO
+        # tmp_feature_arr[LocationFeatures.recovery_p] = 0.1  # TODO
+        # tmp_feature_arr[LocationFeatures.quarantined] = kwargs.get('quarantined', 0)
+        # tmp_feature_arr[LocationFeatures.quarantined_time] = -1
+        # tmp_feature_arr[LocationFeatures.parent_id] = -1
+        # tmp_feature_arr[LocationFeatures.om] = -1
         self.px = kwargs.get('x')
         self.py = kwargs.get('y')
-        self.shape = kwargs.get('shape', Shape.CIRCLE.value)
+        self.shape = kwargs.get('shape', Shape_CIRCLE)
         self.radius = kwargs.get('r', np.random.randint(class_info['r_min'], class_info['r_max']))
         exit_dist = kwargs.get('exitdist', 0.9)
         exit_theta = kwargs.get('exittheta', 0.0)
 
-        if self.shape == Shape.CIRCLE.value:
+        if self.shape == Shape_CIRCLE:
 
-            # tmp_feature_arr[LocationFeatures.radius.value] = kwargs.get('r')
+            # tmp_feature_arr[LocationFeatures.radius] = kwargs.get('r')
             self.ex = self.px + np.cos(exit_theta) * self.radius * exit_dist
             self.ey = self.py + np.sin(exit_theta) * self.radius * exit_dist
-            # tmp_feature_arr[LocationFeatures.ex.value] = x + np.cos(exit_theta) * kwargs.get('r') * exit_dist
-            # tmp_feature_arr[LocationFeatures.ey.value] = y + np.sin(exit_theta) * kwargs.get('r') * exit_dist
-        elif self.shape == Shape.POLYGON.value:
+            # tmp_feature_arr[LocationFeatures.ex] = x + np.cos(exit_theta) * kwargs.get('r') * exit_dist
+            # tmp_feature_arr[LocationFeatures.ey] = y + np.sin(exit_theta) * kwargs.get('r') * exit_dist
+        elif self.shape == Shape_POLYGON:
             self.boundary = kwargs.get('boundary')
             if self.boundary is None:
                 raise Exception("Please provide boundary")
             # TODO add exit point here
-            # tmp_feature_arr[LocationFeatures.px.value] = np.average(self.boundary[:, 0])
-            # tmp_feature_arr[LocationFeatures.px.value] = np.average(self.boundary[:, 1])
-            # tmp_feature_arr[LocationFeatures.ex.value] = tmp_feature_arr[LocationFeatures.px.value] * (1 - exit_dist) + \
+            # tmp_feature_arr[LocationFeatures.px] = np.average(self.boundary[:, 0])
+            # tmp_feature_arr[LocationFeatures.px] = np.average(self.boundary[:, 1])
+            # tmp_feature_arr[LocationFeatures.ex] = tmp_feature_arr[LocationFeatures.px] * (1 - exit_dist) + \
             #                                              self.boundary[0][0] * exit_dist
-            # tmp_feature_arr[LocationFeatures.ey.value] = tmp_feature_arr[LocationFeatures.py.value] * (1 - exit_dist) + \
+            # tmp_feature_arr[LocationFeatures.ey] = tmp_feature_arr[LocationFeatures.py] * (1 - exit_dist) + \
             #                                              self.boundary[0][1] * exit_dist
             self.px = np.average(self.boundary[:, 0])
             self.py = np.average(self.boundary[:, 1])
@@ -107,7 +107,7 @@ class Location:
         return self.name
 
     # def get_feature(self, feature):
-    #     return self.features[self.ID, LocationFeatures[feature].value]
+    #     return self.features[self.ID, LocationFeatures[feature]]
 
     @staticmethod
     def get_location(_id):
@@ -131,9 +131,9 @@ class Location:
             'name': self.name,
         }
 
-        if self.shape == Shape.CIRCLE.value:
+        if self.shape == Shape_CIRCLE:
             d['radius'] = self.radius
-        elif self.shape == Shape.POLYGON.value:
+        elif self.shape == Shape_POLYGON:
             d['boundary'] = self.boundary.__str__().replace(',', '|').replace(' ', '')
 
         return d
@@ -170,7 +170,7 @@ class Location:
 
     def get_suggested_positions(self, n, radius):
 
-        if self.shape == Shape.CIRCLE.value:
+        if self.shape == Shape_CIRCLE:
             possible_positions = []
             failed_positions = []
             x = self.px
@@ -214,7 +214,7 @@ class Location:
             x = [possible_positions[c][0] for c in idx]
             y = [possible_positions[c][1] for c in idx]
 
-        elif self.shape == Shape.POLYGON.value:
+        elif self.shape == Shape_POLYGON:
             # TODO
             raise NotImplementedError()
         else:
@@ -271,15 +271,15 @@ class Location:
         f(self)
 
     def add_sub_location(self, location):
-        # Location.features[location.ID, LocationFeatures.parent_id.value] = self.ID
+        # Location.features[location.ID, LocationFeatures.parent_id] = self.ID
         location.parent_location = self
-        # Location.features[location.ID, LocationFeatures.depth.value] = Location.features[self.ID, LocationFeatures.depth.value] + 1
+        # Location.features[location.ID, LocationFeatures.depth] = Location.features[self.ID, LocationFeatures.depth] + 1
         location.depth = self.depth + 1
         self.locations.append(location)
 
         def f(ll):
             for ch in ll.locations:
-                # Location.features[ch.ID, LocationFeatures.depth.value] = Location.features[ll.ID, LocationFeatures.depth.value] + 1
+                # Location.features[ch.ID, LocationFeatures.depth] = Location.features[ll.ID, LocationFeatures.depth] + 1
                 ch.depth = ll.depth + 1
                 f(ch)
 
@@ -432,15 +432,15 @@ class Location:
         self.is_visiting.pop(idx)
 
     def is_inside(self, x, y):
-        # if self.shape == Shape.POLYGON.value:
+        # if self.shape == Shape_POLYGON:
         #     return is_inside_polygon(self.boundary, (x, y))
-        # if self.shape == Shape.CIRCLE.value:
+        # if self.shape == Shape_CIRCLE:
         return (x - self.px) ** 2 + (y - self.py) ** 2 <= self.radius ** 2
 
     def is_intersecting(self, x, y, r, eps=0):
         _is = False
         for l in self.locations:
-            if l.shape == Shape.CIRCLE.value:
+            if l.shape == Shape_CIRCLE:
                 if (l.px - x) ** 2 + (l.py - y) ** 2 < r ** 2 + l.radius ** 2 - eps ** 2:
                     _is = True
                     break

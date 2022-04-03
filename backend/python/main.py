@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import time
 
@@ -15,7 +16,7 @@ from backend.python.Target import Target
 from backend.python.TestingEngine import TestingEngine
 from backend.python.Time import Time
 from backend.python.TransmissionEngine import TransmissionEngine
-from backend.python.enums import TestSpawn, ClassNameMaps, Containment, PersonFeatures
+from backend.python.enums import *
 from backend.python.functions import count_graph_n, separate_into_classes
 from backend.python.location.Cemetery import Cemetery
 from backend.python.location.Location import Location
@@ -27,7 +28,7 @@ from backend.python.transport.Movement import Movement
 # ====================================== PARAMETERS =====================================================
 testing_freq = 10
 test_center_spawn_check_freq = 10
-test_center_spawn_method = TestSpawn.HEATMAP.value
+test_center_spawn_method = TestSpawn_HEATMAP
 test_center_spawn_threshold = 100
 
 
@@ -55,6 +56,11 @@ def set_parameters(args):
     TransmissionEngine.base_transmission_p = float(args.base_transmission_p)
     TransmissionEngine.incubation_days = float(args.incubation_days)
 
+    # initialize variants
+    added_variant_events = json.loads(args.addedVariantEvents)
+    CovEngine.variant_start_events = [added_variant_events[key] for key in added_variant_events.keys()]
+    CovEngine.on_reset_day(0)
+
     # initialize simulator timer
     Time.init()
 
@@ -71,8 +77,8 @@ def update_point_parameters(args):
 
 
 def get_instance(people):
-    x = Person.features[:, PersonFeatures.px.value]
-    y = Person.features[:, PersonFeatures.py.value]
+    x = Person.features[:, PF_px]
+    y = Person.features[:, PF_py]
     ploc_ids = [p.get_current_location().ID for p in people]
     return x, y, ploc_ids
 
@@ -81,16 +87,15 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
     integrity_test = False
     record_fine_covid = True
     record_fine_person = True
+    analyze_infect_contacts_only = True
+
     # process_disease_freq = 1  # Time.get_duration(2)
     # process_disease_at = process_disease_freq
     days = args.sim_days
     iterations = int(days * 1440 / Time._scale)
     n_overtime = 0
-    elapsed_time = 0
     Logger.save_class_info()
     Logger.save_args(args)
-
-
 
     # initialize graphs and people
     locations = root.get_locations_according_function(lambda x: True)
@@ -147,11 +152,14 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
                 ces.append(containment_events[ce])
             ces.sort(key=lambda x: int(x["startday"]))
 
+            # update covid engine parameters
+            CovEngine.on_reset_day(day)
+
             for ce in ces:
                 if int(ce["startday"]) == day:
                     ContainmentEngine.current_strategy = ce["containment_strategy"]
                     Logger.log(f"Containment strategy changed to {ContainmentEngine.current_strategy}", 'c')
-                    if ce["containment_strategy"] == Containment.ROSTER.name:
+                    if ce["containment_strategy"] == "ROSTER":
                         ContainmentEngine.assign_roster_days(people, int(ce["roster_groups"]))
                     else:
                         ContainmentEngine.current_rosters = 1
@@ -159,7 +167,7 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
 
             if iteration > 0:
                 # ================================================================================= process transmission
-                n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.inf_radius)
+                n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.inf_radius, analyze_infect_contacts_only)
                 Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
 
                 # ======================================================================== process happiness and economy

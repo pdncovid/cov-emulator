@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import numpy as np
 import re
+import plotly.express as px
 
 
 class InfectionTreeHandler(Resource):
@@ -17,12 +18,7 @@ class InfectionTreeHandler(Resource):
         args = parser.parse_args()
         request_dir = args['dir']
 
-        files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(request_dir))]
-        person_infos = []
-        for f in files:
-            if 'person_info' in f:
-                person_infos.append(f)
-        person_infos.sort()
+        day_info = Loader.get_day_file_names_sorted(request_dir)
         ids = []
         classes = []
         parents = []
@@ -30,7 +26,7 @@ class InfectionTreeHandler(Resource):
         infected_loc = []
         infected_loc_class = []
         infect_time = []
-        for pi in person_infos:
+        for pi in day_info:
             df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '_person_info')
 
             # if selected_people_classes:
@@ -84,11 +80,24 @@ class InfectionTreeHandler(Resource):
         # print(RenderTree(parent_node))
         exporter = JsonExporter(indent=2, sort_keys=False)
         json_tree = exporter.export(parent_node)
-        return {
+
+        df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
+        occ_class_count = df_p['person_class'].value_counts()
+
+        inf_loc_class_count = df['infected_loc_class'].value_counts()
+        inf_occ_class_count = df['parents_class'].value_counts() / occ_class_count
+        inf_occ_class_count = inf_occ_class_count.dropna().rename("parents_class")
+        print(inf_occ_class_count, inf_loc_class_count)
+        self.values_ = {
             'resultStatus': 'SUCCESS',
-            'data': df.to_csv(),
-            'json': json_tree
+            'data': df.to_csv(),  # keep index
+            'json': json_tree,
+            'inf_loc_count': inf_loc_class_count.to_csv(),
+            'inf_occ_count': inf_occ_class_count.to_csv(),
+
         }
+        return self.values_
+
 
 class InfectionStateTimelineHandler(Resource):
     def post(self):
@@ -96,21 +105,17 @@ class InfectionStateTimelineHandler(Resource):
         parser.add_argument('dir', type=str)
         args = parser.parse_args()
         request_dir = args['dir']
-        files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(request_dir))]
-        person_infos = []
-        for f in files:
-            if 'person_info' in f:
-                person_infos.append(f)
-        person_infos.sort()
 
-        df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", person_infos[0]).group()), '_person_info')
-        df_out = pd.DataFrame(index=df['person'], columns=range(len(person_infos)))
-        for pi in person_infos:
+        day_info = Loader.get_day_file_names_sorted(request_dir)
+
+        df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
+        df_out = pd.DataFrame(index=df['person'], columns=range(len(day_info)))
+        for pi in day_info:
             day = int(re.search("[0-9]{5}", pi).group())
             df = Loader.getFile(request_dir, day, '_person_info')
             # df = df.loc[df['state']>1]
-            df.loc[df['state']>2,'state'] += 6
-            df.loc[df['state'] == 2,'state'] += df.loc[df['state'] == 2,'disease_state']
+            df.loc[df['state'] > 2, 'state'] += 6
+            df.loc[df['state'] == 2, 'state'] += df.loc[df['state'] == 2, 'disease_state']
             df_out.loc[df['person'], day] = df['state']
 
         # plt.figure(figsize=(10,5))
@@ -118,8 +123,7 @@ class InfectionStateTimelineHandler(Resource):
         # plt.colorbar()
         # plt.show()
         print(df_out)
-        return {"status":"success", "data":df_out.to_csv(index=False)}
-
+        return {"status": "success", "data": df_out.to_csv(index=False)}
 
 
 # CONTACTS HANDLERS
@@ -132,12 +136,7 @@ class ContactHandler(Resource):
         request_dir = args['dir']
         request_group = args['group_by']
 
-        files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(request_dir))]
-        day_info = []
-        for f in files:
-            if re.search("[0-9]{5}.csv", f) is not None:
-                day_info.append(f)
-        day_info.sort()
+        day_info = Loader.get_day_file_names_sorted(request_dir)
 
         df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
         df_p = df_p.set_index('person')
@@ -202,12 +201,7 @@ class LocationContactHandler(Resource):
         args = parser.parse_args()
         request_dir = args['dir']
 
-        files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(request_dir))]
-        day_info = []
-        for f in files:
-            if re.search("[0-9]{5}.csv", f) is not None:
-                day_info.append(f)
-        day_info.sort()
+        day_info = Loader.get_day_file_names_sorted(request_dir)
 
         df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
         df_l = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_location_info')
@@ -275,12 +269,7 @@ class PersonContactHandler(Resource):
         args = parser.parse_args()
         request_dir = args['dir']
 
-        files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(request_dir))]
-        day_info = []
-        for f in files:
-            if re.search("[0-9]{5}.csv", f) is not None:
-                day_info.append(f)
-        day_info.sort()
+        day_info = Loader.get_day_file_names_sorted(request_dir)
 
         df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
         df_l = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_location_info')
@@ -352,12 +341,7 @@ class InfectionHandler(Resource):
         request_dir = args['dir']
         request_group = args['group_by']
 
-        files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(request_dir))]
-        day_info = []
-        for f in files:
-            if re.search("[0-9]{5}.csv", f) is not None:
-                day_info.append(f)
-        day_info.sort()
+        day_info = Loader.get_day_file_names_sorted(request_dir)
 
         df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
         df_p = df_p.set_index('person')
@@ -376,7 +360,7 @@ class InfectionHandler(Resource):
         group_names = df_p.index.map(pID2requesetGroupMap).unique()
         inf_df = pd.DataFrame(index=group_names, columns=group_names).fillna('')
         count_df = pd.DataFrame(index=group_names, columns=['infected', 'total_count', 'total_infected']).fillna('')
-        count_df['total_count'] = [0]*len(group_names)
+        count_df['total_count'] = [0] * len(group_names)
 
         for p_id in df_p.index:
             _r = pID2requesetGroupMap(p_id)
@@ -406,7 +390,7 @@ class InfectionHandler(Resource):
                 for group_name2 in group_names:
                     inf_df.loc[group_name1, group_name2] += ' ' + str(day_con_df.loc[group_name1, group_name2])
         for group_name1 in group_names:
-            count_df.loc[group_name1, 'total_infected'] = sum(map(int,count_df.loc[group_name1, 'infected'].split()))
+            count_df.loc[group_name1, 'total_infected'] = sum(map(int, count_df.loc[group_name1, 'infected'].split()))
         m = getMap(request_group, request_dir)
         if m is None:
             m = {i: i for i in inf_df.index}
@@ -424,3 +408,74 @@ class InfectionHandler(Resource):
                 'infections': inf_df.to_csv(index=False),
                 'count': count_df.to_csv(index=False)
                 }
+
+
+class PeopleStateTimelineHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        parser.add_argument('end_only', type=bool, default=True)
+        parser.add_argument('window', type=int, default=3)
+        args = parser.parse_args()
+        request_dir = args['dir']
+        request_end = args['end_only']
+        request_window = args['window']
+
+        day_info = Loader.get_day_file_names_sorted(request_dir)
+
+        df_arr = []
+        for day in day_info:
+            df_day = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day).group()), '_cov_info')
+            if request_end:
+                df_day = df_day.iloc[-1:]
+            df_arr.append(df_day)
+        df = pd.concat(df_arr)
+
+        tot_cases = df["TOTAL INFECTED CASES"].values
+        ratio = tot_cases[request_window:] / tot_cases[:-request_window]
+        growth_rate = np.log(np.append(np.zeros(request_window), ratio)) / request_window
+        df["D.T."] = np.log(2) / growth_rate
+        df["ratio"] = np.append(np.zeros(request_window), ratio)
+        df["Re"] = np.append(np.zeros(request_window), ratio - 1)
+        df["Re2"] = np.append(np.zeros(10), (tot_cases[10:] / tot_cases[:-10]) - 1)
+        df["time"] /= 1440
+        print("PeopleState", df)
+        return {'status': 'SUCCESS',
+                'data': df.to_csv(index=False),
+                }
+
+
+class VariantHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        args = parser.parse_args()
+        request_dir = args['dir']
+
+        day_info = Loader.get_day_file_names_sorted(request_dir)
+        df_arr = []
+        for day in day_info:
+            df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day).group()), '_person_info')
+            df_p = df_p.loc[df_p["disease_variant"] != ""]
+            count = df_p.groupby("disease_variant").agg(len)
+            dic = {}
+            for v, c in zip(count.index, count.values):
+                dic[v] = c[0]
+            df_arr.append(dic)
+        df = pd.DataFrame(df_arr)
+
+        df_norm = df.div(df.sum(axis=1), axis=0)
+        print(df)
+        # px.histogram()
+        return {'status': 'SUCCESS',
+                'df': df.to_csv(index=False),
+                'df_norm': df_norm.to_csv(index=False),
+                }
+
+
+class ReprodutionNumberHandler(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('dir', type=str)
+        args = parser.parse_args()
+        request_dir = args['dir']

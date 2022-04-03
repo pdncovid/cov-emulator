@@ -1,6 +1,6 @@
 import numpy as np
 
-from backend.python.enums import PersonFeatures
+from backend.python.enums import *
 from backend.python.functions import bs
 
 
@@ -9,8 +9,8 @@ class TestingEngine:
     @staticmethod
     def testing_procedure(points, test_centers, t):
         from backend.python.point.Person import Person
-        x = Person.features[:, PersonFeatures.px.value]
-        y = Person.features[:, PersonFeatures.py.value]
+        x = Person.features[:, PF_px]
+        y = Person.features[:, PF_py]
         xs_idx = np.argsort(x)
         ys_idx = np.argsort(y)
         xs = x[xs_idx]

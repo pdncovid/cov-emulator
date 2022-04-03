@@ -1,7 +1,7 @@
 import numpy as np
 
 from backend.python.Logger import Logger
-from backend.python.enums import State, PersonFeatures
+from backend.python.enums import *
 
 class Visualizer:
 
@@ -12,9 +12,9 @@ class Visualizer:
         zz = np.zeros_like(xx)
         dw, dh = (2 * w + 1) / res, (2 * h + 1) / res
         for p in points:
-            if p.features[p.ID, PersonFeatures.state.value] == State.INFECTED.value:
-                x = p.features[p.ID, PersonFeatures.px.value]
-                y = p.features[p.ID, PersonFeatures.py.value]
+            if p.features[p.ID, PF_state] == State_INFECTED:
+                x = p.features[p.ID, PF_px]
+                y = p.features[p.ID, PF_py]
                 if x > w or y > h:
                     Logger.log("Person outside map", 'c')
                     continue

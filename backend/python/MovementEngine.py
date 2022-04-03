@@ -2,7 +2,7 @@ import numpy as np
 
 from backend.python.Logger import Logger
 from backend.python.Time import Time
-from backend.python.enums import PersonFeatures
+from backend.python.enums import *
 from backend.python.transport.Movement import Movement
 
 
@@ -16,7 +16,7 @@ class MovementEngine:
 
         is_in_loc_move = np.expand_dims(_p.all_destinations == -1, -1)
 
-        vxy = _p.features[:, [PersonFeatures.vx.value, PersonFeatures.vy.value]]
+        vxy = _p.features[:, [PF_vx, PF_vy]]
         # new_v = 0.5*_p.all_velocities + (_p.all_velocities*0.25+1)*np.random.random((len(_p.all_velocities), 2))
         new_v = np.expand_dims(_p.all_current_loc_vcap, -1) * (np.random.random((len(vxy), 2)) * 2 - 1)  # TODO
         # v might be too small
@@ -25,7 +25,7 @@ class MovementEngine:
                                          np.expand_dims(_p.all_current_loc_vcap, -1))
         vxy = new_v
 
-        xy = _p.features[:, [PersonFeatures.px.value, PersonFeatures.py.value]]
+        xy = _p.features[:, [PF_px, PF_py]]
         # inside location random movement
         new_xy = xy + vxy * is_in_loc_move
         is_outside = np.sum((new_xy - _p.all_current_loc_positions) ** 2, 1) > _p.all_current_loc_radii ** 2
@@ -34,7 +34,7 @@ class MovementEngine:
         new_xy[is_outside] = (np.random.random(xy.shape) * (
                 2 ** 0.5 * np.expand_dims(_p.all_current_loc_radii, -1)) + _p.all_current_loc_positions)[is_outside]
 
-        _p.features[:, [PersonFeatures.vx.value, PersonFeatures.vy.value]] = vxy
+        _p.features[:, [PF_vx, PF_vy]] = vxy
 
         # movement to other location
         new_xy_inter_loc = np.where(
@@ -236,8 +236,8 @@ class MovementEngine:
 
     @staticmethod
     def is_close(p, xy, eps):
-        x = p.features[p.ID, PersonFeatures.px.value]
-        y = p.features[p.ID, PersonFeatures.py.value]
+        x = p.features[p.ID, PF_px]
+        y = p.features[p.ID, PF_py]
         return (x - xy[0]) ** 2 + (y - xy[1]) ** 2 < eps ** 2
 
     @staticmethod
@@ -246,5 +246,5 @@ class MovementEngine:
             pass
         if args.containment == 1:
             if np.random.rand() < 0.90:
-                p.features[p.ID, PersonFeatures.vx.value] = 0
-                p.features[p.ID, PersonFeatures.vy.value] = 0
+                p.features[p.ID, PF_vx] = 0
+                p.features[p.ID, PF_vy] = 0

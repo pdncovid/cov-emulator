@@ -48,6 +48,16 @@ class Loader:
         f_name = "resource_info.csv"
         return pd.read_csv(log_base_dir.joinpath(rdir).joinpath(f_name))
 
+    @staticmethod
+    def get_day_file_names_sorted(rdir):
+        files = [os.path.split(x)[-1] for x in os.listdir(log_base_dir.joinpath(rdir))]
+        day_info = []
+        for f in files:
+            if re.search("[0-9]{5}.csv", f) is not None:
+                day_info.append(f)
+        day_info.sort()
+        return day_info
+
 
 def getMap(name, dir):
     if 'person_class' in name:

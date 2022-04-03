@@ -37,6 +37,7 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
         }).catch(error => {
             console.log(error)
         })
+        onSelect(selectedLogDir)
     }
 
     const handlePeopleCheckChange = (event) => {

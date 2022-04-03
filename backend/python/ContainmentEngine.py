@@ -1,11 +1,11 @@
 from backend.python.Logger import Logger
-from backend.python.enums import Containment, PersonFeatures
+from backend.python.enums import *
 from backend.python.Time import Time
 
 
 class ContainmentEngine:
     quarantineduration = Time.get_duration(24 * 14)
-    current_strategy = Containment.NONE.name
+    current_strategy = "NONE"
     current_rosters = 1
 
     result_queue = []
@@ -14,7 +14,7 @@ class ContainmentEngine:
     def on_infected_identified(p):
         ContainmentEngine.result_queue.append(p)
         Logger.log(f"{p.ID} will be identified as infected. "
-                   f"Test result on {p.features[p.ID, PersonFeatures.tested_positive_time.value]} "
+                   f"Test result on {p.features[p.ID, PF_tested_positive_time]} "
                    f"Home {p.home_loc}", 'c')
 
     @staticmethod
@@ -23,8 +23,8 @@ class ContainmentEngine:
         i = 0
         while i < len(ContainmentEngine.result_queue):
             person = ContainmentEngine.result_queue[i]
-            if person.features[person.ID, PersonFeatures.tested_positive_time.value] < t:
-                if ContainmentEngine.current_strategy == Containment.QUARANTINE.name:
+            if person.features[person.ID, PF_tested_positive_time] < t:
+                if ContainmentEngine.current_strategy == "QUARANTINE":
                     person.home_loc.set_quarantined(True, t)
 
                     others_in_home = []
@@ -33,7 +33,7 @@ class ContainmentEngine:
                             others_in_home.append(_p)
                     Logger.log(f"({person.ID}'s home) {person.home_loc} quarantined. Others ({' '.join(map(str, others_in_home))})", 'c')
 
-                elif ContainmentEngine.current_strategy == Containment.QUARANTINECENTER.name:
+                elif ContainmentEngine.current_strategy == "QUARANTINECENTER":
                     person.home_loc.set_quarantined(True, t)  # TODO quarantine home ?
 
                 ContainmentEngine.result_queue.pop(i)
@@ -44,7 +44,7 @@ class ContainmentEngine:
     def can_go_there(p, current_l, next_l):
         if current_l == next_l:
             return True
-        if ContainmentEngine.current_strategy == Containment.NONE.name:
+        if ContainmentEngine.current_strategy == "NONE":
             return True
 
         # todo add any containment strategy logic
@@ -58,17 +58,17 @@ class ContainmentEngine:
     @staticmethod
     def update_route_according_to_containment(p, root, containment, t):
         if p.is_tested_positive() and p.is_infected():
-            if containment == Containment.NONE.name:
+            if containment == "NONE":
                 return False
-            elif containment == Containment.LOCKDOWN.name:
+            elif containment == "LOCKDOWN":
                 root.set_quarantined(True, t, recursive=True)
                 return True
-            elif containment == Containment.QUARANTINE.name:
+            elif containment == "QUARANTINE":
                 p.route[0].loc.set_quarantined(True, t)
                 # todo when moved to quarantined home, doesnt goto cov center
                 # p.update_route(root, 0, ContainmentEngine.get_containment_route_for_tested_positives(p), replace=True)
                 return False
-            elif containment == Containment.QUARANTINECENTER.name:
+            elif containment == "QUARANTINECENTER":
                 for tar in p.route:
                     if tar.loc.class_name == 'COVIDQuarantineZone':
                         return False
@@ -92,7 +92,7 @@ class ContainmentEngine:
 
     @staticmethod
     def assign_roster_days(people, roster_groups):
-        if ContainmentEngine.current_strategy == Containment.ROSTER.name and ContainmentEngine.current_rosters == roster_groups:
+        if ContainmentEngine.current_strategy == "ROSTER" and ContainmentEngine.current_rosters == roster_groups:
             return
         ContainmentEngine.current_rosters = roster_groups
         work_groups = {}

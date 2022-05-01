@@ -34,6 +34,8 @@ import DirSelect from "../components/DirSelect";
 function ResultsPage3() {
     const [initialLoad, setInitialLoad] = useState(true);
 
+    const [dirs, setDirs] = useState([]);
+    const [days, setDays] = useState([]);
     const [locs, setLocs] = useState([]);
     const [people, setPeople] = useState([]);
     const [movement, setMovement] = useState([]);
@@ -250,6 +252,8 @@ function ResultsPage3() {
                     getPeopleArr={getPeopleArr}
                     getMovementArr={getMovementArr}
                     getGroupOptionsArr={getGroupOptionsArr}
+                    getDirs={setDirs}
+                    getDays={setDays}
                 />
             </div>
 

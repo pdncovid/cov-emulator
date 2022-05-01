@@ -50,11 +50,11 @@ class CovEngine:
 
     @staticmethod
     def get_infect_variant(p, source, name=None):  # todo add to doc
-        if name is not None:
+        if name is not None and name != "" and str(name) != "nan":
             return CovEngine.current_variants[name]
         if source == p:
             return get_random_element(list(CovEngine.current_variants.values()))
-        if np.random.rand() < 0.5:
+        if np.random.rand() < 0.5: #todo find this value
             return get_random_element(list(CovEngine.current_variants.values()))
         return source.infection_variant
 
@@ -99,29 +99,6 @@ class CovEngine:
                 #         np.random.rand() < 0.1:  # todo find this value
                 #     p.set_recovered()
 
-        # for i, p in enumerate(points):
-        #     if p.is_infected():
-        #         if p.features[p.ID, PF_is_asymptotic]:
-        #             if np.random.rand() < CovEngine.get_recovery_p(p, t):
-        #                 p.set_recovered()
-        #             if np.random.rand() < CovEngine.get_worsen_p(p, t):
-        #                 p.set_dead()
-        #         else:
-        #             if np.random.rand() < CovEngine.get_recovery_p(p, t):
-        #                 p.features[p.ID, PF_disease_state] -= 1
-        #                 if p.features[p.ID, PF_disease_state] == 0:
-        #                     p.set_recovered()
-        #             if np.random.rand() < CovEngine.get_worsen_p(p, t):
-        #                 p.features[p.ID, PF_disease_state] += 1
-        #                 if p.features[p.ID, PF_disease_state] == CovEngine.dead_disease_state:
-        #                     p.set_dead()
-        #         if t - p.features[
-        #             p.ID, PF_infected_time] > CovEngine.recover_after and np.random.rand() < 0.1:  # todo find this value
-        #             p.set_recovered()
-        #         if p.is_dead():
-        #             Logger.log(f"DEAD {p.ID}", 'c')
-        #             cemetery[0].enter_person(p)
-
     @staticmethod
     def next_disease_state(p, t):
         ds = p.features[p.ID, PF_disease_state]
@@ -160,9 +137,8 @@ class CovEngine:
             return -1
         age_p = age_f(p.features[p.ID, PF_age])
         if next_state == "RECOVERED":  # get better probability
-            p = CovEngine.base_recovery_p * p.get_effective_immunity() * age_p * p.infection_variant.severity
+            p = CovEngine.base_recovery_p * p.get_effective_immunity() * age_p * (1-p.infection_variant.severity)
         else:  # worsen probability
-            p = (1 - CovEngine.base_recovery_p) * (1 - p.get_effective_immunity()) * age_p * (
-                        1 - p.infection_variant.severity)
+            p = (1 - CovEngine.base_recovery_p) * (1 - p.get_effective_immunity()) * age_p * p.infection_variant.severity
         p = p ** (1 / 4)
         return p

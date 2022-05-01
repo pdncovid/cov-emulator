@@ -3,6 +3,7 @@ import os
 import time
 
 import pandas as pd
+import numpy as np
 import psutil
 
 from backend.python.Time import Time
@@ -30,11 +31,11 @@ class Logger:
     write_level = None
     write_level_ = None
     # DAILY REPORT
-    df_detailed_person = pd.DataFrame(columns=[])
-    df_contacts_person = pd.DataFrame(columns=[])
-    df_detailed_covid = pd.DataFrame(columns=[])
-    df_detailed_resource_usage = pd.DataFrame(columns=[])
-    df_resource_usage = pd.DataFrame(columns=[])
+    df_detailed_person = {}
+    df_contacts_person = {}
+    df_detailed_covid = {}
+    df_detailed_resource_usage = {}
+    df_resource_usage = {"day": [], "cpu_time": [], "mem": []}
     cpu_time_stamp = -1
     test_name = ''
 
@@ -81,23 +82,6 @@ class Logger:
             Logger._logger.critical('C: ' + message)
 
     @staticmethod
-    def log_location(loc):
-        Logger.log(loc.__repr__(), Logger.write_level)
-
-    @staticmethod
-    def log_person(p):
-        Logger.log(p.__repr__(), Logger.write_level)
-
-    @staticmethod
-    def log_graph(root):
-        def f(r):
-            Logger.log_location(r)
-            for ch in r.locations:
-                f(ch)
-
-        f(root)
-
-    @staticmethod
     def save_class_info():
         _base = f"../../app/src/data/{Logger.test_name}/"
         from backend.python.point.Person import Person
@@ -108,32 +92,38 @@ class Logger:
         pd.DataFrame.to_csv(Location.class_df, _base + f"location_classes.csv", index=False)
 
     @staticmethod
-    def save_log_files(t, people, locations):
+    def save_log_files(t, people, locations, log_fine_details):
+
+        from backend.python.TransmissionEngine import TransmissionEngine
+        if not log_fine_details:
+            Logger.df_detailed_person = pd.DataFrame({})
         _base = f"../../app/src/data/{Logger.test_name}/"
+        pd.DataFrame.to_csv(Logger.df_detailed_person,  # Already converted to df
+                            _base + f"{int(t // Time.DAY) - 1:05d}.csv", index=False)
         pd.DataFrame.to_csv(pd.DataFrame([p.get_description_dict() for p in people]),
                             _base + f"{int(t // Time.DAY) - 1:05d}_person_info.csv", index=False)
         pd.DataFrame.to_csv(pd.DataFrame([l.get_description_dict() for l in locations]),
                             _base + f"{int(t // Time.DAY) - 1:05d}_location_info.csv", index=False)
-        pd.DataFrame.to_csv(Logger.df_contacts_person,
+        pd.DataFrame.to_csv(pd.DataFrame(Logger.df_contacts_person),
                             _base + f"{int(t // Time.DAY) - 1:05d}_contact_info.csv", index=False)
-        pd.DataFrame.to_csv(Logger.df_detailed_person,
-                            _base + f"{int(t // Time.DAY) - 1:05d}.csv", index=False)
-        pd.DataFrame.to_csv(Logger.df_detailed_covid,
+        pd.DataFrame.to_csv(pd.DataFrame(Logger.df_detailed_covid),
                             _base + f"{int(t // Time.DAY) - 1:05d}_cov_info.csv", index=False)
-        pd.DataFrame.to_csv(Logger.df_detailed_resource_usage,
+        pd.DataFrame.to_csv(pd.DataFrame(Logger.df_detailed_resource_usage),
                             _base + f"{int(t // Time.DAY) - 1:05d}_resource_info.csv", index=False)
-        Logger.df_detailed_person = pd.DataFrame(columns=[])
-        Logger.df_contacts_person = pd.DataFrame(columns=[])
-        Logger.df_detailed_covid = pd.DataFrame(columns=[])
-        Logger.df_detailed_resource_usage = pd.DataFrame(columns=[])
+        phistdf = pd.DataFrame(TransmissionEngine.p_hist,
+                               columns=["p", "tr_p[i]", "trans_p", "location_p", "hygiene_p", "immunity_p", "variant_p",
+                                        "asym_p"])
+        pd.DataFrame.to_csv(phistdf, _base + f"p_hist.csv", index=False)
 
-        Logger.df_resource_usage = Logger.df_resource_usage.append(pd.DataFrame([{'day': t // Time.DAY,
-                                                                                  'cpu_time': (
-                                                                                              time.time() - Logger.cpu_time_stamp),
-                                                                                  'mem': psutil.Process(
-                                                                                      os.getpid()).memory_info().rss}]))
+        Logger.df_detailed_person = {}
+        Logger.df_contacts_person = {}
+        Logger.df_detailed_covid = {}
+        Logger.df_detailed_resource_usage = {}
 
-        pd.DataFrame.to_csv(Logger.df_resource_usage, _base + f"resource_info.csv", index=False)
+        Logger.df_resource_usage['day'].append(t // Time.DAY)
+        Logger.df_resource_usage['cpu_time'].append(time.time() - Logger.cpu_time_stamp)
+        Logger.df_resource_usage['mem'].append(psutil.Process(os.getpid()).memory_info().rss)
+        pd.DataFrame.to_csv(pd.DataFrame(Logger.df_resource_usage), _base + f"resource_info.csv", index=False)
 
         Logger.cpu_time_stamp = time.time()
 
@@ -154,55 +144,75 @@ class Logger:
     @staticmethod
     def update_resource_usage_log():
         mins = Time.i_to_minutes(Time.get_time())
-        Logger.df_detailed_resource_usage = Logger.df_detailed_resource_usage.append(pd.DataFrame([{
-            'time': mins,
-            'cpu_time': time.time() - Logger.cpu_time_stamp,
-            'mem': psutil.Process(os.getpid()).memory_info().rss
-        }]))
+        if len(Logger.df_detailed_resource_usage.keys()) == 0:
+            Logger.df_detailed_resource_usage["time"] = []
+            Logger.df_detailed_resource_usage["cpu_time"] = []
+            Logger.df_detailed_resource_usage["mem"] = []
+        Logger.df_detailed_resource_usage["time"].append(mins)
+        Logger.df_detailed_resource_usage["cpu_time"].append(time.time() - Logger.cpu_time_stamp)
+        Logger.df_detailed_resource_usage["mem"].append(psutil.Process(os.getpid()).memory_info().rss)
 
     @staticmethod
     def update_covid_log(people, new_infected):
         from backend.python.CovEngine import CovEngine
+        from backend.python.point.Person import Person
         mins = Time.i_to_minutes(Time.get_time())
-        covid_stats = {s:0 for s in States}
+        covid_stats = {s: 0 for s in States}
         covid_stats['time'] = mins
+        covid_stats['NEW INFECTED'] = len(new_infected)
+        if -1 in Person.features[:, PF_infected_source_id]:
+            covid_stats['Re'] = pd.value_counts((Person.features[:, PF_infected_source_id])).drop(-1).mean()
+        else:
+            covid_stats['Re'] = pd.value_counts((Person.features[:, PF_infected_source_id])).mean()
         covid_stats['IDENTIFIED INFECTED'] = 0
         covid_stats['IN_QUARANTINE_CENTER'] = 0
         covid_stats['IN_QUARANTINE'] = 0
         covid_stats['VACCINATED_1'] = 0
         covid_stats['VACCINATED_2'] = 0
-        covid_stats['NEW INFECTED'] = len(new_infected)
+        covid_stats['ASYMPTOTIC'] = 0
         for p in people:
-            covid_stats[States[int(p.features[p.ID, PF_state])-1]] += 1
+            covid_stats[States[int(p.features[p.ID, PF_state]) - 1]] += 1
             covid_stats['IDENTIFIED INFECTED'] += 1 if p.is_tested_positive() else 0
-            covid_stats['IN_QUARANTINE_CENTER'] += 1 if p.get_current_location().class_name=='COVIDQuarantineZone' else 0
+            covid_stats[
+                'IN_QUARANTINE_CENTER'] += 1 if p.get_current_location().class_name == 'COVIDQuarantineZone' else 0
             covid_stats['IN_QUARANTINE'] += p.get_current_location().quarantined
             covid_stats['VACCINATED_1'] += 1 if p.features[p.ID, PF_immunity_boost] > 0 else 0
             covid_stats['VACCINATED_2'] += 1 if p.features[
                                                     p.ID, PF_immunity_boost] > CovEngine.immunity_boost_inc else 0
+            covid_stats['ASYMPTOTIC'] += 1 if p.features[p.ID, PF_is_asymptotic] == 1 else 0
         covid_stats["TOTAL INFECTED CASES"] = covid_stats["INFECTED"] + covid_stats["DEAD"] + \
-                                   covid_stats["RECOVERED"]
-        Logger.df_detailed_covid = Logger.df_detailed_covid.append(pd.DataFrame([covid_stats]))
+                                              covid_stats["RECOVERED"]
+        if len(Logger.df_detailed_covid.keys()) == 0:
+            for k in covid_stats.keys():
+                Logger.df_detailed_covid[k] = []
+        for k in covid_stats.keys():
+            Logger.df_detailed_covid[k].append(covid_stats[k])
 
     @staticmethod
     def update_person_log(people):
         mins = Time.i_to_minutes(Time.get_time())
-        person_details_list = []
+        if len(Logger.df_detailed_person.keys()) == 0:
+            fine_details_p = people[0].get_fine_description_dict(mins)
+            for k in fine_details_p.keys():
+                Logger.df_detailed_person[k] = []
         for p in people:
             fine_details_p = p.get_fine_description_dict(mins)
-            person_details_list.append(fine_details_p)
-        Logger.df_detailed_person = Logger.df_detailed_person.append(pd.DataFrame(person_details_list))
+            for k in fine_details_p.keys():
+                Logger.df_detailed_person[k].append(fine_details_p[k])
 
     @staticmethod
     def update_person_contact_log(people, n_con, contacts, t):
-        contact_details_list = []
+        if len(Logger.df_contacts_person.keys()) == 0:
+            Logger.df_contacts_person["person"] = []
+            Logger.df_contacts_person["n_contacts"] = []
+            Logger.df_contacts_person["contacts"] = []
+            Logger.df_contacts_person["time"] = []
         for p in people:
-            contact_details = {'person': p.ID}
-            contact_details['n_contacts'] = n_con[p.ID]
-            contact_details['contacts'] = ' '.join(map(str, contacts[p.ID]))  # directed edges from infected to sus
-            contact_details['time'] = t
-            contact_details_list.append(contact_details)
-        Logger.df_contacts_person = Logger.df_contacts_person.append(pd.DataFrame(contact_details_list))
+            Logger.df_contacts_person["person"].append(p.ID)
+            Logger.df_contacts_person["n_contacts"].append(n_con[p.ID])
+            Logger.df_contacts_person["contacts"].append(
+                ' '.join(map(str, contacts[p.ID])))  # directed edges from infected to sus
+            Logger.df_contacts_person["time"].append(t)
 
     @staticmethod
     def close():

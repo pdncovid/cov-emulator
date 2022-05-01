@@ -85,26 +85,41 @@ class PossibleGroupsHandler(Resource):
 # Performance Handlers
 class PerformanceHandler(Resource):
     def post(self):
-        d = log_base_dir
+        d = log_base_dir.joinpath("PERFORMANCE_CHECK")
         folders = [os.path.join(d, o) for o in os.listdir(d) if os.path.isdir(os.path.join(d, o))]
-
+        print(folders)
         df_final = pd.DataFrame(columns=[])
+        df_all = pd.DataFrame(columns=["Population", "CPU Time", "Memory"])
         for folder in folders:
-            try:
-                folder = os.path.split(folder)[-1]
-                df = Loader.getResourceLog(folder)
-                df_p = Loader.getFile(folder, 0, '_person_info')
-                df_final = df_final.append(pd.DataFrame([{'Population': len(df_p),
-                                                          'Avg. CPU Time': df['cpu_time'].mean(),
-                                                          'Std. CPU Time': df['cpu_time'].std(),
-                                                          'Avg. Memory': df['mem'].mean(),
-                                                          'Std. Memory': df['mem'].std(),
-                                                          }]))
-            except:
-                pass
-        df_final = df_final.fillna(0)
-        print(df_final)
+            folder = os.path.split(folder)[-1]
+            folder = pathlib.Path("PERFORMANCE_CHECK").joinpath(folder)
+            print(folder)
+            df = Loader.getResourceLog(folder)
+            df = df.iloc[1:]
+            df_p = Loader.getFile(folder, 0, '_person_info')
+            df_all = df_all.append(pd.DataFrame({"Population": [len(df_p)] * len(df),
+                                                 "CPU Time": df['cpu_time'].values,
+                                                 "Memory": df['mem'].values/1024/1024}))
+            df_final = df_final.append(pd.DataFrame([{'Population': len(df_p),
+                                                      'Avg. CPU Time': df['cpu_time'].mean(),
+                                                      'Std. CPU Time': df['cpu_time'].std(),
+                                                      'Avg. Memory': df['mem'].mean(),
+                                                      'Std. Memory': df['mem'].std(),
+                                                      }]))
 
+        df_final = df_final.fillna(0)
+        print(df_all)
+
+        f, axs = plt.subplots(1, 2, figsize=(6.4 * 2, 4.8))
+        axs[0].set(yscale="log")
+        axs[1].set(yscale="log")
+        sns.pointplot('Population', 'CPU Time', data=df_all, dodge=True, join=False, ax=axs[0])
+        axs[0].set_ylabel("Average CPU Time per day (secs)")
+        sns.pointplot('Population', 'Memory', data=df_all, dodge=True, join=False, ax=axs[1])
+        axs[1].set_ylabel("Average Memory per day (MB)")
+        plt.tight_layout()
+        plt.savefig(log_base_dir.joinpath(f"performance.png"))
+        plt.savefig(log_base_dir.joinpath(f"performance.svg"))
         return {'status': 'SUCCESS',
                 'data': df_final.to_csv(index=False),
                 }

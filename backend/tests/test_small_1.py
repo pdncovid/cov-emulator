@@ -31,7 +31,7 @@ def initialize(args):
         else:
             log_day = args.load_log_day
 
-        people, root, _ = load_from_csv(args.load_log_root, log_day, args)
+        people, root = load_from_csv(args.load_log_root, log_day, args)
     else:
         # initialize movement methods
         main_trans = []

@@ -1,5 +1,6 @@
 import numpy as np
 from tqdm import tqdm
+import pandas as pd
 
 from backend.python.Logger import Logger
 from backend.python.enums import *
@@ -15,16 +16,17 @@ class TransmissionEngine:
 
     incubation_days = 4.5
 
+    p_hist = []
+
     @staticmethod
-    def disease_transmission(points, t, r, analyze_infect_contacts_only):
+    def disease_transmission(points, r, analyze_infect_contacts_only, log_fine_details):
 
         from backend.python.point.Person import Person
         from backend.python.location.Location import Location
-
+        Logger.df_detailed_person = pd.DataFrame(Logger.df_detailed_person)
         df = Logger.df_detailed_person[['person', 'x', 'y', 'current_location_id', 'time']]
         dfg = df.groupby('time')
         state = Person.features[:, PF_state]
-        person_social_dist = Person.features[:, PF_social_d]
         n_contacts = [0 for _ in range(len(state))]
         contacts = {i: [] for i in range(len(state))}
         new_infected = []
@@ -34,34 +36,24 @@ class TransmissionEngine:
             y = dft['y'].values
             cur_loc_ids = dft['current_location_id'].values
             location_social_dist = np.array([Location.all_locations[lid].social_distance for lid in cur_loc_ids])
-            social_dist = np.maximum(person_social_dist, location_social_dist)
+            social_dist = location_social_dist
             if TransmissionEngine.override_social_dist > -1:
-                social_dist = social_dist*0 + TransmissionEngine.override_social_dist
+                social_dist = social_dist * 0 + TransmissionEngine.override_social_dist
 
             _n_contacts, _contacts, distance, sourceid = TransmissionEngine.get_close_contacts_and_distance(
                 x, y, state, social_dist, r, analyze_infect_contacts_only)
-            Logger.update_person_contact_log(points, _n_contacts, _contacts, t)
 
-            new_infected += TransmissionEngine.transmit_disease(points, cur_loc_ids, _n_contacts, _contacts, distance, sourceid, t//Time._scale)
+            if log_fine_details:
+                Logger.update_person_contact_log(points, _n_contacts, _contacts, t)
+
+            new_infected += TransmissionEngine.transmit_disease(points, cur_loc_ids, _n_contacts, _contacts, distance,
+                                                                sourceid, t // Time._scale)  # TODO CHECK _SCALE
 
             for i in range(len(state)):
                 n_contacts[i] += _n_contacts[i]
                 contacts[i] += _contacts[i]
 
         return np.array(n_contacts), contacts, np.array(new_infected)
-
-        # x = Person.features[:, PF_px]
-        # y = Person.features[:, PF_py]
-        # state = Person.features[:, PF_state]
-        # person_social_dist = Person.features[:, PF_social_d]
-        # location_social_dist = np.array([p.get_current_location().social_distance for p in points])
-        # social_dist = np.maximum(person_social_dist, location_social_dist)
-        # n_contacts, contacts, distance, sourceid = TransmissionEngine. \
-        #     get_close_contacts_and_distance(x, y, state, social_dist, r)
-        #
-        # new_infected = TransmissionEngine.transmit_disease(points, n_contacts, contacts, distance, sourceid, t)
-        #
-        # return n_contacts, contacts, new_infected
 
     @staticmethod
     # @njit
@@ -79,7 +71,6 @@ class TransmissionEngine:
         xs = x[xs_idx]
         ys = y[ys_idx]
 
-        processed = 0
         if analyze_infect_contacts_only:
             _range = np.where(state == State_INFECTED)[0]
         else:
@@ -92,7 +83,8 @@ class TransmissionEngine:
             y_idx_l = bs(ys, y[i] - r)
 
             close_points_idx = np.intersect1d(xs_idx[x_idx_l:x_idx_r], ys_idx[y_idx_l:y_idx_r], assume_unique=True)
-            processed += len(close_points_idx)
+            self_contact_idx = np.where(close_points_idx == i)[0]
+            close_points_idx = np.delete(close_points_idx, self_contact_idx)
 
             d = np.sqrt(np.power(x[close_points_idx] - x[i], 2) + np.power(y[close_points_idx] - y[i], 2))
 
@@ -110,7 +102,9 @@ class TransmissionEngine:
             n_contacts[close_points_idx] += 1
             n_contacts[i] += len(close_points_idx)
 
-            if state[i] == State_INFECTED and Person.features[i, PF_disease_state] != DiseaseState_INCUBATION:
+            if state[i] == State_INFECTED: #and (Person.features[i, PF_disease_state] != DiseaseState_INCUBATION or
+                                          #     Person.features[i, PF_disease_state] != DiseaseState_MILD):
+                # select_from_sus = np.logical_or(state[close_points_idx] == State_SUSCEPTIBLE, state[close_points_idx] == State_RECOVERED) # TODO add reinfect different variant
                 select_from_sus = state[close_points_idx] == State_SUSCEPTIBLE
                 close_points_idx = close_points_idx[select_from_sus]
                 d = d[select_from_sus]
@@ -129,17 +123,17 @@ class TransmissionEngine:
         validsourceid = sourceid[valid]
 
         age = Person.features[validsourceid, PF_age]
-        age = np.array(age)
+        # age = np.array(age)
 
-        # infected_duration = []
-        # for i in validsourceid:
-        #     infected_duration.append(t - points[i].features[points[i].ID, PF_infected_time])
-        # infected_duration = np.array(infected_duration)
+        infected_duration = []
+        for i in validsourceid:
+            infected_duration.append(t - points[i].features[points[i].ID, PF_infected_time])
+        infected_duration = np.array(infected_duration)
 
-        tr_p = TransmissionEngine.get_transmission_p(distance[valid],  n_contacts[valid], age)
+        tr_p = TransmissionEngine.get_transmission_p(distance[valid], n_contacts[valid], age, infected_duration)
 
         # add 0.3 to avoid random infections
-        rand = np.random.rand(len(valid)) #+ 0.3
+        rand = np.random.rand(len(valid))  # + 0.3
 
         c = []
         for i in range(len(valid)):
@@ -153,42 +147,46 @@ class TransmissionEngine:
             variant_p = infected_person.infection_variant.transmittable
             immunity_p = (1 - contact_person.get_effective_immunity()) * (1 - infected_person.get_effective_immunity())
             hygiene_p = Person.features[contact_person.ID, PF_hygiene_p] * \
-                          Person.features[infected_person.ID, PF_hygiene_p]
-            if TransmissionEngine.override_hygiene_p > -1:
+                        Person.features[infected_person.ID, PF_hygiene_p]
+            asym_p = .25 if infected_person.features[infected_person.ID, PF_is_asymptotic] < 1 else 1
+            if TransmissionEngine.override_hygiene_p > 0:
                 hygiene_p = TransmissionEngine.override_hygiene_p
 
-            if rand[i] < tr_p[i] * trans_p * location_p * hygiene_p * immunity_p * variant_p:
-                contact_person.set_infected(t, infected_person, contact_person_cur_loc,TransmissionEngine.common_fever_p)
+            p = ((tr_p[i] * trans_p * location_p * hygiene_p * immunity_p * variant_p) ** (2.6 / 1)) * asym_p
+            TransmissionEngine.p_hist.append(
+                (p, tr_p[i], trans_p, location_p, hygiene_p, immunity_p, variant_p, asym_p))
+            if rand[i] < p:
+                contact_person.set_infected(t, infected_person, contact_person_cur_loc,
+                                            TransmissionEngine.common_fever_p)
                 c.append(contact_person.ID)
         return c
 
     @staticmethod
-    def get_transmission_p(ds, n_contacts, age):
+    def get_transmission_p(ds, n_contacts, age, infected_duration):
         # 0 - 1
         def distance_f(d):
             return np.exp(-d / 5)
 
-        # def duration_f(dt):
-        #     dt = np.array(list(map(Time.i_to_minutes, dt)))
-        #     x = dt / 60 / 24
-        #     mu = 15
-        #     sig = 10
-        #     p = np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
-        #     # p[x<TransmissionEngine.incubation_days] = 0
-        #     return p
+        def duration_f(dt):
+            dt = np.array(list(map(Time.i_to_minutes, dt)))
+            x = dt / 60 / 24
+            mu = 0
+            sig = 10
+            p = np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+            return p
 
         def count_f(c):
             c[c > 5] = 10
             return (c + (1 - (c / 20 + 0.5)) ** 2) / 5
 
-        def age_f(a):
-            return (np.tanh((a - 60) / 20) + 2) / 3
+        # def age_f(a):
+        #     return (np.tanh((a - 60) / 20) + 2) / 3
 
         dp = distance_f(ds)
-        # tp = duration_f(infected_durations)
+        tp = duration_f(infected_duration)
         cp = count_f(n_contacts)
-        ap = age_f(age)
-        return TransmissionEngine.base_transmission_p * dp * cp * ap
+        # ap = age_f(age)
+        return (TransmissionEngine.base_transmission_p * dp * cp * tp) **(1/4)  # todo check 1/4
 
     @staticmethod
     def get_transport_transmission_p(p1, p2):

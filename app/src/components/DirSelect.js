@@ -18,7 +18,7 @@ import Button from '@material-ui/core/Button';
 
 import DataFrame from 'dataframe-js';
 import randomColor from "randomcolor";
-const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeopleArr, getMovementArr, getGroupOptionsArr }) => {
+const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeopleArr, getMovementArr, getGroupOptionsArr, getDirs }) => {
 
     const [dirs, setDirs] = useState([]);
     const [selectedLogDir, setSelectedLogDir] = useState('');
@@ -30,6 +30,10 @@ const DirSelect = ({ onSelect, onAnalyzePeople, onDayChange, getLocsArr, getPeop
 
     const [selectedPeople, setSelectedPeople] = useState([]);
     const [peopleCheckedState, setPeopleCheckedState] = React.useState({});
+
+    useEffect(()=>{
+        getDirs(dirs)
+    }, [dirs])
 
     function refreshDirs() {
         axios.get(api + '/flask/dirs').then(response => {

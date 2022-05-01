@@ -44,7 +44,7 @@ class Person:
         _f_arr[PF_gender] = kwargs.get('gender', 0 if np.random.rand() < 0.5 else 1)
         _f_arr[PF_age] = kwargs.get('age', self.initialize_age(class_info['age_min'], class_info['age_max']))
         _f_arr[PF_base_immunity] = kwargs.get('base_immunity', 1 / (_f_arr[
-                                                                              PF_age] + 1) if np.random.rand() < 0.9 else np.random.rand())  # todo find
+                                                                        PF_age] + 1) if np.random.rand() < 0.9 else np.random.rand())  # todo find
         _f_arr[PF_immunity_boost] = kwargs.get('immunity_boost', 0)
         # _f_arr[PF_behaviour] = kwargs.get('behaviour', 0.5)
         _f_arr[PF_base_happiness] = kwargs.get('base_happiness', 50)
@@ -57,8 +57,7 @@ class Person:
         _f_arr[PF_temp] = kwargs.get('temp', 35)
         _f_arr[PF_is_asymptotic] = kwargs.get('is_asymptotic', -1)
         _f_arr[PF_asymptotic_chance] = kwargs.get('asymptotic_chance', _f_arr[PF_base_immunity] ** 2)
-        _f_arr[PF_social_d] = kwargs.get('social_d', 0.0)
-        _f_arr[PF_hygiene_p] = kwargs.get('hygiene_p', 0.5)
+        _f_arr[PF_hygiene_p] = kwargs.get('hygiene_p', class_info['hygiene_p'])
 
         _f_arr[PF_fm_id] = kwargs.get('fm_id', -1)
 
@@ -176,11 +175,10 @@ class Person:
 
              'state': int(self.features[self.ID, PF_state]),
              'disease_state': int(self.features[self.ID, PF_disease_state]),
-             'disease_variant': self.infection_variant.name if self.is_infected() else "",
+             'disease_variant': "" if self.infection_variant is None or str(self.infection_variant) == "nan" else self.infection_variant.name,
              'disease_state_set_time': self.disease_state_set_time,
              'is_asymptotic': int(self.features[self.ID, PF_is_asymptotic]) if self.is_infected() else -1,
              'asymptotic_chance': self.features[self.ID, PF_asymptotic_chance],
-             'social_d': self.features[self.ID, PF_social_d],
              'hygiene_p': self.features[self.ID, PF_hygiene_p],
              'tested_positive_time': self.features[self.ID, PF_tested_positive_time],
              'last_tested_time': self.features[self.ID, PF_last_tested_time],
@@ -217,14 +215,14 @@ class Person:
             'is_day_finished': int(self.is_day_finished),
 
             'current_loc_enter': self.current_loc_enter,
-            'current_loc_leave': self.current_loc_leave,
+            'current_loc_leave': round(self.current_loc_leave * 100) / 100,
             'destination': self.all_destinations[self.ID],
 
             'x': round(self.features[self.ID, PF_px] * 100) / 100,
             'y': round(self.features[self.ID, PF_py] * 100) / 100,
 
-            'vx': self.features[self.ID, PF_vx],
-            'vy': self.features[self.ID, PF_vx],
+            'vx': round(self.features[self.ID, PF_vx] * 100) / 100,
+            'vy': round(self.features[self.ID, PF_vx] * 100) / 100,
 
         }
         return d
@@ -510,8 +508,9 @@ class Person:
         self.features[self.ID, PF_infected_loc_id] = loc.ID
         self.features[self.ID, PF_is_asymptotic] = np.random.rand() < self.features[
             self.ID, PF_asymptotic_chance]
-
         self.infection_variant = CovEngine.get_infect_variant(self, source=p, name=variant_name)
+
+        # print(self, p, variant_name, type(variant_name), self.infection_variant)
 
         self.set_disease_state(DiseaseState_INCUBATION, t)
         self.source = p
@@ -519,6 +518,7 @@ class Person:
         self.update_temp(common_p)
 
     def record_infection_history(self):
+        # TODO save load infection history
         self.infection_history.append({
             "infected_time": self.features[self.ID, PF_infected_time],
             "infection_end_time": Time.get_time(),
@@ -530,7 +530,7 @@ class Person:
 
     def set_recovered(self):
         self.record_infection_history()
-        self.features[self.ID, PF_state] = State_RECOVERED
+        self.features[self.ID, PF_state] = State_RECOVERED  # TODO RECOVERED OR SUSCEPTIBLE
         self.features[self.ID, PF_disease_state] = DiseaseState_INCUBATION
 
     def set_susceptible(self):

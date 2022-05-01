@@ -67,6 +67,15 @@ def getMap(name, dir):
     if 'movement_class' in name:
         return Loader.getMovementList(dir)
 
+def getArgs(dir):
+    with open(log_base_dir.joinpath(dir).joinpath("args.data")) as fh:
+        arg_parser = get_args_web_ui("")
+        # import shlex
+        # ret_args = arg_parser.parse_args(shlex.split(fh.read()))
+        read = fh.read()
+        ret_args = arg_parser.parse_args(read.split())
+        # print("Loaded Args", ret_args)
+        return vars(ret_args)
 
 class PostTextFileHandler(Resource):
     def post(self):
@@ -100,15 +109,8 @@ class LogArgsHandler(Resource):
         parser.add_argument('dir', type=str)
         args = parser.parse_args()
         request_dir = args['dir']
+        return getArgs(request_dir)
 
-        with open(log_base_dir.joinpath(request_dir).joinpath("args.data")) as fh:
-            arg_parser = get_args_web_ui("")
-            # import shlex
-            # ret_args = arg_parser.parse_args(shlex.split(fh.read()))
-            read = fh.read()
-            ret_args = arg_parser.parse_args(read.split())
-            print("Loaded Args" , ret_args)
-            return  vars(ret_args)
 
 
 

@@ -36,6 +36,8 @@ import getColors from "../sim/resultpage"
 function ResultsDemographicsPage() {
     const [initialLoad, setInitialLoad] = useState(true);
 
+    const [dirs, setDirs] = useState([]);
+    const [days, setDays] = useState([]);
     const [locs, setLocs] = useState([]);
     const [people, setPeople] = useState([]);
     const [movement, setMovement] = useState([]);
@@ -306,6 +308,8 @@ function ResultsDemographicsPage() {
                     getPeopleArr={getPeopleArr}
                     getMovementArr={getMovementArr}
                     getGroupOptionsArr={getGroupOptionsArr}
+                    getDirs={setDirs}
+                    getDays={setDays}
                 />
             </div>
 

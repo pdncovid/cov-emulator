@@ -31,6 +31,8 @@ import axios from 'axios'
 import { api } from '../utils/constants';
 import DirSelect from "../components/DirSelect";
 function ResultsPage2() {
+    const [dirs, setDirs] = useState([]);
+    const [days, setDays] = useState([]);
     const [locs, setLocs] = useState([]);
     const [people, setPeople] = useState([]);
     const [movement, setMovement] = useState([]);
@@ -740,6 +742,8 @@ function ResultsPage2() {
                 getPeopleArr={getPeopleArr}
                 getMovementArr={getMovementArr}
                 getGroupOptionsArr={getGroupOptionsArr}
+                getDirs={setDirs}
+                getDays={setDays}
             />
             {/* =================================================================================== Daily mobility data analysis */}
             <div>

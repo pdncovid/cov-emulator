@@ -33,6 +33,14 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
     from backend.python.Loader import load_from_csv
     p_df = Person.class_df
     gathering_events, vaccination_events = [], []
+    gather_criteria = [
+        lambda x: True,
+        # lambda x: x.class_name == 'Student',
+        # lambda x: x.class_name == 'CommercialWorker',
+        # lambda x: 14 < Person.features[x.ID, PF_age] < 45,
+        # lambda x: 35 < Person.features[x.ID, PF_age] < 65,
+        # lambda x: 45 < Person.features[x.ID, PF_age] < 85,
+    ]
 
     # initialize movement methods
     main_trans = []
@@ -52,7 +60,7 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
         else:
             log_day = int(args.load_log_day)
         CovEngine.on_reset_day(log_day)
-        location_info, people_info, person_fine_info = load_from_csv(
+        location_info, people_info = load_from_csv(
             '../../app/src/data/' + args.load_log_name, log_day, args)
 
     # initialize location tree
@@ -66,12 +74,6 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
         kwargs = location_info.loc[location_info['name'] == tree['name']].iloc[0]
         kwargs = kwargs.to_dict()
     root = Location(get_class_info(tree['class']), False, **kwargs)
-    gather_criteria = [lambda x: x.class_name == 'Student',
-                       lambda x: x.class_name == 'CommercialWorker',
-                       lambda x: 14 < Person.features[x.ID, PF_age] < 45,
-                       lambda x: 35 < Person.features[x.ID, PF_age] < 65,
-                       lambda x: 45 < Person.features[x.ID, PF_age] < 85,
-                       ]
 
     def dfs(tr, node):
         if tr['class'] == 'GatheringPlace':
@@ -125,12 +127,10 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
 
             # assign latches?? NO
 
-            # set last location
-            Location.all_locations[person_fine_info.loc[person.ID, 'current_location_id']].enter_person(person)
-            # person.set_current_location(,Time.get_time())
-            # person.get_current_location().points.append(person)
-            person.set_position(person_fine_info.loc[person.ID, 'x'], person_fine_info.loc[person.ID, 'y'], force=True)
-            person.set_velocity(person_fine_info.loc[person.ID, 'vx'], person_fine_info.loc[person.ID, 'vy'])
+            # set last location (No need - they will reset anyway!)
+            # Location.all_locations[person_fine_info.loc[person.ID, 'current_location_id']].enter_person(person)
+            # person.set_position(person_fine_info.loc[person.ID, 'x'], person_fine_info.loc[person.ID, 'y'], force=True)
+            # person.set_velocity(person_fine_info.loc[person.ID, 'vx'], person_fine_info.loc[person.ID, 'vy'])
             people.append(person)
         for person in people:
             # add infected source
@@ -150,11 +150,12 @@ def initialize(args, added_containment_events, added_gathering_events, added_vac
         people = []
         for key in _init_people.keys():
             _class = p_df.loc[p_df['p_class'] == _init_people[key]['p_class']].iloc[0]
+            print("Initializing", _init_people[key])
             if pd.isna(_class['max_passengers']):
-                to_add = [Person(_class) for _ in range(int(int(_init_people[key]['percentage']) / 100 * n_people))]
+                to_add = [Person(_class) for _ in range(int(float(_init_people[key]['percentage']) / 100 * n_people))]
             else:
                 to_add = [Transporter(_class) for _ in
-                          range(int(int(_init_people[key]['percentage']) / 100 * n_people))]
+                          range(int(float(_init_people[key]['percentage']) / 100 * n_people))]
 
             # infect people
             infect_percentage = float(_init_people[key]['ipercentage']) / 100

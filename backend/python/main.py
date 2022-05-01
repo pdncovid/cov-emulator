@@ -52,6 +52,8 @@ def set_parameters(args):
 
     TransmissionEngine.override_social_dist = float(args.social_distance)
     TransmissionEngine.override_hygiene_p = float(args.hygiene_p)
+    if TransmissionEngine.override_hygiene_p == 0:
+        raise Exception("Always hygienic! no infection will occur!")
 
     TransmissionEngine.base_transmission_p = float(args.base_transmission_p)
     TransmissionEngine.incubation_days = float(args.incubation_days)
@@ -59,6 +61,7 @@ def set_parameters(args):
     # initialize variants
     added_variant_events = json.loads(args.addedVariantEvents)
     CovEngine.variant_start_events = [added_variant_events[key] for key in added_variant_events.keys()]
+    print(CovEngine.variant_start_events)
     CovEngine.on_reset_day(0)
 
     # initialize simulator timer
@@ -85,13 +88,17 @@ def get_instance(people):
 
 def executeSim(people, root, containment_events, gather_events, vaccinate_events, args):
     integrity_test = False
-    record_fine_covid = True
-    record_fine_person = True
-    analyze_infect_contacts_only = True
+    log_fine_details = args.log_fine_details == 1
+    analyze_infect_contacts_only = args.analyze_infect_contacts_only == 1
+    is_loading = args.load_log_name != 'NONE'
 
     # process_disease_freq = 1  # Time.get_duration(2)
     # process_disease_at = process_disease_freq
     days = args.sim_days
+    if is_loading:
+        start_day = int(args.load_log_day)
+    else:
+        start_day = 0
     iterations = int(days * 1440 / Time._scale)
     n_overtime = 0
     Logger.save_class_info()
@@ -124,9 +131,10 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
     cemetery = loc_classes['Cemetery']
 
     # ========================================================= initial iterations to initialize positions of the people
-    for t in range(5):
-        print(f"initializing {t}")
-        MovementEngine.move_people(Person.all_people)
+    if not is_loading:
+        for t in range(5):
+            print(f"initializing {t}")
+            MovementEngine.move_people(Person.all_people)
 
     Logger.log(f"{len(people)} {count_graph_n(root)}", 'i')
     Logger.log(f"{len(people)} {count_graph_n(root)}", 'c')
@@ -167,7 +175,7 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
 
             if iteration > 0:
                 # ================================================================================= process transmission
-                n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, t, args.inf_radius, analyze_infect_contacts_only)
+                n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, args.inf_radius, analyze_infect_contacts_only, log_fine_details)
                 Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
 
                 # ======================================================================== process happiness and economy
@@ -184,7 +192,8 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
                     CovEngine.vaccinate_people(vaccinate_event[1], vaccinate_event[2], people)
 
             if iteration > 0:
-                Logger.save_log_files(t, people, locations)
+                Logger.update_covid_log(people, new_infected)
+                Logger.save_log_files(t, people, locations, log_fine_details)
 
             # loading route initializing probability matrices based on type of day in the week and containment strategy
             RoutePlanningEngine.set_parameters((t // Time.DAY) % 7)
@@ -230,8 +239,8 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
             now_time = time.time()
             if day > 0:
                 Logger.log(f"Elapsed time {(now_time-elapsed_time)/60:.2f}mins.", 'c')
-                Logger.log(f"Per day {(now_time-elapsed_time)/60/day:.2f}mins.", 'c')
-                Logger.log(f"Remaining time {(days-day)*(now_time-elapsed_time)/60/day:.2f} mins", 'c')
+                Logger.log(f"Per day {(now_time-elapsed_time)/60/(day-start_day+1):.2f}mins.", 'c')
+                Logger.log(f"Remaining time {(start_day+days-day+1)*(now_time-elapsed_time)/60/(day-start_day+1):.2f} mins", 'c')
             # clear data
             day_t_instances = []
 
@@ -283,9 +292,7 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
 
         # ====================================================================================== record in daily report
         Logger.update_resource_usage_log()
-        if record_fine_covid:
-            Logger.update_covid_log(people, new_infected)
-        if record_fine_person:
-            Logger.update_person_log(people)
+
+        Logger.update_person_log(people)
 
         Time.increment_time_unit()

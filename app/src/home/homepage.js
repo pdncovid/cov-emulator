@@ -15,7 +15,7 @@ import FormControl from '@material-ui/core/FormControl';
 import Select from '@material-ui/core/Select';
 import InputLabel from '@material-ui/core/InputLabel';
 import Button from '@material-ui/core/Button';
-import { Checkbox, Typography } from "@material-ui/core";
+import { Checkbox, FormControlLabel, Typography } from "@material-ui/core";
 
 import Tree from 'react-d3-tree';
 function loadData(csvFileName, setDataFunc) {
@@ -308,6 +308,8 @@ function HomePage() {
       hygiene_p: document.getElementById("hygiene_p").value,
       incubation_days: document.getElementById("incubation_days").value,
       base_transmission_p: document.getElementById("base_transmission_p").value,
+      log_fine_details: document.getElementById("log_fine_details").checked ? 1 : 0,
+      analyze_infect_contacts_only: document.getElementById("analyze_infect_contacts_only").checked ? 1 : 0,
     })
   }
   return (
@@ -370,7 +372,7 @@ function HomePage() {
             {testingStrategies.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
           </TextField>
           <TextField label="Number of test centers (not used)" id="n_test_centers" disabled={testingStrategy == "NONE"} type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"3"} />
-          <TextField label="Coverage radius of test centers" id="r_test_centers" disabled={testingStrategy == "NONE"} type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"20"} />
+          <TextField label="Coverage radius of test centers" id="r_test_centers" disabled={testingStrategy == "NONE"} type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"100"} />
         </div>
 
         <div>
@@ -475,10 +477,6 @@ function HomePage() {
 
 
 
-
-
-
-
       <Box sx={{ border: '1px dashed grey' }} style={{ margin: 10, padding: 10 }}>
         <Typography variant="h4" gutterBottom>Add Events</Typography>
 
@@ -507,7 +505,7 @@ function HomePage() {
                 >
                   {addedVariantEvents.map((e) => (<option key={e.id} id={e.id}>{e.name + " " + e.day + " " + e.transmittable + " " + e.severity}</option>))}
                 </Select>
-                <Button onClick={() => {
+                <Button variant="contained" onClick={() => {
                   var vals = []
                   for (let e in addedVariantEvents) {
                     var isRemove = false
@@ -532,7 +530,7 @@ function HomePage() {
               <Grid item xs={1}><TextField type="number" label="day" id="variant-start-day" /></Grid>
               <Grid item xs={2}><TextField type="number" label="transmittable" id="variant-transmittable" /></Grid>
               <Grid item xs={1}><TextField type="number" label="severity" id="variant-severity" /></Grid>
-              <Grid item xs={2}><Button onClick={() => {
+              <Grid item xs={2}><Button variant="contained" onClick={() => {
                 setAddedVariantEvents([...addedVariantEvents, {
                   id: addedVariantEvents.length,
                   name: document.getElementById("variant-name").value,
@@ -570,7 +568,7 @@ function HomePage() {
                 >
                   {addedContainmentEvents.map((e) => (<option key={e.id} id={e.id}>{e.startday + ' ' + e.containment_strategy + ' ' + e.roster_groups}</option>))}
                 </Select>
-                <Button onClick={() => {
+                <Button variant="contained" onClick={() => {
                   var vals = []
                   for (let e in addedContainmentEvents) {
                     var isRemove = false
@@ -595,7 +593,7 @@ function HomePage() {
                 {containmentStrategies.map((e) => (<MenuItem key={e} value={e}>{e}</MenuItem>))}
               </TextField></Grid>
               <Grid item xs={2}><TextField label="Number of roster groups" id="roster_groups" disabled={containmentStrategy != "ROSTER"} type="number" sx={{ m: 1, width: '25ch' }} defaultValue={"1"} /></Grid>
-              <Grid item xs={2}><Button onClick={() => {
+              <Grid item xs={2}><Button variant="contained" onClick={() => {
                 setAddedContainmentEvents([...addedContainmentEvents, {
                   id: addedContainmentEvents.length,
                   startday: document.getElementById("containment-start-day").value,
@@ -630,9 +628,9 @@ function HomePage() {
                     setSelectedGatheringEvents(value)
                   }}
                 >
-                  {addedGatheringEvents.map((e) => (<option key={e.id} id={e.id}>{e.day + ' ' + e.time + ' ' + e.name}</option>))}
+                  {addedGatheringEvents.map((e) => (<option key={e.id} id={e.id}>{e.id + ' ' + e.day + ' ' + e.time + ' ' + e.name}</option>))}
                 </Select>
-                <Button onClick={() => {
+                <Button variant="contained" onClick={() => {
                   var vals = []
                   for (let e in addedGatheringEvents) {
                     var isRemove = false
@@ -662,7 +660,7 @@ function HomePage() {
               <Grid item xs={2}><TextField type="number" label="duration (hrs)" id="gathering-place-duration" /></Grid>
               <Grid item xs={1}><TextField type="number" label="capacity" id="gathering-place-capacity" /></Grid>
               <Grid item xs={2}><TextField label="criteria" id="gathering-place-criteria" /></Grid>
-              <Grid item xs={2}><Button onClick={() => {
+              <Grid item xs={2}><Button variant="contained" onClick={() => {
                 var tmp = [...addedGatheringEvents]
                 locationTreeDataArr.filter((e) => e.class == "GatheringPlace").forEach(e => {
                   tmp.push({
@@ -677,7 +675,7 @@ function HomePage() {
                 })
                 setAddedGatheringEvents(tmp)
               }}>Add All</Button></Grid>
-              <Grid item xs={2}><Button onClick={() => {
+              <Grid item xs={2}><Button variant="contained" onClick={() => {
                 setAddedGatheringEvents([...addedGatheringEvents, {
                   id: addedGatheringEvents.length,
                   name: document.getElementById("gathering-place-name").textContent,
@@ -720,7 +718,7 @@ function HomePage() {
                 >
                   {addedVaccinationEvents.map((e) => (<option key={e.id} id={e.id}>{e.day + ' ' + e.min_age + ' ' + e.max_age}</option>))}
                 </Select>
-                <Button onClick={() => {
+                <Button variant="contained" onClick={() => {
                   var vals = []
                   for (let e in addedVaccinationEvents) {
                     var isRemove = false
@@ -744,7 +742,7 @@ function HomePage() {
               <Grid item xs={1}><TextField type="number" label="day" id="vaccination-start-day" /></Grid>
               <Grid item xs={2}><TextField type="number" label="min age" id="vaccination-min-age" /></Grid>
               <Grid item xs={1}><TextField type="number" label="max age" id="vaccination-max-age" /></Grid>
-              <Grid item xs={2}><Button onClick={() => {
+              <Grid item xs={2}><Button variant="contained" onClick={() => {
                 setAddedVaccinationEvents([...addedVaccinationEvents, {
                   id: addedVaccinationEvents.length,
                   day: document.getElementById("vaccination-start-day").value,
@@ -786,8 +784,24 @@ function HomePage() {
           </Grid>
         </div> */}
       </Box>
-      <Grid item xs={10}>
-        <Button variant="contained" onClick={runSim}>Run</Button>
+
+
+      <Grid container xs={12}>
+        <Grid item xs={3}>
+          <FormControlLabel
+            label={"Log fine details"}
+            control={<Checkbox id="log_fine_details"
+            />}
+          />
+          <FormControlLabel
+            label={"Analyze infected contacts only"}
+            control={<Checkbox id="analyze_infect_contacts_only"
+            />}
+          />
+        </Grid>
+        <Grid item xs={3}>
+          <Button variant="contained" onClick={runSim}>Run</Button>
+        </Grid>
       </Grid>
 
     </div>

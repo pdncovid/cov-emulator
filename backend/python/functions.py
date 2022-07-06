@@ -1,4 +1,5 @@
 import numpy as np
+#lakshitha is editing
 
 INT_MAX = 10000000000
 
@@ -6,7 +7,8 @@ INT_MAX = 10000000000
 def bs(arr, v):
     l, r = 0, len(arr)
     while r - l > 0:
-        i = (r + l) // 2
+        #rama is here
+        i = (r + l) // 2 #idling
         if arr[i] < v:
             l = i + 1
         elif arr[i] > v:

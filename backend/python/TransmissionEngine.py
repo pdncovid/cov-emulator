@@ -148,7 +148,7 @@ class TransmissionEngine:
             immunity_p = (1 - contact_person.get_effective_immunity()) * (1 - infected_person.get_effective_immunity())
             hygiene_p = Person.features[contact_person.ID, PF_hygiene_p] * \
                         Person.features[infected_person.ID, PF_hygiene_p]
-            asym_p = .25 if infected_person.features[infected_person.ID, PF_is_asymptotic] < 1 else 1
+            asym_p = .25 if infected_person.features[infected_person.ID, PF_is_asymptotic] == 1 else 1
             if TransmissionEngine.override_hygiene_p > 0:
                 hygiene_p = TransmissionEngine.override_hygiene_p
 

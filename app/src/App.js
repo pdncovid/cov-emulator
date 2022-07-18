@@ -8,6 +8,7 @@ import ResultsPage from "./sim/resultpage"
 import ResultsPage2 from "./sim/resultpage2"
 import ResultsPage3 from "./sim/resultpage3"
 import ResultsDemographicsPage from './sim/resultspage4';
+import SocioEconomic from './sim/socioeconomic';
 import 'bootstrap/dist/css/bootstrap.min.css';
 // node --max_old_space_size=4096 "D:\Program files\nodejs\node_modules\npm" start
 import { createBrowserHistory as createHistory } from "history";
@@ -53,6 +54,10 @@ function App() {
           <Route path="/resultsdemo" history={history}>
             <TopBar />
             <ResultsDemographicsPage />
+          </Route>
+          <Route path="/resultsse" history={history}>
+            <TopBar />
+            <SocioEconomic />
           </Route>
         </Switch>
       </BrowserRouter>

@@ -111,8 +111,8 @@ class Person:
 
         self.main_trans = None  # main transport medium the point will use
 
-        self.source = None  # infected source point
-        self.infected_location = None  # infected location
+        # self.source = None  # infected source point
+        # self.infected_location = None  # infected location
 
         self.infection_variant = kwargs.get('disease_variant', None)
         # TODO ADD SAVE LOAD FEATURE FOR FOLLOWING
@@ -154,7 +154,15 @@ class Person:
         for key in d.keys():
             print(key, d[key])
 
+    @staticmethod
+    def get_person(_id):
+        return Person.all_people[int(_id)]
+
     def get_description_dict(self):
+
+        from backend.python.location.Location import Location
+        inf_loc = int(self.features[self.ID, PF_infected_loc_id])
+        inf_source = int(self.features[self.ID, PF_infected_source_id])
         d = {'person': self.ID,
              'person_class': ClassNameMaps.pc_map[self.class_name],
              'gender': self.features[self.ID, PF_gender],
@@ -175,7 +183,8 @@ class Person:
 
              'state': int(self.features[self.ID, PF_state]),
              'disease_state': int(self.features[self.ID, PF_disease_state]),
-             'disease_variant': "" if self.infection_variant is None or str(self.infection_variant) == "nan" else self.infection_variant.name,
+             'disease_variant': "" if self.infection_variant is None or str(
+                 self.infection_variant) == "nan" else self.infection_variant.name,
              'disease_state_set_time': self.disease_state_set_time,
              'is_asymptotic': int(self.features[self.ID, PF_is_asymptotic]) if self.is_infected() else -1,
              'asymptotic_chance': self.features[self.ID, PF_asymptotic_chance],
@@ -185,11 +194,12 @@ class Person:
              'temp': self.features[self.ID, PF_temp],
 
              'infected_time': self.features[self.ID, PF_infected_time],
-             'infected_source_class': ClassNameMaps.pc_map[self.source.class_name] if self.source is not None else -1,
-             'infected_source_id': int(self.features[self.ID, PF_infected_source_id]),
+             'infected_source_class': ClassNameMaps.pc_map[
+                 Person.get_person(inf_source).class_name] if inf_source != -1 else -1,
+             'infected_source_id': inf_source,
              'infected_loc_class': ClassNameMaps.lc_map[
-                 self.infected_location.class_name] if self.infected_location is not None else -1,
-             'infected_loc_id': int(self.features[self.ID, PF_infected_loc_id]),
+                 Location.get_location(inf_loc).class_name] if inf_loc != -1 else -1,
+             'infected_loc_id': inf_loc,
 
              'home_loc': self.home_loc.ID,
              'home_weekend_loc': self.home_weekend_loc.ID if self.home_weekend_loc is not None else -1,
@@ -215,14 +225,14 @@ class Person:
             'is_day_finished': int(self.is_day_finished),
 
             'current_loc_enter': self.current_loc_enter,
-            'current_loc_leave': round(self.current_loc_leave * 100) / 100,
+            'current_loc_leave': int(self.current_loc_leave * 100) / 100,
             'destination': self.all_destinations[self.ID],
 
-            'x': round(self.features[self.ID, PF_px] * 100) / 100,
-            'y': round(self.features[self.ID, PF_py] * 100) / 100,
+            'x': int(self.features[self.ID, PF_px] * 100) / 100,
+            'y': int(self.features[self.ID, PF_py] * 100) / 100,
 
-            'vx': round(self.features[self.ID, PF_vx] * 100) / 100,
-            'vy': round(self.features[self.ID, PF_vx] * 100) / 100,
+            'vx': int(self.features[self.ID, PF_vx] * 100) / 100,
+            'vy': int(self.features[self.ID, PF_vx] * 100) / 100,
 
         }
         return d
@@ -280,13 +290,13 @@ class Person:
                 self.route[i].set_leaving_time(self.route[i].leaving_time % Time.DAY + _t)
 
     def increment_target_location(self):
-        msg = f"{self.ID} incremented target from {self.get_current_target()} to "
+        # msg = f"{self.ID} incremented target from {self.get_current_target()} to "
         if self.current_target_idx + 1 < len(self.route):
             self.current_target_idx = (self.current_target_idx + 1) % len(self.route)
         from backend.python.MovementEngine import MovementEngine
         next_loc = MovementEngine.find_next_location(self)
-        msg += f"{self.get_current_target()} ({self.current_target_idx}/{len(self.route)} target). Next location is {next_loc}."
-        Logger.log(msg, 'i')
+        # msg += f"{self.get_current_target()} ({self.current_target_idx}/{len(self.route)} target). Next location is {next_loc}."
+        # Logger.log(msg, 'i')
 
     def set_home_loc(self, home_loc):
         self.home_loc = home_loc
@@ -337,8 +347,8 @@ class Person:
         else:
             level = min(find_from_level, len(possible_targets) - 1)
 
-        if level > 0:
-            Logger.log(f"{self} is going to {target} that is at level {level}", 'd')
+        # if level > 0:
+        #     Logger.log(f"{self} is going to {target} that is at level {level}", 'd')
         return get_random_element(possible_targets[level])
 
     def get_random_route_at(self, route_so_far, find_from_level):
@@ -506,15 +516,14 @@ class Person:
         self.features[self.ID, PF_infected_time] = t
         self.features[self.ID, PF_infected_source_id] = p.ID
         self.features[self.ID, PF_infected_loc_id] = loc.ID
-        self.features[self.ID, PF_is_asymptotic] = np.random.rand() < self.features[
-            self.ID, PF_asymptotic_chance]
+        self.features[self.ID, PF_is_asymptotic] = int(np.random.rand() < self.features[self.ID, PF_asymptotic_chance])
         self.infection_variant = CovEngine.get_infect_variant(self, source=p, name=variant_name)
 
         # print(self, p, variant_name, type(variant_name), self.infection_variant)
 
         self.set_disease_state(DiseaseState_INCUBATION, t)
-        self.source = p
-        self.infected_location = loc
+        # self.source = p
+        # self.infected_location = loc
         self.update_temp(common_p)
 
     def record_infection_history(self):

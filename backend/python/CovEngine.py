@@ -103,7 +103,7 @@ class CovEngine:
     def next_disease_state(p, t):
         ds = p.features[p.ID, PF_disease_state]
         ps = []
-        if p.features[p.ID, PF_is_asymptotic]:
+        if p.features[p.ID, PF_is_asymptotic]==1:
             if ds == DiseaseState_INCUBATION:
                 ps = ["INCUBATION-INFECTIOUS"]
             elif ds == DiseaseState_INFECTIOUS:

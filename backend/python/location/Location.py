@@ -141,10 +141,11 @@ class Location:
     def spawn_sub_locations(self, class_info, n_sub_loc, spawn_sub=True, **kwargs):
         if n_sub_loc <= 0:
             return
-        r_sub_loc = int(class_info['r_max'])
-        assert r_sub_loc > 0
-        xs, ys = self.get_suggested_positions(n_sub_loc, r_sub_loc)
+        r_sub_loc = np.random.rand() * (int(class_info['r_max']) - int(class_info['r_min'])) + int(class_info['r_min'])
         cls = class_info['l_class']
+        assert r_sub_loc > 0
+        xs, ys = self.get_suggested_positions(n_sub_loc, r_sub_loc, cls)
+
         # print(f"Automatically creating {len(xs)}/{n_sub_loc} {cls} for {self.class_name} {self.name}")
 
         i = 0
@@ -168,7 +169,7 @@ class Location:
             i += 1
         return spawns
 
-    def get_suggested_positions(self, n, radius):
+    def get_suggested_positions(self, n, radius, cls_name):
 
         if self.shape == Shape_CIRCLE:
             possible_positions = []
@@ -202,8 +203,9 @@ class Location:
             else:
                 possible_positions = possible_positions[:n]
             if len(possible_positions) < n:
-                print(f"Cannot make {n} locations with r={radius} inside {self.name} with r={self.radius}. "
-                      f"Making only {len(possible_positions)} locations. Other points are random")
+                print(
+                    f"Cannot make {n} {cls_name} locations with r={radius} inside {self.class_name} with r={self.radius}. "
+                    f"Making only {len(possible_positions)} locations. Other points are random")
                 while len(possible_positions) != n:
                     _theta = np.random.randint(0, 360) * (2 * np.pi) / 360
                     possible_positions.append((self.px + (r1 - r2) * np.random.rand() * np.cos(_theta),
@@ -314,9 +316,9 @@ class Location:
                 MovementEngine.set_movement_method(transporting_location, p)
                 # Logger.log(f"# {p} cannot leave {self} and goto {p.get_next_target()} (No transport) "
                 #            f"Route:{p.current_target_idx}/{len(p.route)} (destination:{p.all_destinations[p.ID]})", 'c')
-            if not can_go_out_containment:
-                Logger.log(f"# {p} cannot leave {self} and goto {p.get_next_target()} (Contained) "
-                           f"Route:{p.current_target_idx}/{len(p.route)}", 'd')
+            # if not can_go_out_containment:
+            #     Logger.log(f"# {p} cannot leave {self} and goto {p.get_next_target()} (Contained) "
+            #                f"Route:{p.current_target_idx}/{len(p.route)}", 'd')
 
     def can_enter(self, p):
         from backend.python.transport.MovementByTransporter import MovementByTransporter
@@ -336,7 +338,7 @@ class Location:
         return True
 
     def on_destination_reached(self, p):
-        Logger.log(f"Destination {self} reached by {p}", 'd')
+        # Logger.log(f"Destination {self} reached by {p}", 'd')
         p.set_point_destination(None)
         self.enter_person(p)
 
@@ -354,8 +356,8 @@ class Location:
             latched_text = ''
         else:
             latched_text = f' latched with {p.latched_to.ID}'
-        Logger.log(f"Entered {p.ID} to {self.name} using {p.current_trans}{latched_text}. [{p.get_next_target()}].",
-                   'd')
+        # Logger.log(f"Entered {p.ID} to {self.name} using {p.current_trans}{latched_text}. [{p.get_next_target()}].",
+        #            'd')
 
         current_loc_leave = self.get_leaving_time(p, t)
         is_visiting = True
@@ -396,16 +398,16 @@ class Location:
                     # Move to next location to each next target.
                     # move to parent location because we can't add to current location and we can move down the tree
 
-                    Logger.log(f"CAPACITY reached on {self} when entering person {p.ID}! "
-                               f"All:{len(self.is_visiting)} "
-                               f"Visiting:{sum(self.is_visiting)} "
-                               f"Staying:{len(self.is_visiting) - sum(self.is_visiting)} "
-                               f"Capacity:{self.capacity}", 'e')
+                    # Logger.log(f"CAPACITY reached on {self} when entering person {p.ID}! "
+                    #            f"All:{len(self.is_visiting)} "
+                    #            f"Visiting:{sum(self.is_visiting)} "
+                    #            f"Staying:{len(self.is_visiting) - sum(self.is_visiting)} "
+                    #            f"Capacity:{self.capacity}", 'e')
                     if self.parent_location is not None:
-                        next_location = MovementEngine.find_next_location(p)
-                        Logger.log(f"Person {p.ID} will be removed from current location {self} "
-                                   f"and it will be added to parent location {self.parent_location}"
-                                   f"to reach {next_location}.", 'c')
+                        # next_location = MovementEngine.find_next_location(p)
+                        # Logger.log(f"Person {p.ID} will be removed from current location {self} "
+                        #            f"and it will be added to parent location {self.parent_location}"
+                        #            f"to reach {next_location}.", 'c')
                         self.parent_location.enter_person(p)
 
                         # todo bug: if p is in home, when cap is full current_loc jump to self.parent

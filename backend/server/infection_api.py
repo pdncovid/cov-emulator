@@ -1,6 +1,5 @@
 import json
 import matplotlib
-
 matplotlib.use('Agg')
 from flask_restful import Resource, reqparse
 import matplotlib.pyplot as plt
@@ -20,61 +19,107 @@ class ContactHandler(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('dir', type=str)
-        parser.add_argument('group_by', type=str)
+        parser.add_argument('group_by1', type=str)
+        parser.add_argument('group_by2', type=str)
         parser.add_argument('start_day', type=str)
         parser.add_argument('end_day', type=str)
         args = parser.parse_args()
         request_dir = args['dir']
-        request_group = args['group_by']
         request_start_day = int(args['start_day'])
         request_end_day = int(args['end_day'])
 
+        contact1_group = args['group_by1']
+        contact2_group = args['group_by2']
+
+        # filter requested days
         day_info = Loader.get_day_file_names_sorted(request_dir)
-        day_info = [x for x in day_info if request_start_day <= int(re.search("[0-9]{5}", x).group())<= request_end_day]
+        day_info = [x for x in day_info if
+                    request_start_day <= int(re.search("[0-9]{5}", x).group()) <= request_end_day]
+
+        # load person and location info
         df_p = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
         df_p = df_p.set_index('person')
         df_l = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_location_info')
+        df_l = df_l.set_index('id')
 
-        def pID2requesetGroupMap(ID):
-            # map from ID of the person to requested group
-            if request_group == 'age':
+        def loadContactDfOnDay(day):
+            _df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day).group()), '')
+            _df = _df[['person', 'time', 'current_location_id', 'current_location_class']]
+            _dfc = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day).group()), '_contact_info')
+            _dfc = _dfc[['n_contacts', 'contacts']]
+            _df = pd.concat([_df, _dfc], axis=1)
+            return _df
+
+        df = loadContactDfOnDay(day_info[0])
+
+        def getMapFunction(g, _df):
+            def f_age(x):
                 gap = 5
-                age = int((df_p.loc[ID, request_group] // gap) * gap)
+                age = int((df_p.loc[x, 'age'] // gap) * gap)
                 return str(age) + "-" + str(age + gap)
-            if request_group == 'person':
-                return ID
-            return df_p.loc[ID, request_group]
 
-        group_names = df_p.index.map(pID2requesetGroupMap).unique()
-        con_df = pd.DataFrame(index=group_names, columns=group_names).fillna('')
-        count_df = pd.DataFrame(index=group_names, columns=['count']).fillna(0)
+            if g == 'age':
+                return f_age
+            if g == 'person':
+                return lambda x: x
+            if g in df_p.columns:
+                return lambda x: df_p.loc[x, g]
+            if g in _df.columns:
+                return lambda x: _df.loc[x, g]  # df err
+
+        def getAllPossibleValues(g):
+            if 'loc_class' in g or 'location_class' in g:
+                return df_l['class'].unique()
+            if 'loc_id' in g or 'location_id' in g:
+                return df_l['id'].unique()
+            return df_p.index.map(getMapFunction(g, df)).unique()
+
+        contact1_group_names = getAllPossibleValues(contact1_group)
+        contact2_group_names = getAllPossibleValues(contact2_group)
+        con_df = pd.DataFrame(index=contact1_group_names, columns=contact2_group_names).fillna('')
+        count_df = pd.DataFrame(index=contact1_group_names, columns=['count']).fillna(0)
 
         for pi in day_info:
-            print(f'Processing day {pi}')
-            df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '_contact_info')
-            df = df.loc[df['n_contacts'] > 0]
+            df = loadContactDfOnDay(pi)
+            df: pd.DataFrame = df.loc[df['n_contacts'] > 0]
             df['contacts'] = df['contacts'].map(lambda x: list(map(int, map(float, str(x).split(' ')))))
-            day_con_df = pd.DataFrame(index=group_names, columns=group_names).fillna(0)
 
-            for idx, row in df[['person', 'contacts', 'n_contacts']].iterrows():
-                pid, contacts = row['person'], pd.Series(row['contacts'])
-                contacts = contacts.map(pID2requesetGroupMap)
-                counts = contacts.value_counts()
-                for group_name in counts.index:
-                    day_con_df.loc[pID2requesetGroupMap(pid), group_name] += counts[group_name]
-            for group_name1 in group_names:
-                for group_name2 in group_names:
+            day_con_df = pd.DataFrame(index=contact1_group_names, columns=contact2_group_names).fillna(0)
+
+            # print(df)
+            dfg = df.groupby('time')
+            for t in dfg.groups:
+                _df = dfg.get_group(t)
+                _df = _df.set_index('person')
+                contact1_group_mapper = getMapFunction(contact1_group, _df)
+                contact2_group_mapper = getMapFunction(contact2_group, _df)
+                print(f'\r {pi} {t}', end='')
+                for pid, row in _df.iterrows():
+                    contacts = row['contacts']
+                    for i in range(len(contacts)):
+                        contacts[i] = contact2_group_mapper(contacts[i])
+                    counts = pd.Series(contacts).value_counts()
+                    for group_name in counts.index:
+                        day_con_df.loc[contact1_group_mapper(pid), group_name] += counts[group_name]
+            for group_name1 in contact1_group_names:
+                for group_name2 in contact2_group_names:
                     con_df.loc[group_name1, group_name2] += ' ' + str(day_con_df.loc[group_name1, group_name2])
-        df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", day_info[0]).group()), '_person_info')
-        for pid in df['person']:
-            count_df.loc[pID2requesetGroupMap(pid), 'count'] += 1
-        m = getMap(request_group, request_dir)
-        if m is None:
-            m = {i: i for i in con_df.index}
 
-        con_df = con_df.rename(columns={i: m[i] for i in con_df.index})
-        con_df.index = [m[i] for i in con_df.index]
-        count_df.index = [m[i] for i in count_df.index]
+        # df = loadContactDfOnDay(day_info[0])
+        # contact1_group_mapper = getMapFunction(contact1_group, df)
+        # for pid in df_p.index:
+        #     count_df.loc[contact1_group_mapper(pid), 'count'] += 1
+
+        m1 = getMap(contact1_group, request_dir)
+        m2 = getMap(contact2_group, request_dir)
+        if m1 is None:
+            m1 = {i: i for i in con_df.index}
+        if m2 is None:
+            m2 = {i: i for i in con_df.columns}
+
+        con_df = con_df.rename(columns={i: m2[i] for i in con_df.columns})
+        con_df.index = [m1[i] for i in con_df.index]
+        count_df.index = [m1[i] for i in count_df.index]
 
         con_df = con_df.sort_index()
         con_df = con_df.reindex(sorted(con_df.columns), axis=1)
@@ -83,7 +128,8 @@ class ContactHandler(Resource):
         print(count_df)
         return {'status': 'SUCCESS',
                 'contacts': con_df.to_csv(index=False),
-                'count': count_df.to_csv(index=False)
+                'count': count_df.to_csv(index=False),
+                'index': list(con_df.index)
                 }
 
 
@@ -114,15 +160,13 @@ class LocationContactHandler(Resource):
             df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '')
             df = df[['person', 'current_location_id', 'current_location_class']]
             dfc = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '_contact_info')[
-                ['n_contacts', 'contacts']]
+                ['n_contacts']]
             df = pd.concat([df, dfc], axis=1)
 
             df = df.loc[df['n_contacts'] > 0]
-            df['contacts'] = df['contacts'].map(lambda x: list(map(int, map(float, str(x).split(' ')))))
 
-            for idx, row in df[
-                ['person', 'contacts', 'n_contacts', 'current_location_id', 'current_location_class']].iterrows():
-                lid, contacts = row['current_location_id'], list(row['contacts'])
+            for idx, row in df[['person', 'n_contacts', 'current_location_id']].iterrows():
+                lid = row['current_location_id']
                 con_df.loc[lid, 'contacts'][-1] += row['n_contacts']
             for lid in df_l.index:
                 con_df.loc[lid, 'contacts'].append(0)
@@ -188,15 +232,14 @@ class PersonContactHandler(Resource):
             df = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '')
             df = df[['person', 'current_location_id', 'current_location_class']]
             dfc = Loader.getFile(request_dir, int(re.search("[0-9]{5}", pi).group()), '_contact_info')[
-                ['n_contacts', 'contacts']]
+                ['n_contacts']]
             df = pd.concat([df, dfc], axis=1)
 
             df = df.loc[df['n_contacts'] > 0]
-            df['contacts'] = df['contacts'].map(lambda x: list(map(int, map(float, str(x).split(' ')))))
 
             for idx, row in df[
-                ['person', 'contacts', 'n_contacts', 'current_location_id', 'current_location_class']].iterrows():
-                pid, contacts = row['person'], list(row['contacts'])
+                ['person', 'n_contacts', ]].iterrows():
+                pid = row['person']
                 con_df.loc[pid, 'contacts'][-1] += row['n_contacts']
             for pid in df_p.index:
                 con_df.loc[pid, 'contacts'].append(0)
@@ -257,7 +300,7 @@ class InfectionHandler(Resource):
             if request_group == 'age':
                 gap = 5
                 age = int((df_p.loc[ID, request_group] // gap) * gap)
-                return f"{age:02d} - {age+gap:02d}"
+                return f"{age:02d} - {age + gap:02d}"
             if request_group == 'person':
                 return ID
             return df_p.loc[ID, request_group]
@@ -382,7 +425,7 @@ class PeopleStateTimelineHandler(Resource):
             newdf["Simulation"] = newdf["Simulation"].apply(lambda x: x[:-19])
         xlim = newdf["Time"].max()
         # xlim=40
-        newdf = newdf.loc[newdf["Time"]<=xlim]
+        newdf = newdf.loc[newdf["Time"] <= xlim]
         print(newdf)
 
         # plot using sns
@@ -393,7 +436,7 @@ class PeopleStateTimelineHandler(Resource):
         style = {key: value for key, value in zip(newdf["Simulation"].unique(), dash_list)}
         lines = {}
         text_y_r = 2
-        text_y = newdf["Value"][newdf["Value"]!=np.inf].max() / text_y_r
+        text_y = newdf["Value"][newdf["Value"] != np.inf].max() / text_y_r
         for i, req_dir in enumerate(request_dirs):
             dir_args = getArgs(req_dir)
             if request_group_curves:
@@ -469,7 +512,7 @@ class PeopleStateTimelineHandler(Resource):
                                     constrained_layout=True)
             for i, param in enumerate(request_params):
                 subdf = newdf.loc[newdf["Parameter"] == param]
-                text_y = subdf["Value"][subdf["Value"]!=np.inf].max() / text_y_r
+                text_y = subdf["Value"][subdf["Value"] != np.inf].max() / text_y_r
                 sns.lineplot(data=subdf, x="Time", y="Value", hue="Simulation", ax=axs[i])
                 axs[i].set_ylabel(prefix + (param.split("_")[0] if '_' in param else param).lower())
                 axs[i].set_xlabel("")

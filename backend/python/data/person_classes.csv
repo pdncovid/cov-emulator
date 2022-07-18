@@ -1,0 +1,17 @@
+p_class,w_loc,age_min,age_max,main_trans,max_passengers,default_percentage,hygiene_p
+BusDriver,BusStation,25,50,Bus,60.0,10.0,0.5
+CommercialWorker,CommercialWorkArea,20,60,,,15.0,0.5
+GarmentAdmin,GarmentOffice,35,60,,,2.0,0.5
+GarmentWorker,GarmentWorkArea,25,45,,,10.0,0.5
+Infant,,0,5,,,5.0,0.5
+Retired,,60,100,,,5.0,0.5
+Student,Classroom,5,19,,,12.0,0.5
+Teacher,Classroom,19,59,,,3.0,0.5
+TuktukDriver,TukTukStation,19,45,Tuktuk,3.0,5.0,0.5
+MedicalWorker,Hospital,20,60,,,10.0,0.5
+RetailShopWorker,RetailShops,20,70,,,3.0,0.5
+BankWorker,Bank,20,60,,,4.0,0.5
+AdministrativeWorkers,AdminWorkArea,20,60,,,2.0,0.5
+EstateWorkers,Estate,15,55,,,5.0,0.5
+PlantCultivators,PlantCultivateArea,25,55,,,2.0,0.5
+LivestockCultivators,LivestockCultivateArea,25,55,,,2.0,0.5

@@ -110,7 +110,7 @@ function HomePage() {
 
   useEffect(() => {
     if (persondata.length > 0)
-      setPersonPercentData([...persondata.map((e) => { return { 'p_class': e['p_class'], 'percentage': e['default_percentage'], 'ipercentage': 5 } })])
+      setPersonPercentData([...persondata.map((e) => { return { 'p_class': e['p_class'], 'percentage': e['default_percentage'], 'ipercentage': 0 } })])
   }, [persondata])
 
   useEffect(() => {

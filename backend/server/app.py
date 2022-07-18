@@ -77,7 +77,7 @@ class PossibleGroupsHandler(Resource):
                          'person_class',
                          'age',
                          'gender',
-
+                         'current_location_class'
                          ]
                 }
 
@@ -99,7 +99,7 @@ class PerformanceHandler(Resource):
             df_p = Loader.getFile(folder, 0, '_person_info')
             df_all = df_all.append(pd.DataFrame({"Population": [len(df_p)] * len(df),
                                                  "CPU Time": df['cpu_time'].values,
-                                                 "Memory": df['mem'].values/1024/1024}))
+                                                 "Memory": df['mem'].values / 1024 / 1024}))
             df_final = df_final.append(pd.DataFrame([{'Population': len(df_p),
                                                       'Avg. CPU Time': df['cpu_time'].mean(),
                                                       'Std. CPU Time': df['cpu_time'].std(),

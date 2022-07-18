@@ -85,11 +85,12 @@ class MovementByTransporter(Movement):
                 des = path2next_tar[i]
         return best, des
 
-    def try_to_latch_people(self, location):
-        transporters = []
-        for p in location.points:
-            if isinstance(p, Transporter):
-                transporters.append(p)
+    def try_to_latch_people(self, location, transporter):
+        transporters = [transporter]
+        # commented below for speed test. Check if other transporters need to be checked
+        # for p in location.points:
+        #     if isinstance(p, Transporter):
+        #         transporters.append(p)
 
         for p in location.points:  # check for all points in the current location
             if isinstance(p, Transporter):

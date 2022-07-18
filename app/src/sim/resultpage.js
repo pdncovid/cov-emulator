@@ -36,7 +36,7 @@ import DirSelect from "../components/DirSelect";
 import DataFrame from 'dataframe-js';
 import axios from 'axios'
 import { api } from '../utils/constants';
-import { Box, TextField } from "@material-ui/core";
+import { Box, Menu, TextField } from "@material-ui/core";
 
 function ResultsPage() {
     const height = 500;
@@ -83,6 +83,9 @@ function ResultsPage() {
 
     const [contactData3D, setContactData3D] = useState([]);
     const [contactLayout3D, setContactLayout3D] = useState([]);
+    const [groupNames, setGroupNames] = useState([]);
+    const [contactHistTraces, setContactHistTraces] = useState([]);
+    const [contactLineTraces, setContactLineTraces] = useState([]);
 
     const [contactLocHistData, setContactLocHistData] = useState([]);
     const [contactLocHistLayout, setContactLocHistLayout] = useState([]);
@@ -1215,18 +1218,24 @@ function ResultsPage() {
 
     // plot number of contacts grouped
     function plotNumberOfContacts() {
-        axios.post(api + "/flask/contacts", { dir: selectedLogDir, group_by: selectedGroup, start_day: document.getElementById("cstart_day").value, end_day: document.getElementById("cend_day").value })
+        axios.post(api + "/flask/contacts", {
+            dir: selectedLogDir, group_by1: document.getElementById("select-group1").textContent,
+            group_by2: document.getElementById("select-group2").textContent, start_day: document.getElementById("cstart_day").value, end_day: document.getElementById("cend_day").value
+        })
             .then(function (response) {
                 const contactData = response.data.contacts;
                 const countData = response.data.count;
+                const index = response.data.index;
                 csv2JSONarr(contactData, (pr) => { }).then((json_data) => {
                     var _df = new DataFrame(json_data)
                     console.log("Contacts", _df)
                     csv2JSONarr(countData, (pr) => { }).then((json_data) => {
                         var count_df = new DataFrame(json_data)
                         console.log("Contact group count", count_df)
-                        let count_df_arr = count_df.select('count').toArray().map((e) => e[0])
-                        let group_names = _df.listColumns();
+                        let count_df_arr = count_df.select('count').toArray().map((e) => e[0] + 1)
+                        let group_names2 = _df.listColumns();
+                        let group_names1 = index;
+                        setGroupNames(group_names1)
                         let x = []
                         let y = []
                         let z = []
@@ -1235,9 +1244,9 @@ function ResultsPage() {
                         let _df_arr = _df.toArray()
                         var max_v = 0;
                         console.log(_df, _df_arr)
-                        for (var X = 0; X < group_names.length; X++) {
+                        for (var X = 0; X < group_names1.length; X++) {
                             heatMap.push([])
-                            for (var Y = 0; Y < group_names.length; Y++) {
+                            for (var Y = 0; Y < group_names2.length; Y++) {
                                 var vals = _df_arr[X][Y].split(' ')//.map(Math.log)
                                 var tot_con = 0
                                 for (var Z = 0; Z < vals.length; Z++) {
@@ -1251,6 +1260,7 @@ function ResultsPage() {
                                 heatMap[heatMap.length - 1].push(tot_con / count_df_arr[X] / vals.length)
                             }
                         }
+                        console.log("heatmap", heatMap)
                         let plotData = [{
                             type: 'volume',
                             x: x,
@@ -1291,33 +1301,33 @@ function ResultsPage() {
                         var axis = 1;
                         var subplots = [];
                         var annotations = []
-                        for (var X = 0; X < group_names.length; X++) {
+                        for (var X = 0; X < group_names1.length; X++) {
                             var yaxis = 'y' + axis
                             if (axis == 1) {
                                 yaxis = 'y'
                             }
-                            for (var Y = 0; Y < group_names.length; Y++) {
+                            for (var Y = 0; Y < group_names2.length; Y++) {
                                 var vals = _df_arr[X][Y].split(' ')//.map(Math.log)
                                 line_traces.push({
                                     y: vals,
-                                    name: group_names[Y],
+                                    name: group_names2[Y],
                                     type: "line",
                                     xaxis: 'x',
                                     yaxis: yaxis,
-                                    legendgroup: axis
+                                    legendgroup: group_names1[X]
                                 })
                                 hist_traces.push({
                                     x: vals,
                                     xaxis: 'x',
                                     yaxis: yaxis,
-                                    name: group_names[Y],
+                                    name: group_names2[Y],
                                     type: "histogram",
-                                    legendgroup: axis
+                                    legendgroup: group_names1[X]
                                 })
                             }
                             subplots.push(['x' + yaxis])
                             annotations.push({
-                                text: group_names[X],
+                                text: group_names1[X],
                                 showarrow: false,
                                 align: 'center',
                                 x: 0.1,
@@ -1327,10 +1337,12 @@ function ResultsPage() {
                             })
                             axis++
                         }
+                        setContactHistTraces(hist_traces)
+                        setContactLineTraces(line_traces)
                         Plotly.newPlot("contactTime2D", line_traces, {
                             title: 'Number of contacts for each group throughout time',
                             width: width,
-                            height: height,
+                            height: height * 2,
                             annotations: [...annotations, {
                                 y: 0.5,
                                 x: -0.1,
@@ -1342,7 +1354,7 @@ function ResultsPage() {
                             }],
                             grid: {
                                 subplots: subplots,
-                                rows: group_names.length,
+                                rows: group_names1.length,
                                 columns: 1,
                                 pattern: 'independent',
                             },
@@ -1362,7 +1374,7 @@ function ResultsPage() {
                         Plotly.newPlot("contactHist2D", hist_traces, {
                             title: 'Frequency of contacts per day for each group',
                             width: width,
-                            height: height,
+                            height: height * 2,
                             barmode: 'stack',
                             annotations: [...annotations, {
                                 y: 0.5,
@@ -1374,7 +1386,7 @@ function ResultsPage() {
                                 textangle: -90
                             }], grid: {
                                 subplots: subplots,
-                                rows: group_names.length,
+                                rows: group_names1.length,
                                 columns: 1,
                                 pattern: 'independent',
                             },
@@ -1391,9 +1403,10 @@ function ResultsPage() {
                             },
                             // editable: true
                         })
+
                         Plotly.newPlot("contactHeatMap2D", [{
-                            x: group_names,
-                            y: group_names,
+                            x: group_names1,
+                            y: group_names2,
                             z: heatMap,
                             type: 'heatmap'
                         }], {
@@ -2149,18 +2162,38 @@ function ResultsPage() {
                     <TextField id="cstart_day" label="Start day" />
                     <TextField id="cend_day" label="End day" />
                     <div class='container'>
-                        <Select
-                            id="select-group"
-                            value={selectedGroup}
-                            onChange={(e) => { setSelectedGroup(e.target.value) }}
+                        {/* <Select
+                            id="select-group1"
+                            // value={selectedGroup}
+                            // onChange={(e) => { textContent = (e.target.value) }}
                             label="Selected Log"
-                            width={300}
                         >
                             {groupOptions.map((e) => {
                                 return (<MenuItem value={e} key={e}>{e}</MenuItem>);
                             })}
 
-                        </Select>
+                        </Select> */}
+                        <TextField select label="select-group1" id="select-group1">
+                            {groupOptions.map((e) => {
+                                return (<MenuItem value={e} key={e}>{e}</MenuItem>);
+                            })}
+                        </TextField>
+                        <TextField select label="select-group2" id="select-group2">
+                            {groupOptions.map((e) => {
+                                return (<MenuItem value={e} key={e}>{e}</MenuItem>);
+                            })}
+                        </TextField>
+                        {/* <Select
+                            id="select-group2"
+                            // value={selectedGroup}
+                            // onChange={(e) => { textContent = (e.target.value) }}
+                            label="Selected Log"
+                        >
+                            {groupOptions.map((e) => {
+                                return (<MenuItem value={e} key={e}>{e}</MenuItem>);
+                            })}
+
+                        </Select> */}
 
                         <Button onClick={plotNumberOfContacts}>Plot Contact Graphs</Button>
                     </div>
@@ -2175,6 +2208,38 @@ function ResultsPage() {
                         <Grid container xs={6}>
                             <div id="contactHeatMap2D"></div>
                         </Grid>
+
+                        <Grid container xs={12} alignContent="stretch" alignItems="stretch">
+                            <Grid item xs={12}>
+                                <Select id="select-contact-group" label="Filter by group" onChange={(e) => {
+                                    var histTraces = []
+                                    var lineTraces = []
+                                    contactHistTraces.forEach((t) => {
+                                        if (t.legendgroup == e.target.value)
+                                            histTraces.push({ ...t, yaxis: 'y', legendgroup: null })
+                                    })
+                                    contactLineTraces.forEach((t) => {
+                                        if (t.legendgroup == e.target.value)
+                                            lineTraces.push({ ...t, yaxis: 'y', legendgroup: null })
+                                    })
+                                    Plotly.newPlot("contactTime2D", lineTraces, {
+                                        title: 'Number of contacts for each group throughout time',
+                                        width: width,
+                                        height: height,
+                                        xaxis: { title: 'Days' },
+                                    })
+                                    Plotly.newPlot("contactHist2D", histTraces, {
+                                        width: width,
+                                        height: height,
+                                        xaxis: { title: 'Days' },
+                                    })
+                                }}>
+                                    {groupNames.map((e) => { return (<MenuItem value={e} key={e}>{e}</MenuItem>); })}
+                                </Select>
+                            </Grid>
+                        </Grid>
+
+
                         <Grid container xs={6}>
                             <div id="contactTime2D"></div>
                         </Grid>

@@ -70,13 +70,13 @@ class Logger:
 
     @staticmethod
     def log(message, _type='d'):
-        if _type == 'd':
-            Logger._logger.debug('D: ' + message)
-        elif _type == 'i':
-            Logger._logger.info('I: ' + message)
-        elif _type == 'w':
-            Logger._logger.warn('W: ' + message)
-        elif _type == 'e':
+        # if _type == 'd':
+        #     Logger._logger.debug('D: ' + message)
+        # if _type == 'i':
+        #     Logger._logger.info('I: ' + message)
+        # if _type == 'w':
+        #     Logger._logger.warn('W: ' + message)
+        if _type == 'e':
             Logger._logger.error('E: ' + message)
         elif _type == 'c':
             Logger._logger.critical('C: ' + message)

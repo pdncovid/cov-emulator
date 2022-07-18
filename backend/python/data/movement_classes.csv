@@ -1,0 +1,6 @@
+m_class,velocity_cap,destination_reach_eps,override_level,transport_transmission_p,is_transport
+Bus,30,10,10,0.6,1
+Car,40,2,2,0.0,0
+Tuktuk,30,10,9,0.3,1
+Walk,2,1,0,1.0,0
+Taxi,40,10,4,0.1,1

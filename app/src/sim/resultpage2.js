@@ -295,7 +295,7 @@ function ResultsPage2() {
 
                     setPersonPathFrames(t.map(t => ({
                         name: t,
-                        data: data2.map((e) => ({ 'transforms[0].value': t, 'transforms[1].value': Math.max(0, t - 10) }))
+                        data: data2.map((e) => ({ 'transforms[0].value': t, 'transforms[1].value': Math.max(0, t - 3) }))
                     })))
                 });
             }).catch(error => {

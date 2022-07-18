@@ -9,6 +9,8 @@ from backend.python.transport.Movement import Movement
 
 
 class Transporter(Person):
+    eps = 5  # depend on vehicle size??
+    delta = 0.9  # depend on vehicle ??
 
     def __init__(self, class_info, **kwargs):
         from backend.python.transport.MovementByTransporter import MovementByTransporter
@@ -27,12 +29,14 @@ class Transporter(Person):
         # if isinstance(point, Transporter):
         if self.home_loc == loc or self.home_weekend_loc == loc:  # don't try to latch. o.w. Latch when resetting!!!
             return
-        self.main_trans.try_to_latch_people(loc)
+        self.main_trans.try_to_latch_people(loc, self)
 
     def on_enter_home(self):
         # self.current_trans = self.home_loc.override_transport
         if len(self.latched_people) != 0 and self.current_target_idx == len(self.route) - 1:
-            Logger.log(f"People ({len(self.latched_people)}) are latched to transporter when the transporter is going home!", 'c')
+            Logger.log(
+                f"People ({len(self.latched_people)}) are latched to transporter when the transporter is going home!",
+                'c')
             self.force_delatch_and_teleport_all()
 
     # override
@@ -52,11 +56,16 @@ class Transporter(Person):
             MovementEngine.process_people_switching(self.get_current_location().points, t)
 
     # override
-    def set_position(self, new_x, new_y, force=False, eps=2):
-        self.features[self.ID, PF_px] = new_x
-        self.features[self.ID, PF_py] = new_y
+    def set_position(self, new_x, new_y, force=False):
+        dx, dy = new_x - self.features[self.ID, PF_px], new_y - self.features[self.ID, PF_py]
+        self.features[self.ID, PF_px] += dx
+        self.features[self.ID, PF_py] += dy
+
         for latched_p in self.latched_people:
-            latched_p.set_position(new_x+np.random.rand()*eps, new_y+np.random.rand()*eps, True)
+            x, y = self.features[latched_p.ID, PF_px], self.features[latched_p.ID, PF_py]
+            x += dx + np.random.rand()*2 - 1
+            y += dy + np.random.rand()*2 - 1
+            latched_p.set_position(x, y, True)
 
     # override
     def set_infected(self, t, p, loc, common_p, variant_name=None):
@@ -101,6 +110,9 @@ class Transporter(Person):
             self.latched_people.append(p)
             self.latched_dst.append(des)
             p.latched_to = self
+            x, y = Person.features[self.ID, PF_px], Person.features[self.ID, PF_py]
+            p.set_position(x + Transporter.delta + abs(np.random.rand() * Transporter.eps),
+                           y + + Transporter.delta + abs(np.random.rand() * Transporter.eps), True)
             Logger.log(f"{p.ID} latched to {self.ID}", 'w')
             return True
         else:
@@ -115,11 +127,12 @@ class Transporter(Person):
     def force_delatch_and_teleport_all(self):
         if len(self.latched_people) == 0:
             return
-        Logger.log(f"Forcefully delatching {len(self.latched_people)} from {self.ID}",'d')
+        Logger.log(f"Forcefully delatching {len(self.latched_people)} from {self.ID}", 'd')
         while len(self.latched_people) != 0:
             self.delatch(0, self.latched_people[0].route[-1].loc)
-        if len(self.latched_people)>0:
+        if len(self.latched_people) > 0:
             raise Exception("WHAT?")
+
     def delatch(self, idx, loc):
         if type(idx) != int:
             idx = self.latched_people.index(idx)
@@ -135,7 +148,7 @@ class Transporter(Person):
         # get next target and if p cannot goto it using current moving loc
         # transport keep the main trans as the current transport. otherwise people will be stuck in another district.
         from backend.python.MovementEngine import MovementEngine
-        if MovementEngine.find_lcp_location(p) != p.get_current_location(): # target is not here. have to go out.
+        if MovementEngine.find_lcp_location(p) != p.get_current_location():  # target is not here. have to go out.
             loc.leave_this_location(p)
 
             # MovementEngine.find_next_location(p).enter_person(p)

@@ -222,6 +222,7 @@ class ActualLocationHistHandler(Resource):
                 df_prev = df_prev[[request_groupBy, "time"]]
                 df_prev_gr = df_prev.groupby(request_groupBy)
         except Exception as e:
+            print(e)
             abort(500)
             return
 

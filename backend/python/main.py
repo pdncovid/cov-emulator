@@ -136,7 +136,6 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
             print(f"initializing {t}")
             MovementEngine.move_people(Person.all_people)
 
-    Logger.log(f"{len(people)} {count_graph_n(root)}", 'i')
     Logger.log(f"{len(people)} {count_graph_n(root)}", 'c')
 
     # ============================================================================================== main iteration loop
@@ -176,11 +175,11 @@ def executeSim(people, root, containment_events, gather_events, vaccinate_events
             if iteration > 0:
                 # ================================================================================= process transmission
                 n_con, contacts, new_infected = TransmissionEngine.disease_transmission(people, args.inf_radius, analyze_infect_contacts_only, log_fine_details)
-                Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
+                # Logger.log(f"{len(new_infected)}/{sum(n_con > 0)}/{int(sum(n_con))} Infected/Unique/Contacts", 'i')
 
                 # ======================================================================== process happiness and economy
-                delta_eco_status = CharacterEngine.update_economy(people, args)
-                CharacterEngine.update_happiness(people, delta_eco_status, day_t_instances[:, 2, :].astype(int), args)
+                # delta_eco_status = CharacterEngine.update_economy(people, args)
+                # CharacterEngine.update_happiness(people, delta_eco_status, day_t_instances[:, 2, :].astype(int), args)
 
             # ===========================================================================disease progression within host
             CovEngine.process_disease_state(people, t, cemetery)
